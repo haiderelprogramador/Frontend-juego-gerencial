@@ -1,0 +1,24 @@
+<div class="app-shell">
+  <header class="topbar">
+    <div class="topbar__brand">
+      <span class="topbar__mark">JG</span>
+      <span class="topbar__name">Juego Gerencial · Panel del docente</span>
+    </div>
+
+    <nav class="topbar__nav">
+      <a routerLink="/docente/panel" routerLinkActive="is-active">Inicio</a>
+      <a routerLink="/docente/gestion-estudiantes" routerLinkActive="is-active">Estudiantes</a>
+    </nav>
+
+    <div class="topbar__user">
+      @if (usuario(); as u) {
+        <span class="topbar__user-name">{{ u.nombre }}</span>
+      }
+      <button type="button" class="btn btn--ghost" (click)="salir()">Salir</button>
+    </div>
+  </header>
+
+  <main class="app-content">
+    <router-outlet />
+  </main>
+</div>

@@ -1,0 +1,25 @@
+.alerta {
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  border: 1px solid transparent;
+
+  &--info {
+    background: #eef2f7;
+    border-color: #d8dee7;
+    color: #3f4b5b;
+  }
+
+  &--exito {
+    background: #e8f6ee;
+    border-color: #bfe4cd;
+    color: #1f7a44;
+  }
+
+  &--error {
+    background: #fdecec;
+    border-color: #f4c9c9;
+    color: #b3261e;
+  }
+}

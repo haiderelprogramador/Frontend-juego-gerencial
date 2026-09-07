@@ -2,19 +2,18 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 
-import { App } from './app';
-import { routes } from './app.routes';
+import { Panel } from './panel';
 
-describe('App', () => {
+describe('Panel', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [App],
-      providers: [provideRouter(routes), provideHttpClient()],
+      imports: [Panel],
+      providers: [provideRouter([]), provideHttpClient()],
     }).compileComponents();
   });
 
-  it('should create the app', () => {
-    const fixture = TestBed.createComponent(App);
+  it('se crea', () => {
+    const fixture = TestBed.createComponent(Panel);
     expect(fixture.componentInstance).toBeTruthy();
   });
 });

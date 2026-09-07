@@ -1,0 +1,20 @@
+<section class="panel">
+  @if (usuario(); as u) {
+    <h2 class="panel__title">Hola, {{ u.nombre }}</h2>
+  }
+  <p class="panel__lead">Desde aquí administras a los estudiantes del simulador.</p>
+
+  <div class="panel__cards">
+    <a class="card" routerLink="/docente/gestion-estudiantes">
+      <h3 class="card__title">Cargar estudiantes</h3>
+      <p class="card__text">
+        Sube un archivo Excel con el listado. El sistema genera automáticamente la
+        contraseña de cada estudiante y te muestra una previsualización antes de confirmar.
+      </p>
+      <span class="card__cta">Ir a la carga masiva →</span>
+    </a>
+
+    <!-- TODO: confirmar con el cliente el resto de secciones del panel del docente
+         (escenarios, catálogo de decisiones, cierre de período, resultados…). -->
+  </div>
+</section>

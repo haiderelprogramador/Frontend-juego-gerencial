@@ -1,0 +1,4 @@
+<p class="alerta" [class.alerta--info]="tipo() === 'info'" [class.alerta--exito]="tipo() === 'exito'"
+  [class.alerta--error]="tipo() === 'error'" role="status">
+  {{ mensaje() }}
+</p>
