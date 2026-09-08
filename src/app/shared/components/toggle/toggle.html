@@ -1,0 +1,7 @@
+<button type="button" class="toggle" role="switch" [attr.aria-checked]="valor()" [disabled]="disabled()"
+  [class.toggle--on]="valor()" (click)="alternar()">
+  <span class="toggle__track"><span class="toggle__thumb"></span></span>
+  @if (etiqueta()) {
+    <span class="toggle__label">{{ etiqueta() }}</span>
+  }
+</button>

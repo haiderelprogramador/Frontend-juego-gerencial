@@ -1,0 +1,53 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  border: 1px solid transparent;
+
+  &__dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  &--neutro {
+    background: var(--bs-surface-2);
+    border-color: var(--bs-border);
+    color: var(--bs-muted);
+  }
+  &--estudiante {
+    background: var(--bs-primary-soft);
+    color: var(--bs-primary-strong);
+  }
+  &--docente {
+    background: var(--bs-produccion-soft);
+    color: var(--bs-produccion);
+  }
+  &--periodo-abierto,
+  &--simulacion-activa,
+  &--exito {
+    background: var(--bs-success-soft);
+    color: var(--bs-success);
+  }
+  &--pendiente {
+    background: var(--bs-warning-soft);
+    color: var(--bs-warning);
+  }
+  &--cerrado,
+  &--peligro {
+    background: var(--bs-danger-soft);
+    color: var(--bs-danger);
+  }
+  &--trimestre {
+    background: var(--bs-surface-2);
+    border-color: var(--bs-border);
+    color: var(--bs-foreground);
+  }
+}

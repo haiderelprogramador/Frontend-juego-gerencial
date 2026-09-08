@@ -12,23 +12,42 @@ import { Rol } from './core/models/rol.enum';
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'auth/login' },
 
-  // Zona pública (sin sesión): login + registro de docente, dentro del AuthLayout.
+  // Zona pública (sin sesión): login + registro, dentro del AuthLayout (2 columnas).
   {
     path: 'auth',
     loadComponent: () => import('./layout/auth-layout/auth-layout').then((m) => m.AuthLayout),
     loadChildren: () => import('./features/auth/auth.routes').then((m) => m.AUTH_ROUTES),
   },
 
-  // Zona del docente (con sesión y rol DOCENTE), dentro del MainLayout.
+  // Zona con sesión: todo dentro del AppShell (sidebar oscuro).
   {
-    path: 'docente',
-    canActivate: [authGuard, roleGuard(Rol.DOCENTE)],
-    loadComponent: () => import('./layout/main-layout/main-layout').then((m) => m.MainLayout),
-    loadChildren: () => import('./features/docente/docente.routes').then((m) => m.DOCENTE_ROUTES),
+    path: '',
+    canActivate: [authGuard],
+    loadComponent: () => import('./layout/app-shell/app-shell').then((m) => m.AppShell),
+    children: [
+      {
+        path: 'estudiante',
+        canActivate: [roleGuard(Rol.ESTUDIANTE)],
+        loadChildren: () =>
+          import('./features/estudiante/estudiante.routes').then((m) => m.ESTUDIANTE_ROUTES),
+      },
+      {
+        path: 'docente',
+        canActivate: [roleGuard(Rol.DOCENTE)],
+        loadChildren: () => import('./features/docente/docente.routes').then((m) => m.DOCENTE_ROUTES),
+      },
+      {
+        path: 'clasificacion',
+        loadChildren: () =>
+          import('./features/clasificacion/clasificacion.routes').then((m) => m.CLASIFICACION_ROUTES),
+      },
+      {
+        path: 'design-system',
+        loadChildren: () =>
+          import('./features/design-system/design-system.routes').then((m) => m.DESIGN_SYSTEM_ROUTES),
+      },
+    ],
   },
-
-  // TODO: confirmar con el cliente — feature 'estudiante' (panel del estudiante).
-  // { path: 'estudiante', canActivate: [authGuard, roleGuard(Rol.ESTUDIANTE)], ... }
 
   { path: '**', redirectTo: 'auth/login' },
 ];

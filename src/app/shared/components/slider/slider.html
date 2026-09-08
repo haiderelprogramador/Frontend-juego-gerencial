@@ -1,0 +1,11 @@
+<div class="slider" [attr.data-color]="color()">
+  <div class="slider__head">
+    @if (etiqueta()) {
+      <span class="slider__label">{{ etiqueta() }}</span>
+    }
+    <span class="slider__value num">{{ valorTexto() }}</span>
+  </div>
+  <input class="slider__input" type="range" [min]="min()" [max]="max()" [step]="step()"
+    [value]="valor()" [attr.aria-label]="etiqueta() || 'valor'"
+    [style.--slider-pct]="porcentaje()" (input)="onInput($event)" />
+</div>

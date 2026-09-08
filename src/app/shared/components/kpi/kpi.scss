@@ -1,0 +1,32 @@
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+
+  &__label {
+    font-size: 0.78rem;
+    color: var(--bs-muted);
+  }
+
+  &__value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--bs-foreground);
+  }
+
+  &__delta {
+    font-size: 0.76rem;
+    font-weight: 600;
+
+    &[data-trend='sube'] {
+      color: var(--bs-success);
+    }
+    &[data-trend='baja'] {
+      color: var(--bs-danger);
+    }
+    &[data-trend='neutro'] {
+      color: var(--bs-muted);
+    }
+  }
+}

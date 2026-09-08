@@ -1,0 +1,10 @@
+<div class="kpi card">
+  <span class="kpi__label">{{ etiqueta() }}</span>
+  <span class="kpi__value num">{{ valor() }}</span>
+  @if (variacion()) {
+    <span class="kpi__delta" [attr.data-trend]="tendencia()">
+      @if (tendencia() === 'sube') { ↑ } @else if (tendencia() === 'baja') { ↓ } @else { — }
+      {{ variacion() }}
+    </span>
+  }
+</div>

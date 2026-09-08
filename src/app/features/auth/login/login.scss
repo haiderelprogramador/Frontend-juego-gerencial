@@ -1,6 +1,50 @@
-/* El grueso de los estilos de formulario vive en styles.scss (compartido con
-   registro de docente). Aquí solo ajustes propios de la pantalla de login. */
-
 :host {
   display: block;
+}
+
+.auth-form {
+  /* base compartida en styles.scss; aquí solo lo propio del login */
+
+  &__role {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  &__role-opts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+
+    button {
+      padding: 0.5rem;
+      border: 1px solid var(--bs-border-strong);
+      border-radius: var(--bs-radius-sm);
+      background: #fff;
+      font: inherit;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--bs-muted);
+      cursor: pointer;
+
+      &.is-active {
+        border-color: var(--bs-primary);
+        background: var(--bs-primary-soft);
+        color: var(--bs-primary-strong);
+      }
+      &:focus-visible {
+        outline: 2px solid var(--bs-primary);
+        outline-offset: 1px;
+      }
+    }
+  }
+  &__forgot {
+    align-self: flex-end;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--bs-primary);
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }

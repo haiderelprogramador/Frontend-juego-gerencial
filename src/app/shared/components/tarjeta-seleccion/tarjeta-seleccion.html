@@ -1,0 +1,15 @@
+<div class="segmentado" [attr.data-color]="color()" role="radiogroup">
+  @for (op of opciones(); track op.valor) {
+    <label class="opcion" [class.opcion--activa]="valor() === op.valor">
+      <input type="radio" class="opcion__radio" [name]="nombre()" [value]="op.valor"
+        [checked]="valor() === op.valor" (change)="elegir(op.valor)" />
+      <span class="opcion__marca" aria-hidden="true"></span>
+      <span class="opcion__cuerpo">
+        <span class="opcion__titulo">{{ op.titulo }}</span>
+        @if (op.descripcion) {
+          <span class="opcion__desc">{{ op.descripcion }}</span>
+        }
+      </span>
+    </label>
+  }
+</div>

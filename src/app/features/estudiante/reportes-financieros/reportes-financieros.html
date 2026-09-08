@@ -1,0 +1,60 @@
+<section class="reportes">
+  <header class="reportes__head">
+    <div>
+      <h1 class="t-display">Reportes financieros</h1>
+      <p class="reportes__sub">Resultados de Equipo Cóndor tras el cierre del Trimestre 2.</p>
+    </div>
+    <app-badge variante="simulacion-activa" [punto]="true">Resultados publicados</app-badge>
+  </header>
+
+  <div class="reportes__kpis">
+    <app-kpi etiqueta="Ingresos" valor="$1,058,300" variacion="+8.4% vs T2" tendencia="sube" />
+    <app-kpi etiqueta="Utilidad neta" valor="$199,800" variacion="+3.1% vs T2" tendencia="sube" />
+    <app-kpi etiqueta="Margen bruto" valor="18.9%" variacion="-0.7 pp vs T2" tendencia="baja" />
+    <app-kpi etiqueta="Cuota de mercado" valor="14.1%" variacion="+1.2 pp vs T2" tendencia="sube" />
+  </div>
+
+  <div class="reportes__grid">
+    <div class="card grafico">
+      <header class="grafico__head">
+        <div>
+          <h2 class="t-title">Ingresos vs. costos</h2>
+          <p class="grafico__sub">Últimos 4 trimestres (miles USD)</p>
+        </div>
+        <div class="grafico__legend">
+          <span><i class="dot dot--ing"></i>Ingresos</span>
+          <span><i class="dot dot--cost"></i>Costos</span>
+        </div>
+      </header>
+
+      <div class="grafico__plot">
+        @for (p of serie(); track p.etiqueta) {
+          <div class="grafico__col">
+            <div class="grafico__bars">
+              <span class="grafico__bar grafico__bar--ing" [style.height.%]="altura(p.ingresos)"
+                [title]="'Ingresos ' + p.ingresos + 'k'"></span>
+              <span class="grafico__bar grafico__bar--cost" [style.height.%]="altura(p.costos)"
+                [title]="'Costos ' + p.costos + 'k'"></span>
+            </div>
+            <span class="grafico__x">{{ p.etiqueta }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="card estado">
+      <header class="estado__head">
+        <h2 class="t-title">Estado de resultados</h2>
+        <p class="estado__sub">Trimestre 3 · 2026</p>
+      </header>
+      <dl class="estado__list">
+        @for (linea of resultado; track linea.concepto) {
+          <div class="estado__row" [class.estado__row--total]="linea.total">
+            <dt>{{ linea.concepto }}</dt>
+            <dd class="num" [class.estado__neg]="linea.negativo">{{ linea.monto }}</dd>
+          </div>
+        }
+      </dl>
+    </div>
+  </div>
+</section>

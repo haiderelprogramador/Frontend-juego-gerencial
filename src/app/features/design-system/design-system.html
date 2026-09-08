@@ -1,0 +1,66 @@
+<section class="ds">
+  <header class="ds__head">
+    <h1 class="t-display">Design system</h1>
+    <p class="ds__sub">Tokens y componentes compartidos de BizSim (🎨 docs/05).</p>
+  </header>
+
+  <div class="card ds__block">
+    <p class="t-eyebrow">Colores</p>
+    <div class="ds__colors">
+      @for (c of colores; track c.nombre) {
+        <div class="swatch">
+          <span class="swatch__chip" [style.background]="'var(' + c.varName + ')'"></span>
+          <span class="swatch__name">{{ c.nombre }}</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="card ds__block">
+    <p class="t-eyebrow">Tipografía</p>
+    <p class="ds__type-display t-display">Inter · Display 30</p>
+    <p class="ds__type-body">Inter Regular · texto de cuerpo 16 para lectura cómoda.</p>
+    <p class="ds__type-muted">Inter · secundario 14 con contraste AA.</p>
+    <p class="ds__type-mono num">$1,058,300 · JetBrains Mono para cifras tabulares</p>
+  </div>
+
+  <div class="card ds__block">
+    <p class="t-eyebrow">Botones</p>
+    <div class="ds__row">
+      <button class="btn btn--primario">Primario</button>
+      <button class="btn btn--secundario">Secundario</button>
+      <button class="btn btn--ghost">Ghost</button>
+      <button class="btn btn--peligro">Peligro</button>
+      <button class="btn btn--primario btn--sm">Pequeño</button>
+      <button class="btn btn--primario" disabled>Deshabilitado</button>
+    </div>
+  </div>
+
+  <div class="card ds__block">
+    <p class="t-eyebrow">Badges</p>
+    <div class="ds__row">
+      <app-badge variante="estudiante" [punto]="true">Estudiante</app-badge>
+      <app-badge variante="docente" [punto]="true">Docente</app-badge>
+      <app-badge variante="periodo-abierto" [punto]="true">Periodo abierto</app-badge>
+      <app-badge variante="simulacion-activa" [punto]="true">Simulación activa</app-badge>
+      <app-badge variante="pendiente">Pendiente</app-badge>
+      <app-badge variante="cerrado">Cerrado</app-badge>
+      <app-badge variante="trimestre">Trimestre 3</app-badge>
+    </div>
+  </div>
+
+  <div class="ds__two">
+    <div class="card ds__block">
+      <p class="t-eyebrow">Controles interactivos</p>
+      <div class="ds__controls">
+        <app-toggle [(valor)]="toggleDemo" etiqueta="Toggle" />
+        <app-slider [(valor)]="sliderDemo" etiqueta="Slider" />
+      </div>
+    </div>
+
+    <div class="card ds__block">
+      <p class="t-eyebrow">Selección segmentada</p>
+      <app-tarjeta-seleccion [opciones]="opciones" [(valor)]="seleccionDemo" />
+    </div>
+  </div>
+</section>

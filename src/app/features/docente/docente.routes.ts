@@ -1,19 +1,18 @@
 import { Routes } from '@angular/router';
 
 /**
- * Rutas de la feature del docente. Se cargan de forma perezosa desde
- * `app.routes.ts` bajo el prefijo `/docente`, dentro del `MainLayout` y
- * protegidas por `authGuard` + `roleGuard(Rol.DOCENTE)`.
+ * Rutas de la feature del docente. Carga perezosa desde `app.routes.ts` bajo
+ * `/docente`, dentro del AppShell y protegidas por authGuard + roleGuard.
  */
 export const DOCENTE_ROUTES: Routes = [
   {
     path: 'panel',
-    title: 'Panel del docente · Juego Gerencial',
+    title: 'Panel del docente · BizSim',
     loadComponent: () => import('./panel/panel').then((m) => m.Panel),
   },
   {
-    path: 'gestion-estudiantes',
-    title: 'Carga de estudiantes · Juego Gerencial',
+    path: 'estudiantes',
+    title: 'Carga de estudiantes · BizSim',
     loadComponent: () =>
       import('./gestion-estudiantes/gestion-estudiantes').then((m) => m.GestionEstudiantes),
   },

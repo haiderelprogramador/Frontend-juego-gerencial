@@ -1,0 +1,84 @@
+<section class="clasif">
+  <header class="clasif__head">
+    <div>
+      <h1 class="t-display">Clasificación</h1>
+      <p class="clasif__sub">Ranking de equipos por desempeño acumulado en la simulación.</p>
+    </div>
+    <button type="button" class="btn btn--secundario btn--sm" (click)="alternarVacio()">
+      {{ vacio() ? 'Ver ranking' : 'Ver estado vacío' }}
+    </button>
+  </header>
+
+  @if (vacio()) {
+    <div class="card vacio">
+      <span class="vacio__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16" />
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+        </svg>
+      </span>
+      <h2 class="vacio__title">Aún no hay resultados</h2>
+      <p class="vacio__text">
+        La clasificación se genera cuando el docente cierra el primer período y el sistema
+        calcula el desempeño de cada equipo. Aquí verás el podio, la tendencia de cada equipo
+        y su puntaje acumulado.
+      </p>
+    </div>
+  } @else {
+    <div class="card podio">
+      @for (eq of podio(); track eq.equipo; let i = $index) {
+        <div class="podio__col" [attr.data-lugar]="eq.posicion">
+          <span class="podio__nombre">{{ eq.equipo }}</span>
+          <span class="podio__pts num">{{ eq.puntaje }} pts</span>
+          <div class="podio__bloque">
+            <span class="podio__rank">{{ eq.posicion }}</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="card tabla-wrap">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Equipo</th>
+            <th>Tend.</th>
+            <th class="ta-right">Ingresos</th>
+            <th class="ta-right">Margen</th>
+            <th class="ta-right">Puntaje</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (eq of equipos(); track eq.equipo) {
+            <tr [class.fila-mia]="eq.esMio">
+              <td>
+                <span class="rank-chip" [class.rank-chip--top]="eq.posicion <= 3">{{ eq.posicion }}</span>
+              </td>
+              <td>
+                <span class="equipo">
+                  {{ eq.equipo }}
+                  @if (eq.esMio) { <app-badge variante="estudiante">Tu equipo</app-badge> }
+                </span>
+                <span class="equipo__sub">{{ eq.integrantes }} integrantes</span>
+              </td>
+              <td>
+                @if (eq.tendencia > 0) {
+                  <span class="tend tend--up">↑ {{ eq.tendencia }}</span>
+                } @else if (eq.tendencia < 0) {
+                  <span class="tend tend--down">↓ {{ -eq.tendencia }}</span>
+                } @else {
+                  <span class="tend">—</span>
+                }
+              </td>
+              <td class="ta-right num">{{ eq.ingresos }}</td>
+              <td class="ta-right num">{{ eq.margen }}</td>
+              <td class="ta-right num tabla__pts">{{ eq.puntaje }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

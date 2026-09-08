@@ -1,0 +1,172 @@
+.decisiones {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding-bottom: 5rem;
+}
+
+.caso {
+  padding: 1.4rem 1.5rem;
+
+  &__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  &__meta {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  &__timer {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+    min-width: 12rem;
+  }
+  &__timer-val {
+    font-size: 1rem;
+    color: var(--bs-warning);
+  }
+  &__progress {
+    width: 12rem;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--bs-border);
+    overflow: hidden;
+  }
+  &__progress-bar {
+    display: block;
+    height: 100%;
+    background: var(--bs-primary);
+  }
+  &__progress-label {
+    font-size: 0.7rem;
+    color: var(--bs-muted);
+  }
+  &__title {
+    margin: 1.1rem 0 0.4rem;
+  }
+  &__desc {
+    margin: 0;
+    max-width: 46rem;
+    color: var(--bs-muted);
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+}
+
+.areas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.1rem;
+}
+
+.area {
+  --area-accent: var(--bs-primary);
+  --area-soft: var(--bs-primary-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding: 1.25rem;
+
+  &[data-area='comercial'] {
+    --area-accent: var(--bs-comercial);
+    --area-soft: var(--bs-comercial-soft);
+  }
+  &[data-area='produccion'] {
+    --area-accent: var(--bs-produccion);
+    --area-soft: var(--bs-produccion-soft);
+  }
+  &[data-area='administrativa'] {
+    --area-accent: var(--bs-administrativa);
+    --area-soft: var(--bs-administrativa-soft);
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+  &__icon {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 9px;
+    background: var(--area-soft);
+    color: var(--area-accent);
+    flex: none;
+    svg {
+      width: 1.15rem;
+      height: 1.15rem;
+    }
+  }
+  &__title {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 600;
+  }
+  &__sub {
+    margin: 0.05rem 0 0;
+    font-size: 0.75rem;
+    color: var(--bs-muted);
+  }
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--bs-border);
+
+  &:first-of-type {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  &__label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--bs-foreground);
+  }
+  &__hint {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.4;
+    color: var(--bs-muted);
+  }
+}
+
+.pie {
+  position: sticky;
+  bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.25rem;
+
+  &__auto {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    color: var(--bs-success);
+  }
+  &__actions {
+    display: flex;
+    gap: 0.6rem;
+  }
+}
+
+@media (max-width: 1000px) {
+  .areas {
+    grid-template-columns: 1fr;
+  }
+}

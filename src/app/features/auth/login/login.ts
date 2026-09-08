@@ -7,9 +7,14 @@ import { Rol } from '../../../core/models/rol.enum';
 import { Alerta } from '../../../shared/components/alerta/alerta';
 
 /**
- * Pantalla única de inicio de sesión para DOCENTE y ESTUDIANTE (docs/03).
- * El rol lo determina el backend a partir de las credenciales; aquí solo se
- * redirige según el rol que devuelve la sesión.
+ * Pantalla de inicio de sesión (docs/03 + rediseño 🎨 docs/05).
+ *
+ * Elementos 🎨 del prototipo que NO están confirmados por el cliente y aquí son
+ * solo visuales:
+ *  - "Continuar con Google": sin backend OAuth, no hace nada.
+ *  - Selector "Ingresar como Estudiante/Docente": cosmético. El rol real lo
+ *    determina `AuthService` a partir de las credenciales (docs/03).
+ *  - "¿Olvidaste tu contraseña?": aún sin flujo de recuperación.
  */
 @Component({
   selector: 'app-login',
@@ -26,8 +31,9 @@ export class Login {
 
   readonly enviando = signal(false);
   readonly error = signal<string | null>(null);
-  /** Alterna entre <input type="password"> y "text" en el campo de contraseña. */
   readonly verContrasena = signal(false);
+  /** 🎨 cosmético — no afecta el login real. */
+  readonly rolPreferido = signal<'ESTUDIANTE' | 'DOCENTE'>('ESTUDIANTE');
 
   readonly form = this.fb.group({
     correo: ['', [Validators.required, Validators.email]],
@@ -61,15 +67,10 @@ export class Login {
       void this.router.navigateByUrl(returnUrl);
       return;
     }
-
     if (rol === Rol.DOCENTE) {
       void this.router.navigate(['/docente/panel']);
       return;
     }
-
-    // TODO: confirmar con el cliente — todavía no existe el panel del estudiante.
-    // Cuando exista, redirigir a su ruta (p. ej. '/estudiante').
-    void this.router.navigate(['/auth/login']);
-    this.error.set('El panel del estudiante aún no está disponible en esta versión.');
+    void this.router.navigate(['/estudiante/toma-decisiones']);
   }
 }

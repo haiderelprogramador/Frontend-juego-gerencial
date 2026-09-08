@@ -1,0 +1,89 @@
+.ds {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+
+  &__head h1 {
+    margin: 0 0 0.25rem;
+  }
+  &__sub {
+    margin: 0;
+    color: var(--bs-muted);
+    font-size: 0.9rem;
+  }
+
+  &__block {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  &__two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.1rem;
+  }
+
+  &__colors {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.9rem;
+  }
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  &__controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 22rem;
+  }
+
+  &__type-display {
+    margin: 0;
+  }
+  &__type-body {
+    margin: 0;
+    font-size: 1rem;
+  }
+  &__type-muted {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--bs-muted);
+  }
+  &__type-mono {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  &__chip {
+    height: 3.5rem;
+    border-radius: 10px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+  }
+  &__name {
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+}
+
+@media (max-width: 900px) {
+  .ds__two {
+    grid-template-columns: 1fr;
+  }
+  .ds__colors {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

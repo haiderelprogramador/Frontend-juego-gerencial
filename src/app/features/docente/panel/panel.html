@@ -1,20 +1,86 @@
 <section class="panel">
-  @if (usuario(); as u) {
-    <h2 class="panel__title">Hola, {{ u.nombre }}</h2>
+  <header class="panel__head">
+    <div>
+      <h1 class="t-display">Panel del docente</h1>
+      <p class="panel__sub">Administración · Gestión Estratégica II · 32 estudiantes</p>
+    </div>
+    <app-badge variante="simulacion-activa" [punto]="true">Simulación activa</app-badge>
+  </header>
+
+  <nav class="panel__tabs">
+    <button type="button" [class.is-active]="tab() === 'periodos'" (click)="irA('periodos')">Control de periodos</button>
+    <button type="button" [class.is-active]="tab() === 'equipos'" (click)="irA('equipos')">Equipos y estudiantes</button>
+    <button type="button" [class.is-active]="tab() === 'casos'" (click)="irA('casos')">Casos</button>
+    <button type="button" [class.is-active]="tab() === 'parametros'" (click)="irA('parametros')">Parámetros</button>
+  </nav>
+
+  @switch (tab()) {
+    @case ('periodos') {
+      <div class="periodos">
+        <div class="card periodos__main">
+          <div class="periodos__row">
+            <div class="periodos__estado">
+              <app-badge variante="periodo-abierto" [punto]="true">Periodo abierto</app-badge>
+              <h2 class="periodos__trim">Trimestre 3 · 2026</h2>
+              <p class="periodos__caso">Caso activo: Expansión regional</p>
+            </div>
+            <app-toggle [(valor)]="recibiendo" etiqueta="Recibiendo decisiones" />
+          </div>
+
+          <div class="periodos__stats">
+            <div class="mini">
+              <span class="mini__label">Equipos que enviaron</span>
+              <span class="mini__val num">3 / 5</span>
+            </div>
+            <div class="mini">
+              <span class="mini__label">Cierre programado</span>
+              <span class="mini__val num">05 sep · 23:59</span>
+            </div>
+            <div class="mini">
+              <span class="mini__label">Tiempo restante</span>
+              <span class="mini__val num">2 d 14 h</span>
+            </div>
+          </div>
+
+          <div class="periodos__actions">
+            <button type="button" class="btn btn--primario">
+              Cerrar periodo y calcular <span aria-hidden="true">→</span>
+            </button>
+            <button type="button" class="btn btn--secundario">Enviar recordatorio</button>
+          </div>
+        </div>
+
+        <aside class="card entregas">
+          <h3 class="entregas__title">Entregas por equipo</h3>
+          <ul class="entregas__list">
+            @for (e of entregas(); track e.equipo) {
+              <li class="entregas__item">
+                <span>{{ e.equipo }}</span>
+                @if (e.enviado) {
+                  <app-badge variante="periodo-abierto">✓ Enviado</app-badge>
+                } @else {
+                  <app-badge variante="pendiente">Pendiente</app-badge>
+                }
+              </li>
+            }
+          </ul>
+        </aside>
+      </div>
+    }
+    @case ('equipos') {
+      <div class="card placeholder">
+        <p>La gestión de equipos vive en su propia pantalla.</p>
+        <a class="btn btn--primario" routerLink="/docente/estudiantes">Ir a carga de estudiantes</a>
+      </div>
+    }
+    @default {
+      <div class="card placeholder">
+        <p>
+          Esta sección ({{ tab() === 'casos' ? 'Casos' : 'Parámetros' }}) todavía no está
+          definida con el cliente.
+        </p>
+        <p class="placeholder__note">🎨 Pendiente de especificación — ver docs/02 y docs/05.</p>
+      </div>
+    }
   }
-  <p class="panel__lead">Desde aquí administras a los estudiantes del simulador.</p>
-
-  <div class="panel__cards">
-    <a class="card" routerLink="/docente/gestion-estudiantes">
-      <h3 class="card__title">Cargar estudiantes</h3>
-      <p class="card__text">
-        Sube un archivo Excel con el listado. El sistema genera automáticamente la
-        contraseña de cada estudiante y te muestra una previsualización antes de confirmar.
-      </p>
-      <span class="card__cta">Ir a la carga masiva →</span>
-    </a>
-
-    <!-- TODO: confirmar con el cliente el resto de secciones del panel del docente
-         (escenarios, catálogo de decisiones, cierre de período, resultados…). -->
-  </div>
 </section>
