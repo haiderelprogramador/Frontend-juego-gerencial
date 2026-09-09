@@ -140,6 +140,114 @@
   }
 }
 
+/* -- Checklist de configuración inicial -- */
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.paso {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-sm);
+  background: var(--bs-surface-2);
+
+  &__num {
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    flex: none;
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: #e3e7ee;
+    color: var(--bs-muted);
+  }
+  &__cuerpo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    flex: 1;
+    min-width: 0;
+  }
+  &__titulo {
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+  &__desc {
+    font-size: 0.76rem;
+    color: var(--bs-muted);
+  }
+  &__enlace {
+    flex: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--bs-primary);
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover {
+      text-decoration: underline;
+    }
+    &--off {
+      color: var(--bs-muted);
+      cursor: default;
+      &:hover {
+        text-decoration: none;
+      }
+    }
+  }
+
+  &--ok {
+    border-color: var(--bs-success-soft);
+    .paso__num {
+      background: var(--bs-success-soft);
+      color: var(--bs-success);
+    }
+  }
+  &--bloq {
+    opacity: 0.65;
+  }
+}
+
+.entregas__vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.75rem;
+  padding: 1.5rem 0.5rem;
+
+  &-icono {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 12px;
+    background: var(--bs-produccion-soft);
+    color: var(--bs-produccion);
+  }
+  &-texto {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--bs-muted);
+    line-height: 1.5;
+  }
+}
+
 .placeholder {
   padding: 2.5rem;
   text-align: center;

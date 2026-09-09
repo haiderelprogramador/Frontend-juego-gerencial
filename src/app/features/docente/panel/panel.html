@@ -1,10 +1,33 @@
+<!-- 🎨 Ayuda de desarrollo — no es parte del diseño -->
+<div class="preview-bar">
+  <span class="preview-bar__label">
+    <strong>Vista previa</strong> — comparación de estados (esta barra no es parte del diseño)
+  </span>
+  <div class="preview-bar__opts">
+    <button type="button" [class.is-active]="!configuracionCompleta()" (click)="aplicarPreview(false)">
+      Configuración inicial
+    </button>
+    <button type="button" [class.is-active]="configuracionCompleta()" (click)="aplicarPreview(true)">
+      Simulación activa (referencia)
+    </button>
+  </div>
+</div>
+
 <section class="panel">
   <header class="panel__head">
     <div>
       <h1 class="t-display">Panel del docente</h1>
-      <p class="panel__sub">Administración · Gestión Estratégica II · 32 estudiantes</p>
+      <p class="panel__sub">
+        Administración · Gestión Estratégica II@if (estudiantesCargados() > 0) {
+          <span> · {{ estudiantesCargados() }} estudiantes</span>
+        }
+      </p>
     </div>
-    <app-badge variante="simulacion-activa" [punto]="true">Simulación activa</app-badge>
+    @if (configuracionCompleta()) {
+      <app-badge variante="simulacion-activa" [punto]="true">Simulación activa</app-badge>
+    } @else {
+      <app-badge variante="muted" [punto]="true">Sin simulación activa</app-badge>
+    }
   </header>
 
   <nav class="panel__tabs">
@@ -18,52 +41,120 @@
     @case ('periodos') {
       <div class="periodos">
         <div class="card periodos__main">
-          <div class="periodos__row">
-            <div class="periodos__estado">
-              <app-badge variante="periodo-abierto" [punto]="true">Periodo abierto</app-badge>
-              <h2 class="periodos__trim">Trimestre 3 · 2026</h2>
-              <p class="periodos__caso">Caso activo: Expansión regional</p>
+          @if (configuracionCompleta()) {
+            <!-- Estado A: simulación activa -->
+            <div class="periodos__row">
+              <div class="periodos__estado">
+                <app-badge variante="periodo-abierto" [punto]="true">Periodo abierto</app-badge>
+                <h2 class="periodos__trim">Trimestre 3 · 2026</h2>
+                <p class="periodos__caso">Caso activo: {{ casoActivo() }}</p>
+              </div>
+              <app-toggle [(valor)]="recibiendo" etiqueta="Recibiendo decisiones" />
             </div>
-            <app-toggle [(valor)]="recibiendo" etiqueta="Recibiendo decisiones" />
-          </div>
 
-          <div class="periodos__stats">
-            <div class="mini">
-              <span class="mini__label">Equipos que enviaron</span>
-              <span class="mini__val num">3 / 5</span>
+            <div class="periodos__stats">
+              <div class="mini">
+                <span class="mini__label">Equipos que enviaron</span>
+                <span class="mini__val num">{{ entregasEnviadas() }} / {{ equiposFormados() }}</span>
+              </div>
+              <div class="mini">
+                <span class="mini__label">Cierre programado</span>
+                <span class="mini__val num">05 sep · 23:59</span>
+              </div>
+              <div class="mini">
+                <span class="mini__label">Tiempo restante</span>
+                <span class="mini__val num">2 d 14 h</span>
+              </div>
             </div>
-            <div class="mini">
-              <span class="mini__label">Cierre programado</span>
-              <span class="mini__val num">05 sep · 23:59</span>
-            </div>
-            <div class="mini">
-              <span class="mini__label">Tiempo restante</span>
-              <span class="mini__val num">2 d 14 h</span>
-            </div>
-          </div>
 
-          <div class="periodos__actions">
-            <button type="button" class="btn btn--primario">
-              Cerrar periodo y calcular <span aria-hidden="true">→</span>
-            </button>
-            <button type="button" class="btn btn--secundario">Enviar recordatorio</button>
-          </div>
+            <div class="periodos__actions">
+              <button type="button" class="btn btn--primario">
+                Cerrar periodo y calcular <span aria-hidden="true">→</span>
+              </button>
+              <button type="button" class="btn btn--secundario">Enviar recordatorio</button>
+            </div>
+          } @else {
+            <!-- Estado B: configuración inicial -->
+            <div class="periodos__row">
+              <div class="periodos__estado">
+                <app-badge variante="muted" [punto]="true">Configuración pendiente</app-badge>
+                <h2 class="periodos__trim">Aún no hay una simulación activa</h2>
+                <p class="periodos__caso">Completa estos pasos para abrir tu primer período</p>
+              </div>
+              <app-toggle [(valor)]="recibiendo" etiqueta="Recibiendo decisiones" [disabled]="true" />
+            </div>
+
+            <ol class="checklist">
+              @for (paso of pasos(); track paso.n) {
+                <li class="paso" [class.paso--ok]="paso.completado" [class.paso--bloq]="paso.bloqueado">
+                  <span class="paso__num">
+                    @if (paso.completado) { ✓ } @else { {{ paso.n }} }
+                  </span>
+                  <span class="paso__cuerpo">
+                    <span class="paso__titulo">{{ paso.titulo }}</span>
+                    <span class="paso__desc">{{ paso.descripcion }}</span>
+                  </span>
+                  @if (paso.bloqueado) {
+                    <span class="paso__enlace paso__enlace--off">{{ paso.enlaceTexto }}</span>
+                  } @else if (paso.ruta) {
+                    <a class="paso__enlace" [routerLink]="paso.ruta">{{ paso.enlaceTexto }} →</a>
+                  } @else {
+                    <button type="button" class="paso__enlace" (click)="irAPaso(paso)">
+                      {{ paso.enlaceTexto }} →
+                    </button>
+                  }
+                </li>
+              }
+            </ol>
+
+            <div class="periodos__actions">
+              @if (primerPasoPendiente(); as paso) {
+                @if (paso.ruta) {
+                  <a class="btn btn--primario" [routerLink]="paso.ruta">
+                    Comenzar configuración <span aria-hidden="true">→</span>
+                  </a>
+                } @else {
+                  <button type="button" class="btn btn--primario" (click)="irAPaso(paso)">
+                    Comenzar configuración <span aria-hidden="true">→</span>
+                  </button>
+                }
+              }
+            </div>
+          }
         </div>
 
         <aside class="card entregas">
           <h3 class="entregas__title">Entregas por equipo</h3>
-          <ul class="entregas__list">
-            @for (e of entregas(); track e.equipo) {
-              <li class="entregas__item">
-                <span>{{ e.equipo }}</span>
-                @if (e.enviado) {
-                  <app-badge variante="periodo-abierto">✓ Enviado</app-badge>
-                } @else {
-                  <app-badge variante="pendiente">Pendiente</app-badge>
-                }
-              </li>
-            }
-          </ul>
+          @if (configuracionCompleta()) {
+            <ul class="entregas__list">
+              @for (e of entregas(); track e.equipo) {
+                <li class="entregas__item">
+                  <span>{{ e.equipo }}</span>
+                  @if (e.enviado) {
+                    <app-badge variante="periodo-abierto">✓ Enviado</app-badge>
+                  } @else {
+                    <app-badge variante="pendiente">Pendiente</app-badge>
+                  }
+                </li>
+              }
+            </ul>
+          } @else {
+            <div class="entregas__vacio">
+              <span class="entregas__vacio-icono" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </span>
+              <p class="entregas__vacio-texto">
+                Aún no hay equipos formados. Cuando existan, verás aquí el estado de entrega de cada uno.
+              </p>
+              <button type="button" class="btn btn--secundario" (click)="irA('equipos')">
+                Ir a Equipos y estudiantes
+              </button>
+            </div>
+          }
         </aside>
       </div>
     }

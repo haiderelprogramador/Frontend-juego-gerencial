@@ -5,19 +5,21 @@
  * que el servicio mock (`EstudianteService` en modo demo) pueda simular esa
  * respuesta mientras no hay Spring Boot. El componente de UI no lo usa.
  *
- * Patrón confirmado con el cliente (docs/03), ejemplo textual:
- *   USU-001-NUMERO DE IDENTIFICACION
- * es decir: prefijo fijo + consecutivo + número de identificación.
+ * ⚠️ EL PATRÓN EXACTO NO ESTÁ DEFINIDO. `docs/03` lo resumió como
+ * `USU-001-NUMERODEIDENTIFICACION` (prefijo primero), pero en `docs/08` §2 el
+ * cliente lo describió como "número de identificación + USU" (orden inverso), y
+ * no dio un ejemplo literal (¿`12345678USU`? ¿`USU-12345678`? ¿lleva el `001`?
+ * ¿guiones?). El formato de aquí abajo (`USU-###-<id>`) es un **placeholder de
+ * demo**, NO el patrón real — no debe tomarse como confirmado ni portarse al
+ * backend hasta que el cliente dé un ejemplo concreto.
  *
- * TODO: confirmar con el cliente:
- *  - Alcance del consecutivo: ¿es global de todo el sistema, o reinicia por
- *    carga / por curso / por docente? (aquí se asume: continúa desde la cantidad
- *    de estudiantes que el docente ya tenía cargados).
- *  - Cantidad de dígitos del consecutivo (aquí se asume 3, con ceros a la
- *    izquierda: 001, 002, ... 010 ... 100).
- *  - Si el número de identificación se usa tal cual o sin espacios/guiones
- *    (aquí se limpian los espacios para que la contraseña no tenga espacios).
- *  - Si esta contraseña debe cambiarse obligatoriamente en el primer ingreso.
+ * Confirmado en `docs/08`: la contraseña generada **se envía por correo al
+ * estudiante** y el cambio de contraseña es **opcional** (desde el perfil), NO
+ * un paso obligatorio en el primer login.
+ *
+ * TODO: pedir al cliente un ejemplo literal del patrón. Pendiente también el
+ * alcance del consecutivo (aquí se asume: continúa desde los ya cargados) y la
+ * cantidad de dígitos (aquí se asume 3).
  */
 
 export const PREFIJO_CONTRASENA = 'USU';

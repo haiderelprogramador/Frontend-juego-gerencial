@@ -8,6 +8,7 @@ export type BadgeVariante =
   | 'pendiente'
   | 'cerrado'
   | 'trimestre'
+  | 'muted'
   | 'neutro'
   | 'exito'
   | 'peligro';
@@ -15,7 +16,8 @@ export type BadgeVariante =
 /**
  * Etiqueta/pill del design system (docs/05, 🎨).
  * Variantes: Estudiante, Docente, Periodo abierto, Simulación activa,
- * Pendiente, Cerrado, Trimestre N.
+ * Pendiente, Cerrado, Trimestre N, y Muted (gris) para estados neutrales
+ * tipo "Configuración pendiente" / "Sin simulación activa".
  */
 @Component({
   selector: 'app-badge',

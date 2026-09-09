@@ -17,7 +17,8 @@
     background: currentColor;
   }
 
-  &--neutro {
+  &--neutro,
+  &--muted {
     background: var(--bs-surface-2);
     border-color: var(--bs-border);
     color: var(--bs-muted);

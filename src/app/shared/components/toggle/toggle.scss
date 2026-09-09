@@ -9,8 +9,21 @@
   font: inherit;
 
   &:disabled {
-    opacity: 0.5;
     cursor: not-allowed;
+
+    .toggle__track {
+      background: #e2e5ea;
+    }
+    .toggle__thumb {
+      background: #f3f4f6;
+      box-shadow: none;
+    }
+    .toggle__label {
+      color: var(--bs-muted);
+    }
+  }
+  &--on:disabled .toggle__track {
+    background: #b7c6e4;
   }
   &:focus-visible {
     outline: 2px solid var(--bs-primary);

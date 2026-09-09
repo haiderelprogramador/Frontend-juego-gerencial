@@ -164,6 +164,47 @@ body {
   }
 }
 
+/* 🎨 Barra de vista previa de estados — NO es parte del diseño; es una ayuda
+   de desarrollo para comparar estados condicionales (p. ej. el panel del
+   docente con/sin configuración). Quitar cuando ya no haga falta. */
+.preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: -1.75rem -1.75rem 1.25rem;
+  padding: 0.55rem 1.75rem;
+  background: #0b1220;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+
+  &__label strong {
+    color: #fff;
+  }
+  &__opts {
+    display: flex;
+    gap: 0.4rem;
+  }
+  &__opts button {
+    padding: 0.3rem 0.7rem;
+    border: 1px solid #2a3550;
+    border-radius: 7px;
+    background: transparent;
+    color: #cbd5e1;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &.is-active {
+      background: var(--bs-primary);
+      border-color: var(--bs-primary);
+      color: #fff;
+    }
+  }
+}
+
 /* Chrome compartido de las pantallas de auth (login / registro) */
 .auth-form {
   display: flex;
