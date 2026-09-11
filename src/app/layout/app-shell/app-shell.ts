@@ -45,7 +45,7 @@ export class AppShell {
           titulo: 'Administración',
           items: [
             { ruta: '/docente/panel', texto: 'Panel del docente', icono: 'grid' },
-            { ruta: '/docente/estudiantes', texto: 'Carga de estudiantes', icono: 'users' },
+            { ruta: '/docente/estudiantes', texto: 'Equipos', icono: 'users' },
             { ruta: '/clasificacion', texto: 'Clasificación', icono: 'trophy' },
           ],
         },
@@ -56,7 +56,7 @@ export class AppShell {
       {
         titulo: 'Mi simulación',
         items: [
-          { ruta: '/estudiante/toma-decisiones', texto: 'Toma de decisiones', icono: 'sliders' },
+          { ruta: '/estudiante/caso-actual', texto: 'Caso actual', icono: 'file' },
           { ruta: '/estudiante/reportes-financieros', texto: 'Reportes financieros', icono: 'chart' },
           { ruta: '/clasificacion', texto: 'Clasificación', icono: 'trophy' },
         ],

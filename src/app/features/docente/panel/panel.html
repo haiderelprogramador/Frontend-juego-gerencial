@@ -160,16 +160,16 @@
     }
     @case ('equipos') {
       <div class="card placeholder">
-        <p>La gestión de equipos vive en su propia pantalla.</p>
-        <a class="btn btn--primario" routerLink="/docente/estudiantes">Ir a carga de estudiantes</a>
+        <p>La gestión de equipos y estudiantes vive en su propia pantalla.</p>
+        <a class="btn btn--primario" routerLink="/docente/estudiantes">Ir a Equipos y estudiantes</a>
       </div>
+    }
+    @case ('casos') {
+      <app-casos />
     }
     @default {
       <div class="card placeholder">
-        <p>
-          Esta sección ({{ tab() === 'casos' ? 'Casos' : 'Parámetros' }}) todavía no está
-          definida con el cliente.
-        </p>
+        <p>Esta sección (Parámetros) todavía no está definida con el cliente.</p>
         <p class="placeholder__note">🎨 Pendiente de especificación — ver docs/02 y docs/05.</p>
       </div>
     }

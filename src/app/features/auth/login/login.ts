@@ -71,6 +71,6 @@ export class Login {
       void this.router.navigate(['/docente/panel']);
       return;
     }
-    void this.router.navigate(['/estudiante/toma-decisiones']);
+    void this.router.navigate(['/estudiante/caso-actual']);
   }
 }

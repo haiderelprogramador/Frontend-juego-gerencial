@@ -1,0 +1,236 @@
+@if (vista() === 'lista') {
+  <div class="casos-lista">
+    <div class="casos-lista__head">
+      <p class="t-muted">El caso se configura directamente en el sistema — no hay documento externo.</p>
+      <button type="button" class="btn btn--primario" (click)="nuevoCaso()">+ Nuevo caso</button>
+    </div>
+
+    <div class="card">
+      <table class="tabla-casos">
+        <thead>
+          <tr><th>Caso</th><th>Tipo</th><th>Estado</th><th></th></tr>
+        </thead>
+        <tbody>
+          @for (c of casos(); track c.id) {
+            <tr>
+              <td>{{ c.nombre }}</td>
+              <td>{{ c.tipo }}</td>
+              <td>
+                @if (c.estado === 'activo') {
+                  <app-badge variante="periodo-abierto" [punto]="true">Activo</app-badge>
+                } @else {
+                  <app-badge variante="muted">Borrador</app-badge>
+                }
+              </td>
+              <td class="ta-right">
+                <button type="button" class="btn btn--ghost btn--sm" (click)="editarCaso()">Editar</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}
+
+@if (vista() === 'formulario') {
+  <div class="casos-form">
+    <div class="casos-form__head">
+      <button type="button" class="btn btn--ghost btn--sm" (click)="volverALista()">← Volver</button>
+      <h2 class="t-title">Configurar caso</h2>
+    </div>
+
+    <nav class="subtabs">
+      <button type="button" [class.is-active]="tabForm() === 'general'" (click)="tabForm.set('general')">
+        Info General
+      </button>
+      <button type="button" [class.is-active]="tabForm() === 'financiera'" (click)="tabForm.set('financiera')">
+        Información Financiera
+      </button>
+      <button type="button" [class.is-active]="tabForm() === 'opciones'" (click)="tabForm.set('opciones')">
+        Opciones
+      </button>
+    </nav>
+
+    <div class="card casos-form__body">
+      @switch (tabForm()) {
+        @case ('general') {
+          <div class="form-grid">
+            <label class="field">
+              <span class="field__label">Nombre de la empresa</span>
+              <input type="text" [value]="empresa()" (input)="empresa.set($any($event.target).value)"
+                placeholder="Ej. TextilAndes S.A." />
+            </label>
+            <label class="field">
+              <span class="field__label">Tipo</span>
+              <select [value]="tipo()" (change)="tipo.set($any($event.target).value)">
+                <option>Manufactura</option>
+                <option>Servicios</option>
+                <option>Retail</option>
+                <option>Tecnología</option>
+                <option>Agroindustria</option>
+              </select>
+            </label>
+
+            <label class="field field--full">
+              <span class="field__label">Misión</span>
+              <textarea rows="2" [value]="mision()" (input)="mision.set($any($event.target).value)"></textarea>
+            </label>
+            <label class="field field--full">
+              <span class="field__label">Visión</span>
+              <textarea rows="2" [value]="vision()" (input)="vision.set($any($event.target).value)"></textarea>
+            </label>
+
+            <div class="field field--full">
+              <span class="field__label">Rango de penalización por no decidir (%)</span>
+              <div class="rango">
+                <label class="rango__item">
+                  <span>Mínimo</span>
+                  <input type="number" min="0" max="100" [value]="penalizacionMin()"
+                    (input)="penalizacionMin.set(+$any($event.target).value)" />
+                </label>
+                <span class="rango__sep">–</span>
+                <label class="rango__item">
+                  <span>Máximo</span>
+                  <input type="number" min="0" max="100" [value]="penalizacionMax()"
+                    (input)="penalizacionMax.set(+$any($event.target).value)" />
+                </label>
+              </div>
+              <p class="field__hint">
+                Rango, no un valor fijo — cada equipo puede recibir un efecto distinto dentro de este rango
+                (docs/02 §6).
+              </p>
+            </div>
+
+            <label class="field">
+              <span class="field__label">Fecha de visualización</span>
+              <input type="datetime-local" [value]="fechaVisualizacion()"
+                (input)="fechaVisualizacion.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span class="field__label">Inicio de partida</span>
+              <input type="datetime-local" [value]="fechaInicioPartida()"
+                (input)="fechaInicioPartida.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span class="field__label">Fin de partida</span>
+              <input type="datetime-local" [value]="fechaFinPartida()"
+                (input)="fechaFinPartida.set($any($event.target).value)" />
+            </label>
+
+            <div class="field field--full">
+              <span class="field__label">Asignación de equipos</span>
+              <div class="seg-toggle">
+                <button type="button" [class.is-active]="asignacionEquipos() === 'manual'"
+                  (click)="asignacionEquipos.set('manual')">Manual</button>
+                <button type="button" [class.is-active]="asignacionEquipos() === 'automatica'"
+                  (click)="asignacionEquipos.set('automatica')">Automática</button>
+              </div>
+            </div>
+          </div>
+        }
+
+        @case ('financiera') {
+          <div class="modo-datos">
+            <span class="field__label">Origen de los datos</span>
+            <div class="seg-toggle">
+              <button type="button" [class.is-active]="modoFinanciera() === 'manual'"
+                (click)="modoFinanciera.set('manual')">Manual</button>
+              <button type="button" [class.is-active]="modoFinanciera() === 'excel'"
+                (click)="modoFinanciera.set('excel')">Importar Excel</button>
+            </div>
+          </div>
+
+          @if (modoFinanciera() === 'manual') {
+            <div class="form-grid">
+              <label class="field">
+                <span class="field__label">Activo total</span>
+                <input type="text" [value]="activoTotal()" (input)="activoTotal.set($any($event.target).value)" />
+              </label>
+              <label class="field">
+                <span class="field__label">Pasivo total</span>
+                <input type="text" [value]="pasivoTotal()" (input)="pasivoTotal.set($any($event.target).value)" />
+              </label>
+              <label class="field">
+                <span class="field__label">Patrimonio</span>
+                <input type="text" [value]="patrimonio()" (input)="patrimonio.set($any($event.target).value)" />
+              </label>
+              <label class="field">
+                <span class="field__label">Utilidad neta</span>
+                <input type="text" [value]="utilidadNeta()" (input)="utilidadNeta.set($any($event.target).value)" />
+              </label>
+            </div>
+          } @else {
+            <div class="excel-upload">
+              <label class="btn btn--secundario">
+                Elegir archivo Excel
+                <input type="file" accept=".xlsx,.xls" hidden (change)="onArchivoFinanciero($event)" />
+              </label>
+              <p class="field__hint">
+                El archivo debe traer Activo total, Pasivo total, Patrimonio y Utilidad neta.
+              </p>
+              @if (errorImportFinanciero(); as msg) {
+                <app-alerta tipo="error" [mensaje]="msg" />
+              }
+            </div>
+          }
+        }
+
+        @case ('opciones') {
+          <div class="modo-datos">
+            <span class="field__label">Origen de las opciones</span>
+            <div class="seg-toggle">
+              <button type="button" [class.is-active]="modoOpciones() === 'manual'"
+                (click)="modoOpciones.set('manual')">Manual</button>
+              <button type="button" [class.is-active]="modoOpciones() === 'excel'"
+                (click)="modoOpciones.set('excel')">Importar Excel</button>
+            </div>
+          </div>
+
+          @if (modoOpciones() === 'manual') {
+            <div class="opciones-cat">
+              @for (o of opciones(); track o.id; let i = $index) {
+                <div class="opcion-card">
+                  <div class="opcion-card__head">
+                    <span>Opción {{ i + 1 }}</span>
+                    @if (opciones().length > 1) {
+                      <button type="button" class="opcion-card__quitar" (click)="quitarOpcion(o.id)"
+                        aria-label="Quitar opción">✕</button>
+                    }
+                  </div>
+                  <label class="field">
+                    <span class="field__label">Opción</span>
+                    <textarea rows="2" [value]="o.opcion"
+                      (input)="actualizarOpcionTexto(o.id, $any($event.target).value)"></textarea>
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Resultado</span>
+                    <textarea rows="2" [value]="o.resultado"
+                      (input)="actualizarOpcionResultado(o.id, $any($event.target).value)"></textarea>
+                  </label>
+                </div>
+              }
+            </div>
+            <button type="button" class="btn btn--secundario" (click)="agregarOpcion()">+ Agregar opción</button>
+          } @else {
+            <div class="excel-upload">
+              <label class="btn btn--secundario">
+                Elegir archivo Excel
+                <input type="file" accept=".xlsx,.xls" hidden (change)="onArchivoOpciones($event)" />
+              </label>
+              <p class="field__hint">Cada fila del archivo debe traer las columnas "Opción" y "Resultado".</p>
+              @if (errorImportOpciones(); as msg) {
+                <app-alerta tipo="error" [mensaje]="msg" />
+              }
+            </div>
+          }
+        }
+      }
+    </div>
+
+    <div class="casos-form__actions">
+      <button type="button" class="btn btn--secundario" (click)="volverALista()">Cancelar</button>
+      <button type="button" class="btn btn--primario" (click)="volverALista()">Guardar caso</button>
+    </div>
+  </div>
+}

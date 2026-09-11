@@ -3,10 +3,9 @@ import { Routes } from '@angular/router';
 /** Rutas de la feature del estudiante (carga perezosa desde app.routes.ts). */
 export const ESTUDIANTE_ROUTES: Routes = [
   {
-    path: 'toma-decisiones',
-    title: 'Toma de decisiones · BizSim',
-    loadComponent: () =>
-      import('./toma-decisiones/toma-decisiones').then((m) => m.TomaDecisiones),
+    path: 'caso-actual',
+    title: 'Caso actual · BizSim',
+    loadComponent: () => import('./caso-actual/caso-actual').then((m) => m.CasoActual),
   },
   {
     path: 'reportes-financieros',
@@ -14,5 +13,5 @@ export const ESTUDIANTE_ROUTES: Routes = [
     loadComponent: () =>
       import('./reportes-financieros/reportes-financieros').then((m) => m.ReportesFinancieros),
   },
-  { path: '', pathMatch: 'full', redirectTo: 'toma-decisiones' },
+  { path: '', pathMatch: 'full', redirectTo: 'caso-actual' },
 ];

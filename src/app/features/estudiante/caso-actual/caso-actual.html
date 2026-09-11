@@ -1,0 +1,158 @@
+<!-- 🎨 Ayuda de desarrollo — no es parte del diseño -->
+<div class="fase-preview">
+  <span class="fase-preview__label">Vista previa de fase</span>
+  <div class="fase-preview__opts">
+    <button type="button" [class.is-active]="fase() === 'visualizacion'" (click)="irAFase('visualizacion')">
+      Visualización
+    </button>
+    <button type="button" [class.is-active]="fase() === 'partida'" (click)="irAFase('partida')">
+      Selección
+    </button>
+    <button type="button" [class.is-active]="fase() === 'cierre'" (click)="irAFase('cierre')">
+      Resultado
+    </button>
+  </div>
+</div>
+
+<section class="caso">
+  <header class="card stepper-card">
+    <div class="stepper">
+      @for (f of fasesOrden; track f.key; let i = $index) {
+        <div class="stepper__step" [class.is-active]="fase() === f.key" [class.is-done]="esPasada(f.key)">
+          <span class="stepper__dot" aria-hidden="true">
+            @switch (f.key) {
+              @case ('visualizacion') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" /><circle cx="12" cy="12" r="3" />
+                </svg>
+              }
+              @case ('partida') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 3l14 9-14 9V3z" />
+                </svg>
+              }
+              @case ('cierre') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              }
+            }
+          </span>
+          <span class="stepper__texto">
+            <span class="stepper__label">{{ f.label }}</span>
+            <span class="stepper__date">{{ fechas[f.key] }}</span>
+          </span>
+        </div>
+        @if (i < fasesOrden.length - 1) {
+          <span class="stepper__line" [class.is-done]="esPasada(f.key)"></span>
+        }
+      }
+    </div>
+  </header>
+
+  <div class="caso__grid">
+    <div class="caso__col">
+      <div class="card">
+        <h2 class="t-title">Información general</h2>
+        <div class="empresa">
+          <span class="empresa__nombre">{{ empresa.nombre }}</span>
+          <span class="badge-tipo">{{ empresa.tipo }}</span>
+        </div>
+        <div class="dato">
+          <span class="dato__label t-eyebrow">Misión</span>
+          <p class="dato__texto">{{ empresa.mision }}</p>
+        </div>
+        <div class="dato">
+          <span class="dato__label t-eyebrow">Visión</span>
+          <p class="dato__texto">{{ empresa.vision }}</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="t-title">Información financiera inicial</h2>
+        <p class="financiero__sub">Período 0 · situación de arranque</p>
+        <div class="financiero__grid">
+          <div class="financiero__item">
+            <span class="financiero__label">Activo total</span>
+            <span class="financiero__val num">{{ financiero.activoTotal }}</span>
+          </div>
+          <div class="financiero__item">
+            <span class="financiero__label">Pasivo total</span>
+            <span class="financiero__val num">{{ financiero.pasivoTotal }}</span>
+          </div>
+          <div class="financiero__item">
+            <span class="financiero__label">Patrimonio</span>
+            <span class="financiero__val num">{{ financiero.patrimonio }}</span>
+          </div>
+          <div class="financiero__item">
+            <span class="financiero__label">Utilidad neta</span>
+            <span class="financiero__val num">{{ financiero.utilidadNeta }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="caso__col">
+      <div class="card opciones">
+        <h2 class="t-title">Opciones de decisión</h2>
+
+        @switch (estadoOpciones()) {
+          @case ('bloqueado') {
+            <div class="opciones__locked">
+              <span class="opciones__lock-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </span>
+              <app-badge variante="muted">Disponible cuando el docente inicie la partida</app-badge>
+              <p class="opciones__eyebrow t-eyebrow">La partida se habilita en</p>
+              <div class="cuenta-regresiva">
+                <div class="cuenta"><span class="cuenta__val num">{{ cuenta.dias }}</span><span class="cuenta__label">días</span></div>
+                <div class="cuenta"><span class="cuenta__val num">{{ cuenta.horas }}</span><span class="cuenta__label">horas</span></div>
+                <div class="cuenta"><span class="cuenta__val num">{{ cuenta.min }}</span><span class="cuenta__label">min</span></div>
+                <div class="cuenta"><span class="cuenta__val num">{{ cuenta.seg }}</span><span class="cuenta__label">seg</span></div>
+              </div>
+              <ul class="bloqueadas">
+                @for (o of opciones; track o.id; let i = $index) {
+                  <li class="bloqueada">
+                    <span>Opción {{ i + 1 }} · bloqueada</span>
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+          @case ('seleccion') {
+            <app-tarjeta-seleccion [opciones]="opcionesSeleccion()" [(valor)]="eleccion" />
+            <button type="button" class="btn btn--primario btn--block" [disabled]="!eleccion()"
+              (click)="confirmarDecision()">
+              Confirmar decisión
+            </button>
+          }
+          @case ('resultado') {
+            <ul class="revisadas">
+              @for (o of opciones; track o.id) {
+                <li class="revisada" [class.revisada--elegida]="o.id === eleccion()">
+                  {{ o.opcion }}
+                  @if (o.id === eleccion()) {
+                    <app-badge variante="estudiante">Elegida</app-badge>
+                  }
+                </li>
+              }
+            </ul>
+            @if (opcionElegida(); as oe) {
+              <app-kpi etiqueta="Resultado" [valor]="oe.resultado" />
+            }
+          }
+        }
+      </div>
+    </div>
+  </div>
+</section>

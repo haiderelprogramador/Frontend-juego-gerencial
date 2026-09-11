@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 
 import { Badge } from '../../../shared/components/badge/badge';
 import { Toggle } from '../../../shared/components/toggle/toggle';
+import { Casos } from '../casos/casos';
 
 type TabPanel = 'periodos' | 'equipos' | 'casos' | 'parametros';
 
@@ -37,7 +38,7 @@ interface PasoConfig {
  */
 @Component({
   selector: 'app-panel',
-  imports: [RouterLink, Badge, Toggle],
+  imports: [RouterLink, Badge, Toggle, Casos],
   templateUrl: './panel.html',
   styleUrl: './panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

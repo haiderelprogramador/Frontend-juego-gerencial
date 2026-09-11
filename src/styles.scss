@@ -205,6 +205,44 @@ body {
   }
 }
 
+/* 🎨 Barra de vista previa de fase (Caso actual) — misma idea que .preview-bar,
+   pero como pill clara (no es parte del diseño). */
+.fase-preview {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: -1.75rem -1.75rem 1.25rem;
+  padding: 0.6rem 1.75rem;
+  background: var(--bs-surface);
+  border-bottom: 1px solid var(--bs-border);
+  font-size: 0.78rem;
+
+  &__label {
+    color: var(--bs-muted);
+    font-weight: 600;
+  }
+  &__opts {
+    display: flex;
+    gap: 0.4rem;
+  }
+  &__opts button {
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--bs-border-strong);
+    border-radius: 999px;
+    background: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--bs-muted);
+
+    &.is-active {
+      background: var(--bs-primary);
+      border-color: var(--bs-primary);
+      color: #fff;
+    }
+  }
+}
+
 /* Chrome compartido de las pantallas de auth (login / registro) */
 .auth-form {
   display: flex;
@@ -277,7 +315,8 @@ body {
   }
 
   input,
-  select {
+  select,
+  textarea {
     width: 100%;
     padding: 0.6rem 0.7rem;
     border: 1px solid var(--bs-border-strong);
@@ -294,6 +333,11 @@ body {
       outline-offset: 1px;
       border-color: var(--bs-primary);
     }
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 3rem;
   }
 
   &__control {

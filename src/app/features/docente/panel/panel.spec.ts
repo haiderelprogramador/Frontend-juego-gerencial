@@ -37,9 +37,16 @@ describe('Panel', () => {
     expect(host.textContent).toContain('Simulación activa');
   });
 
-  it('cambia de tab a un placeholder', () => {
+  it('la tab "casos" muestra el componente Casos', () => {
     const fixture = TestBed.createComponent(Panel);
     fixture.componentInstance.irA('casos');
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-casos')).toBeTruthy();
+  });
+
+  it('la tab "parametros" muestra el placeholder', () => {
+    const fixture = TestBed.createComponent(Panel);
+    fixture.componentInstance.irA('parametros');
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.placeholder')).toBeTruthy();
   });
