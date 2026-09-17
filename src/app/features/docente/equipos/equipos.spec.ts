@@ -6,6 +6,7 @@ import { EquipoService } from './services/equipo.service';
 
 describe('FormarEquipos', () => {
   beforeEach(async () => {
+    localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [FormarEquipos],
       providers: [provideHttpClient()],
