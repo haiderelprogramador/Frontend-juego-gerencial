@@ -28,18 +28,22 @@ describe('GestionEstudiantes', () => {
     }).compileComponents();
   });
 
-  it('arranca en estado inicial sin filas, en la sección Estudiantes', () => {
+  it('arranca mostrando el selector de cursos', () => {
     const fixture = TestBed.createComponent(GestionEstudiantes);
     expect(fixture.componentInstance.estado()).toBe('inicial');
     expect(fixture.componentInstance.filas().length).toBe(0);
-    expect(fixture.componentInstance.seccion()).toBe('estudiantes');
+    expect(fixture.componentInstance.cursoActual()).toBeNull();
   });
 
-  it('la sección "Equipos" muestra <app-formar-equipos>', () => {
+  it('al seleccionar un curso abre su espacio de trabajo', () => {
     const fixture = TestBed.createComponent(GestionEstudiantes);
-    fixture.componentInstance.irA('equipos');
+    fixture.componentInstance.nombreCurso.set('Curso de prueba');
+    fixture.componentInstance.crearCurso();
+    const curso = fixture.componentInstance.cursos()[0];
+    fixture.componentInstance.seleccionarCurso(curso.id);
     fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('app-formar-equipos')).toBeTruthy();
+    expect(fixture.componentInstance.cursoActual()?.id).toBe(curso.id);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Equipos formados');
   });
 
   it('lee edad y género del Excel y los conserva en la previsualización', async () => {
@@ -85,7 +89,9 @@ describe('GestionEstudiantes', () => {
 
     expect(fixture.componentInstance.estado()).toBe('resultado');
     expect(
-      fixture.componentInstance.estudiantesCargados().some((e) => e.correo === 'nueva.prueba@uni.edu'),
+      fixture.componentInstance
+        .estudiantesCargados()
+        .some((e) => e.correo === 'nueva.prueba@uni.edu'),
     ).toBe(true);
   });
 });

@@ -1,170 +1,85 @@
 <section class="gestion">
-  <header class="gestion__head">
-    <h2 class="gestion__title">Equipos y estudiantes</h2>
-  </header>
+  @if (!cursoActual()) {
+    <header class="gestion__head">
+      <h2 class="gestion__title">Cursos activos</h2>
+      <p class="gestion__lead">Selecciona un curso para gestionar sus estudiantes y equipos.</p>
+    </header>
 
-  <nav class="subtabs">
-    <button type="button" [class.is-active]="seccion() === 'estudiantes'" (click)="irA('estudiantes')">
-      Estudiantes
-    </button>
-    <button type="button" [class.is-active]="seccion() === 'equipos'" (click)="irA('equipos')">
-      Equipos
-    </button>
-  </nav>
-
-  @if (seccion() === 'estudiantes') {
-    <p class="gestion__lead">
-      Sube el archivo Excel con el listado. Se necesitan, como mínimo, las columnas
-      <strong>correo</strong>, <strong>nombre</strong>, <strong>número de identificación</strong>,
-      <strong>edad</strong> y <strong>género</strong>; cualquier otra columna se conserva.
-    </p>
-
-    <!-- Paso 1: elegir archivo -->
-    <div class="uploader">
-      <label class="btn btn--primary">
-        Elegir archivo Excel
-        <input type="file" accept=".xlsx,.xls" hidden (change)="onArchivo($event)" />
-      </label>
-      @if (nombreArchivo(); as nombre) {
-        <span class="uploader__file">{{ nombre }}</span>
-      }
-    </div>
-
-    @if (yaCargados() > 0) {
-      <p class="gestion__hint">
-        Ya hay {{ yaCargados() }} estudiante(s) cargados. El sistema asigna a cada nuevo
-        estudiante una contraseña con el patrón USU-###-&lt;identificación&gt;.
-      </p>
-    }
-
-    @if (errorArchivo(); as msg) {
-      <app-alerta tipo="error" [mensaje]="msg" />
-    }
-
-    <!-- Paso 2: previsualización -->
-    @if (estado() === 'previsualizando' || estado() === 'cargando') {
-      <div class="resumen">
-        <span class="chip chip--ok">{{ totalOk() }} listos para cargar</span>
-        @if (totalError() > 0) {
-          <span class="chip chip--error">{{ totalError() }} con problemas (se omiten)</span>
-        }
-      </div>
-
-      <div class="tabla-scroll">
-        <table class="tabla">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Estado</th>
-              <th>Nombre</th>
-              <th>Correo</th>
-              <th>N.º identificación</th>
-              <th>Edad</th>
-              <th>Género</th>
-              @for (col of columnasExtra(); track col) {
-                <th>{{ col }}</th>
+    <div class="card cursos-panel">
+      @if (cursos().length === 0) {
+        <p class="gestion__hint">Aún no tienes cursos creados.</p>
+      } @else {
+        <div class="cursos-grid">
+          @for (curso of cursos(); track curso.id) {
+            <article class="curso-card">
+              <button
+                type="button"
+                class="curso-card__settings"
+                (click)="alternarMenuCurso(curso.id)"
+                [attr.aria-expanded]="menuCursoAbierto() === curso.id"
+                aria-label="Acciones del curso"
+                title="Acciones del curso"
+              >
+                ⚙
+              </button>
+              <button type="button" class="curso-card__open" (click)="seleccionarCurso(curso.id)">
+                <strong>{{ curso.nombre }}</strong>
+              </button>
+              @if (menuCursoAbierto() === curso.id) {
+                <div class="curso-card__menu">
+                  <button type="button" (click)="modificarNombreCurso(curso)">
+                    Modificar nombre
+                  </button>
+                  <button type="button" class="is-danger" (click)="eliminarCurso(curso)">
+                    Eliminar
+                  </button>
+                </div>
               }
-              <th>Observaciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (f of filas(); track f.fila) {
-              <tr [class.fila-error]="f.estado === 'error'">
-                <td>{{ f.fila }}</td>
-                <td>
-                  @if (f.estado === 'ok') {
-                    <span class="chip chip--ok">OK</span>
-                  } @else {
-                    <span class="chip chip--error">Error</span>
-                  }
-                </td>
-                <td>{{ f.nombre || '—' }}</td>
-                <td>{{ f.correo || '—' }}</td>
-                <td>{{ f.numeroIdentificacion || '—' }}</td>
-                <td>{{ f.edad || '—' }}</td>
-                <td>{{ f.genero || '—' }}</td>
-                @for (col of columnasExtra(); track col) {
-                  <td>{{ f.columnasAdicionales[col] || '—' }}</td>
-                }
-                <td class="obs">{{ f.errores.join(' ') }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-
-      <div class="acciones">
-        <button type="button" class="btn btn--primary" [disabled]="totalOk() === 0 || estado() === 'cargando'"
-          (click)="confirmar()">
-          {{ estado() === 'cargando' ? 'Cargando…' : 'Confirmar carga de ' + totalOk() + ' estudiante(s)' }}
-        </button>
-        <button type="button" class="btn btn--ghost" [disabled]="estado() === 'cargando'" (click)="reiniciar()">
-          Cancelar
-        </button>
-      </div>
-    }
-
-    <!-- Paso 3: resultado -->
-    @if (estado() === 'resultado' && resultado(); as res) {
-      <app-alerta tipo="exito" [mensaje]="res.creados.length + ' estudiante(s) cargados correctamente.'" />
-
-      @if (res.errores.length > 0) {
-        <app-alerta tipo="error"
-          [mensaje]="res.errores.length + ' fila(s) rechazadas por el servidor (ver detalle abajo).'" />
-        <ul class="errores-servidor">
-          @for (e of res.errores; track e.correo) {
-            <li><strong>{{ e.correo }}</strong>: {{ e.motivo }}</li>
+            </article>
           }
-        </ul>
+        </div>
       }
-
-      <div class="tabla-scroll">
-        <table class="tabla">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Correo</th>
-              <th>N.º identificación</th>
-              <th>Edad</th>
-              <th>Género</th>
-              <th>Contraseña</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (e of res.creados; track e.id) {
-              <tr>
-                <td>{{ e.nombre }}</td>
-                <td>{{ e.correo }}</td>
-                <td>{{ e.numeroIdentificacion }}</td>
-                <td>{{ e.edad || '—' }}</td>
-                <td>{{ e.genero || '—' }}</td>
-                <td><code>{{ e.contrasenaGenerada }}</code></td>
-              </tr>
-            }
-          </tbody>
-        </table>
+      <div class="curso-crear">
+        <input
+          type="text"
+          [value]="nombreCurso()"
+          placeholder="Nombre del nuevo curso"
+          (input)="nombreCurso.set($any($event.target).value)"
+          (keyup.enter)="crearCurso()"
+        />
+        <button type="button" class="btn btn--primary" (click)="crearCurso()">Crear curso</button>
       </div>
-
-      <div class="acciones">
-        <button type="button" class="btn btn--primary" (click)="reiniciar()">Cargar otro archivo</button>
+    </div>
+  } @else {
+    <header class="gestion__head curso-header">
+      <div>
+        <button type="button" class="btn btn--ghost" (click)="volverACursos()">
+          Volver a cursos
+        </button>
+        <h2 class="gestion__title">{{ cursoActual()?.nombre }}</h2>
+        <p class="gestion__lead">Gestiona los estudiantes y equipos de este curso.</p>
       </div>
-    }
+    </header>
 
-    <!-- Tabla persistente de estudiantes ya cargados -->
-    <div class="card estudiantes-cargados">
-      <h3 class="estudiantes-cargados__title">Estudiantes cargados ({{ estudiantesCargados().length }})</h3>
+    <section class="card estudiantes-cargados">
+      <div class="section-heading">
+        <div>
+          <h3>Estudiantes del curso</h3>
+          <p class="gestion__hint">{{ estudiantesCargados().length }} estudiante(s) cargados.</p>
+        </div>
+      </div>
       @if (cargandoListado()) {
-        <p class="gestion__hint">Cargando…</p>
+        <p class="gestion__hint">Cargando estudiantes…</p>
       } @else if (estudiantesCargados().length === 0) {
-        <p class="gestion__hint">Aún no has cargado estudiantes.</p>
+        <p class="gestion__hint">Aún no hay estudiantes en este curso.</p>
       } @else {
         <div class="tabla-scroll">
           <table class="tabla">
             <thead>
               <tr>
-                <th>Correo</th>
                 <th>Nombre</th>
-                <th>N.º identificación</th>
+                <th>Correo</th>
+                <th>Identificación</th>
                 <th>Edad</th>
                 <th>Género</th>
               </tr>
@@ -172,8 +87,8 @@
             <tbody>
               @for (e of estudiantesCargados(); track e.id) {
                 <tr>
-                  <td>{{ e.correo }}</td>
                   <td>{{ e.nombre }}</td>
+                  <td>{{ e.correo }}</td>
                   <td>{{ e.numeroIdentificacion }}</td>
                   <td>{{ e.edad || '—' }}</td>
                   <td>{{ e.genero || '—' }}</td>
@@ -183,8 +98,219 @@
           </table>
         </div>
       }
-    </div>
-  } @else {
-    <app-formar-equipos />
+    </section>
+
+    <section class="card panel-block">
+      <h3>Agregar estudiante manualmente</h3>
+      <div class="manual-grid">
+        <input #manualNombre type="text" placeholder="Nombre completo" />
+        <input #manualCorreo type="email" placeholder="Correo" />
+        <input #manualId type="text" placeholder="Número de identificación" />
+        <button
+          type="button"
+          class="btn btn--secondary"
+          (click)="
+            agregarManual(manualNombre.value, manualCorreo.value, manualId.value);
+            manualNombre.value = '';
+            manualCorreo.value = '';
+            manualId.value = ''
+          "
+        >
+          Agregar
+        </button>
+      </div>
+    </section>
+
+    <section class="card panel-block uploader">
+      <div>
+        <h3>Cargar estudiantes desde Excel</h3>
+        <p class="gestion__hint">Se requieren correo, nombre, identificación, edad y género.</p>
+      </div>
+      <label class="btn btn--primary"
+        >Elegir archivo Excel
+        <input type="file" accept=".xlsx,.xls" hidden (change)="onArchivo($event)" />
+      </label>
+      @if (nombreArchivo(); as nombre) {
+        <span class="uploader__file">{{ nombre }}</span>
+      }
+    </section>
+
+    @if (errorArchivo(); as msg) {
+      <app-alerta tipo="error" [mensaje]="msg" />
+    }
+
+    @if (estado() === 'previsualizando' || estado() === 'cargando') {
+      <div class="resumen">
+        <span class="chip chip--ok">{{ totalOk() }} listos</span>
+        <span class="chip chip--error">{{ totalError() }} con problemas</span>
+      </div>
+      <div class="tabla-scroll">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Estado</th>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>Identificación</th>
+              <th>Edad</th>
+              <th>Género</th>
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (f of filas(); track f.fila) {
+              <tr>
+                <td>{{ f.fila }}</td>
+                <td>{{ f.estado }}</td>
+                <td>{{ f.nombre }}</td>
+                <td>{{ f.correo }}</td>
+                <td>{{ f.numeroIdentificacion }}</td>
+                <td>{{ f.edad }}</td>
+                <td>{{ f.genero }}</td>
+                <td class="obs">{{ f.errores.join(' ') }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="acciones">
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="totalOk() === 0 || estado() === 'cargando'"
+          (click)="confirmar()"
+        >
+          Confirmar carga
+        </button>
+        <button type="button" class="btn btn--ghost" (click)="reiniciar()">Cancelar</button>
+      </div>
+    }
+
+    <section class="card equipos-panel">
+      <div class="section-heading">
+        <div>
+          <span class="section-kicker">Paso 3</span>
+          <h3>Armar equipos</h3>
+          <p class="gestion__hint">Crea los grupos y revisa la distribución de estudiantes.</p>
+        </div>
+        <div class="equipo-auto">
+          <label for="tamano-equipo">Integrantes por equipo</label>
+          <input
+            id="tamano-equipo"
+            type="number"
+            min="2"
+            max="10"
+            [value]="tamanoEquipo()"
+            (input)="tamanoEquipo.set(+$any($event.target).value)"
+          />
+          <button
+            type="button"
+            class="btn btn--primary"
+            [disabled]="estudiantesCargados().length === 0"
+            (click)="formarEquiposAutomaticamente()"
+          >
+            Formar automáticamente
+          </button>
+        </div>
+      </div>
+      <div class="equipo-crear">
+        <div class="equipo-crear__label">
+          <strong>Creación manual</strong
+          ><span>Selecciona los nombres y crea el equipo en un clic.</span>
+        </div>
+        <input
+          type="text"
+          [value]="nombreNuevoEquipo()"
+          placeholder="Nombre del equipo"
+          (input)="nombreNuevoEquipo.set($any($event.target).value)"
+          (keyup.enter)="crearEquipo()"
+        />
+        <button
+          type="button"
+          class="btn btn--secondary"
+          [disabled]="estudiantesSeleccionados().length === 0 || !nombreNuevoEquipo().trim()"
+          (click)="crearEquipo()"
+        >
+          Crear equipo
+        </button>
+      </div>
+      @if (mensajeEquipo(); as mensaje) {
+        <app-alerta tipo="exito" [mensaje]="mensaje" />
+      }
+      <div class="equipos-grid">
+        <div>
+          <div class="subsection-heading">
+            <div>
+              <h4>Selecciona estudiantes</h4>
+              <span class="subsection-hint"
+                >Haz clic en los nombres para agregarlos al nuevo equipo.</span
+              >
+            </div>
+            <span class="count-badge">{{ estudiantesSeleccionados().length }}</span>
+          </div>
+          @if (sinEquipo().length === 0) {
+            <p class="gestion__hint">Todos tienen equipo.</p>
+          } @else {
+            <ul class="lista-estudiantes">
+              @for (e of sinEquipo(); track e.id) {
+                <li [class.is-selected]="estudiantesSeleccionados().includes(e.id)">
+                  <button
+                    type="button"
+                    class="estudiante-selector"
+                    [class.is-selected]="estudiantesSeleccionados().includes(e.id)"
+                    (click)="alternarEstudiante(e.id)"
+                  >
+                    <span>{{ e.nombre }}</span
+                    ><span class="selector-state">{{
+                      estudiantesSeleccionados().includes(e.id) ? 'Seleccionado' : 'Agregar'
+                    }}</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+        <div class="equipos-lista">
+          <div class="subsection-heading">
+            <h4>Equipos formados</h4>
+            <span class="count-badge">{{ equipos().length }}</span>
+          </div>
+          @if (equipos().length === 0) {
+            <div class="empty-team">
+              <strong>Aún no hay equipos</strong
+              ><span>Usa la formación automática o crea el primer equipo manualmente.</span>
+            </div>
+          }
+          @for (equipo of equipos(); track equipo.id) {
+            <article class="equipo-card">
+              <div class="equipo-card__head">
+                <div>
+                  <h4>{{ equipo.nombre }}</h4>
+                  <span>{{ equipo.estudianteIds.length }} integrante(s)</span>
+                </div>
+                <button type="button" class="btn btn--ghost" (click)="eliminarEquipo(equipo.id)">
+                  Eliminar
+                </button>
+              </div>
+              @if (equipo.estudianteIds.length === 0) {
+                <p class="gestion__hint">Sin integrantes.</p>
+              } @else {
+                <ul class="lista-estudiantes">
+                  @for (id of equipo.estudianteIds; track id) {
+                    <li>
+                      <span>{{ nombrePor(id) }}</span
+                      ><button type="button" class="btn btn--ghost" (click)="quitar(equipo.id, id)">
+                        Quitar
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            </article>
+          }
+        </div>
+      </div>
+    </section>
   }
 </section>

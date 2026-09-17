@@ -54,6 +54,7 @@ export interface FilaPrevisualizacion {
  * los asigna el backend.
  */
 export interface CargaMasivaRequest {
+  cursoId?: string;
   estudiantes: Array<{
     nombre: string;
     correo: string;
@@ -74,6 +75,7 @@ export interface EstudianteCargado {
   genero: string;
   contrasenaGenerada: string;
   cargadoEn: string;
+  cursoId?: string;
 }
 
 /** Respuesta de POST /docente/estudiantes/carga-masiva. */

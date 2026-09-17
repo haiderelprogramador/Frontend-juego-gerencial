@@ -27,6 +27,8 @@ export interface DemoEstudianteRecord {
   columnasAdicionales: Record<string, string>;
   /** Fecha de carga en ISO 8601. */
   cargadoEn: string;
+  /** Curso al que pertenece el estudiante. */
+  cursoId?: string;
 }
 
 const KEYS = {
@@ -78,9 +80,38 @@ export class DemoDb {
     return this.leer<DemoEstudianteRecord[]>(KEYS.estudiantes, []);
   }
 
-  buscarEstudiantePorCorreo(correo: string): DemoEstudianteRecord | undefined {
+  buscarEstudiantePorCorreo(correo: string, cursoId?: string): DemoEstudianteRecord | undefined {
     const objetivo = correo.trim().toLowerCase();
-    return this.estudiantes().find((e) => e.usuario.correo.toLowerCase() === objetivo);
+    return this.estudiantes().find((e) => {
+      const mismoCorreo = e.usuario.correo.toLowerCase() === objetivo;
+      return cursoId ? mismoCorreo && e.cursoId === cursoId : mismoCorreo;
+    });
+  }
+
+  estudiantesPorCurso(cursoId: string): DemoEstudianteRecord[] {
+    return this.estudiantes().filter((e) => e.cursoId === cursoId);
+  }
+
+  asignarEstudiantesSinCurso(cursoId: string): void {
+    const estudiantes = this.estudiantes();
+    const pendientes = estudiantes.filter((estudiante) => !estudiante.cursoId);
+    if (pendientes.length === 0) {
+      return;
+    }
+
+    this.escribir(
+      KEYS.estudiantes,
+      estudiantes.map((estudiante) =>
+        estudiante.cursoId ? estudiante : { ...estudiante, cursoId },
+      ),
+    );
+  }
+
+  eliminarEstudiantesPorCurso(cursoId: string): void {
+    this.escribir(
+      KEYS.estudiantes,
+      this.estudiantes().filter((estudiante) => estudiante.cursoId !== cursoId),
+    );
   }
 
   /** Agrega estudiantes al almacén demo y devuelve la lista completa resultante. */
