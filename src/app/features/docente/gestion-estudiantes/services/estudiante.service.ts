@@ -97,6 +97,8 @@ export class EstudianteService {
         // Contraseña generada por el "backend" (simulada por el mock).
         contrasena: generarContrasena(consecutivo, e.numeroIdentificacion),
         consecutivo,
+        edad: e.edad,
+        genero: e.genero,
         columnasAdicionales: e.columnasAdicionales,
         cargadoEn: ahora,
       });
@@ -119,6 +121,8 @@ export class EstudianteService {
       nombre: r.usuario.nombre,
       correo: r.usuario.correo,
       numeroIdentificacion: r.usuario.numeroIdentificacion,
+      edad: r.edad,
+      genero: r.genero,
       contrasenaGenerada: r.contrasena,
       cargadoEn: r.cargadoEn,
     };

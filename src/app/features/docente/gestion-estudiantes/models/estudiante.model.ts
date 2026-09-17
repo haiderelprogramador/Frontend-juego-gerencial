@@ -1,9 +1,10 @@
 /**
- * Modelos de la carga masiva de estudiantes por Excel (docs/03).
+ * Modelos de la carga masiva de estudiantes por Excel (docs/03, docs/08 §2).
  *
  * Confirmado con el cliente:
  *  - El docente sube un Excel con el listado de estudiantes.
- *  - De cada fila se extrae, como MÍNIMO: correo, nombre y número de identificación.
+ *  - De cada fila se extrae, como MÍNIMO: correo, nombre, número de
+ *    identificación, edad y género (docs/08 §2).
  *  - El Excel "puede traer más columnas" -> se conservan en `columnasAdicionales`.
  *  - A cada estudiante el BACKEND le genera una contraseña con patrón
  *    USU-<consecutivo>-<numeroIdentificacion>; el estudiante NO la elige y el
@@ -18,11 +19,14 @@ export interface FilaEstudianteExcel {
   correo: string;
   nombre: string;
   numeroIdentificacion: string;
+  edad: string;
+  genero: string;
   /**
-   * Cualquier otra columna del Excel (encabezado -> valor como texto).
-   * TODO: confirmar con el cliente qué otras columnas trae exactamente el Excel
-   * (¿programa académico? ¿grupo? ¿equipo asignado?) para darles un campo propio
-   * en vez de dejarlas en esta bolsa genérica.
+   * Cualquier otra columna del Excel (encabezado -> valor como texto), además
+   * de las 5 mínimas confirmadas (docs/08 §2).
+   * TODO: confirmar con el cliente si hay más columnas fijas (¿programa
+   * académico? ¿grupo? ¿equipo asignado?) para darles un campo propio en vez
+   * de dejarlas en esta bolsa genérica.
    */
   columnasAdicionales: Record<string, string>;
 }
@@ -36,6 +40,8 @@ export interface FilaPrevisualizacion {
   nombre: string;
   correo: string;
   numeroIdentificacion: string;
+  edad: string;
+  genero: string;
   columnasAdicionales: Record<string, string>;
   estado: EstadoFila;
   /** Motivos por los que la fila no se puede cargar (si estado = 'error'). */
@@ -52,6 +58,8 @@ export interface CargaMasivaRequest {
     nombre: string;
     correo: string;
     numeroIdentificacion: string;
+    edad: string;
+    genero: string;
     columnasAdicionales: Record<string, string>;
   }>;
 }
@@ -62,6 +70,8 @@ export interface EstudianteCargado {
   nombre: string;
   correo: string;
   numeroIdentificacion: string;
+  edad: string;
+  genero: string;
   contrasenaGenerada: string;
   cargadoEn: string;
 }

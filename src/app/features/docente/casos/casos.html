@@ -22,8 +22,13 @@
                   <app-badge variante="muted">Borrador</app-badge>
                 }
               </td>
-              <td class="ta-right">
-                <button type="button" class="btn btn--ghost btn--sm" (click)="editarCaso()">Editar</button>
+              <td class="ta-right acciones-caso">
+                @if (c.estado !== 'activo') {
+                  <button type="button" class="btn btn--ghost btn--sm" (click)="activarCaso(c.id)">
+                    Activar
+                  </button>
+                }
+                <button type="button" class="btn btn--ghost btn--sm" (click)="editarCaso(c.id)">Editar</button>
               </td>
             </tr>
           }
@@ -37,7 +42,7 @@
   <div class="casos-form">
     <div class="casos-form__head">
       <button type="button" class="btn btn--ghost btn--sm" (click)="volverALista()">← Volver</button>
-      <h2 class="t-title">Configurar caso</h2>
+      <h2 class="t-title">{{ casoEnEdicionId() ? 'Editar caso' : 'Nuevo caso' }}</h2>
     </div>
 
     <nav class="subtabs">
@@ -230,7 +235,7 @@
 
     <div class="casos-form__actions">
       <button type="button" class="btn btn--secundario" (click)="volverALista()">Cancelar</button>
-      <button type="button" class="btn btn--primario" (click)="volverALista()">Guardar caso</button>
+      <button type="button" class="btn btn--primario" (click)="guardarCaso()">Guardar caso</button>
     </div>
   </div>
 }

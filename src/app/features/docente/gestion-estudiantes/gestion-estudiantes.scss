@@ -104,3 +104,12 @@
   font-size: 0.8rem;
   color: #b3261e;
 }
+
+.estudiantes-cargados {
+  padding: 1rem 1.1rem;
+
+  &__title {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+  }
+}

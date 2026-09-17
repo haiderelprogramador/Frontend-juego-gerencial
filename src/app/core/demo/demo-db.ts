@@ -20,7 +20,10 @@ export interface DemoEstudianteRecord {
   contrasena: string;
   /** Consecutivo usado para generar la contraseña. */
   consecutivo: number;
-  /** Columnas del Excel que no son correo/nombre/identificación. */
+  /** Edad y género (docs/08 §2: columnas mínimas del Excel, junto a correo/nombre/identificación). */
+  edad: string;
+  genero: string;
+  /** Columnas del Excel que no son correo/nombre/identificación/edad/género. */
   columnasAdicionales: Record<string, string>;
   /** Fecha de carga en ISO 8601. */
   cargadoEn: string;

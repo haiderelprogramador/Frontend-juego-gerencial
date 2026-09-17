@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { Alerta } from '../../../shared/components/alerta/alerta';
+import { FormarEquipos } from '../equipos/equipos';
 import {
   CargaMasivaRequest,
   CargaMasivaResponse,
+  EstudianteCargado,
   FilaEstudianteExcel,
   FilaPrevisualizacion,
 } from './models/estudiante.model';
@@ -11,21 +13,23 @@ import { EstudianteService } from './services/estudiante.service';
 import { ExcelEstudiantesService } from './services/excel-estudiantes.service';
 
 type EstadoPantalla = 'inicial' | 'previsualizando' | 'cargando' | 'resultado';
+type Seccion = 'estudiantes' | 'equipos';
 
 const RE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RE_SOLO_DIGITOS = /^[0-9]+$/;
 
 /**
- * Carga masiva de estudiantes por Excel (docs/03).
+ * "Equipos y estudiantes" del docente (docs/03, docs/08 §2/§5).
  *
- * Flujo: elegir archivo -> xlsx lo lee en el navegador -> se valida cada fila ->
- * se muestra la PREVISUALIZACIÓN -> el docente confirma -> `EstudianteService`
- * envía solo los datos del Excel; el backend (o el mock) asigna consecutivo y
- * contraseña (USU-###-<identificación>) y los devuelve en el resultado.
+ * Tiene dos secciones, cada una en su propio componente (no se mezclan):
+ *  - "Estudiantes": carga masiva por Excel (correo/nombre/identificación/edad/
+ *    género — docs/08 §2) + tabla de los ya cargados (`EstudianteService.listar()`).
+ *  - "Equipos": formar equipos a partir de esos estudiantes (`<app-formar-equipos>`).
+ *    Distinto de la "asignación de equipos" del formulario de un Caso puntual.
  */
 @Component({
   selector: 'app-gestion-estudiantes',
-  imports: [Alerta],
+  imports: [Alerta, FormarEquipos],
   templateUrl: './gestion-estudiantes.html',
   styleUrl: './gestion-estudiantes.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,6 +38,8 @@ const RE_SOLO_DIGITOS = /^[0-9]+$/;
 export class GestionEstudiantes {
   private readonly excel = inject(ExcelEstudiantesService);
   private readonly estudiantes = inject(EstudianteService);
+
+  readonly seccion = signal<Seccion>('estudiantes');
 
   readonly estado = signal<EstadoPantalla>('inicial');
   readonly nombreArchivo = signal<string | null>(null);
@@ -44,11 +50,15 @@ export class GestionEstudiantes {
   /** Estudiantes ya cargados (solo informativo para el docente). */
   readonly yaCargados = signal<number>(this.estudiantes.contarExistentes());
 
+  /** Listado completo de estudiantes ya cargados, para la tabla persistente. */
+  readonly estudiantesCargados = signal<EstudianteCargado[]>([]);
+  readonly cargandoListado = signal(false);
+
   readonly filasValidas = computed(() => this.filas().filter((f) => f.estado === 'ok'));
   readonly totalOk = computed(() => this.filasValidas().length);
   readonly totalError = computed(() => this.filas().length - this.totalOk());
 
-  /** Encabezados extra detectados en el Excel (más allá de correo/nombre/identificación). */
+  /** Encabezados extra detectados en el Excel (más allá de las 5 columnas mínimas). */
   readonly columnasExtra = computed<string[]>(() => {
     const claves = new Set<string>();
     for (const fila of this.filas()) {
@@ -56,6 +66,14 @@ export class GestionEstudiantes {
     }
     return [...claves];
   });
+
+  constructor() {
+    this.cargarListado();
+  }
+
+  irA(seccion: Seccion): void {
+    this.seccion.set(seccion);
+  }
 
   async onArchivo(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
@@ -96,6 +114,8 @@ export class GestionEstudiantes {
         nombre: f.nombre,
         correo: f.correo,
         numeroIdentificacion: f.numeroIdentificacion,
+        edad: f.edad,
+        genero: f.genero,
         columnasAdicionales: f.columnasAdicionales,
       })),
     };
@@ -105,6 +125,7 @@ export class GestionEstudiantes {
         this.resultado.set(res);
         this.yaCargados.update((n) => n + res.creados.length);
         this.estado.set('resultado');
+        this.cargarListado();
       },
       error: (err: { message?: string }) => {
         this.errorArchivo.set(err?.message ?? 'No se pudo completar la carga.');
@@ -125,6 +146,14 @@ export class GestionEstudiantes {
   // ---------------------------------------------------------------------------
   // Internos
   // ---------------------------------------------------------------------------
+
+  private cargarListado(): void {
+    this.cargandoListado.set(true);
+    this.estudiantes.listar().subscribe((lista) => {
+      this.estudiantesCargados.set(lista);
+      this.cargandoListado.set(false);
+    });
+  }
 
   private construirPrevisualizacion(filas: FilaEstudianteExcel[]): FilaPrevisualizacion[] {
     const correosVistos = new Set<string>();
@@ -158,6 +187,8 @@ export class GestionEstudiantes {
         nombre: fila.nombre,
         correo: fila.correo,
         numeroIdentificacion: fila.numeroIdentificacion,
+        edad: fila.edad,
+        genero: fila.genero,
         columnasAdicionales: fila.columnasAdicionales,
         estado: errores.length === 0 ? 'ok' : 'error',
         errores,

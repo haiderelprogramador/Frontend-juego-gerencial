@@ -1,0 +1,72 @@
+<div class="equipos">
+  <div class="card equipos__crear">
+    <label class="field">
+      <span class="field__label">Nombre del equipo</span>
+      <div class="equipos__crear-row">
+        <input type="text" [value]="nombreNuevoEquipo()" placeholder="Ej. Equipo Cóndor"
+          (input)="nombreNuevoEquipo.set($any($event.target).value)" (keyup.enter)="crearEquipo()" />
+        <button type="button" class="btn btn--primario" (click)="crearEquipo()">+ Crear equipo</button>
+      </div>
+    </label>
+    <button type="button" class="btn btn--secundario"
+      [disabled]="equipos().length === 0 || sinEquipo().length === 0" (click)="asignarAutomatico()">
+      Asignar automáticamente
+    </button>
+  </div>
+
+  <div class="equipos__grid">
+    <div class="card">
+      <h2 class="t-title">Sin equipo ({{ sinEquipo().length }})</h2>
+      @if (cargando()) {
+        <p class="t-muted">Cargando estudiantes…</p>
+      } @else if (sinEquipo().length === 0) {
+        <p class="t-muted">
+          {{ estudiantes().length === 0 ? 'Aún no has cargado estudiantes.' : 'Todos los estudiantes ya tienen equipo.' }}
+        </p>
+      } @else {
+        <ul class="lista-estudiantes">
+          @for (e of sinEquipo(); track e.id) {
+            <li>
+              <span>{{ e.nombre }}</span>
+              <select (change)="asignar(e.id, $event)">
+                <option value="">Asignar a…</option>
+                @for (eq of equipos(); track eq.id) {
+                  <option [value]="eq.id">{{ eq.nombre }}</option>
+                }
+              </select>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <div class="equipos__lista">
+      @if (equipos().length === 0) {
+        <div class="card">
+          <p class="t-muted">Aún no has creado ningún equipo.</p>
+        </div>
+      }
+      @for (eq of equipos(); track eq.id) {
+        <div class="card equipo-card">
+          <div class="equipo-card__head">
+            <h3 class="t-title">{{ eq.nombre }}</h3>
+            <button type="button" class="equipo-card__quitar-equipo" (click)="eliminarEquipo(eq.id)"
+              aria-label="Eliminar equipo">✕</button>
+          </div>
+          @if (eq.estudianteIds.length === 0) {
+            <p class="t-muted">Sin integrantes todavía.</p>
+          } @else {
+            <ul class="lista-estudiantes">
+              @for (id of eq.estudianteIds; track id) {
+                <li>
+                  <span>{{ nombrePor(id) }}</span>
+                  <button type="button" class="quitar" (click)="quitar(eq.id, id)">Quitar</button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>

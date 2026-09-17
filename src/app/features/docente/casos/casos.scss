@@ -42,6 +42,12 @@
   }
 }
 
+.acciones-caso {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
 .casos-form {
   display: flex;
   flex-direction: column;
@@ -65,29 +71,7 @@
   }
 }
 
-.subtabs {
-  display: flex;
-  gap: 1.25rem;
-  border-bottom: 1px solid var(--bs-border);
-
-  button {
-    padding: 0.55rem 0.1rem;
-    border: 0;
-    background: transparent;
-    font: inherit;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--bs-muted);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-
-    &.is-active {
-      color: var(--bs-primary);
-      border-bottom-color: var(--bs-primary);
-    }
-  }
-}
+/* .subtabs vive en styles.scss (compartida con gestion-estudiantes). */
 
 .form-grid {
   display: grid;

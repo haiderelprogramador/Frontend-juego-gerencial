@@ -20,6 +20,8 @@ describe('EstudianteService (mock)', () => {
             nombre: 'Juan Pérez',
             correo: 'juan@uni.edu',
             numeroIdentificacion: '1094567890',
+            edad: '22',
+            genero: 'Masculino',
             columnasAdicionales: {},
           },
         ],
@@ -37,6 +39,8 @@ describe('EstudianteService (mock)', () => {
       nombre: 'Ana Gómez',
       correo: 'ana@uni.edu',
       numeroIdentificacion: '1032654987',
+      edad: '19',
+      genero: 'Femenino',
       columnasAdicionales: {},
     };
 

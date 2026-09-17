@@ -89,4 +89,50 @@ describe('Casos', () => {
 
     expect(fixture.componentInstance.errorImportFinanciero()).toBeTruthy();
   });
+
+  it('"Guardar caso" agrega el caso nuevo a la lista (persiste en el servicio)', () => {
+    const fixture = TestBed.createComponent(Casos);
+    fixture.detectChanges();
+    const totalAntes = fixture.componentInstance.casos().length;
+
+    fixture.componentInstance.nuevoCaso();
+    fixture.componentInstance.empresa.set('Caso de prueba');
+    fixture.componentInstance.guardarCaso();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.vista()).toBe('lista');
+    expect(fixture.componentInstance.casos()).toHaveLength(totalAntes + 1);
+    expect(fixture.componentInstance.casos().some((c) => c.nombre === 'Caso de prueba')).toBe(true);
+  });
+
+  it('"Editar" precarga el formulario y "Guardar" actualiza en vez de duplicar', () => {
+    const fixture = TestBed.createComponent(Casos);
+    fixture.detectChanges();
+    const casoExistente = fixture.componentInstance.casos()[0];
+    const totalAntes = fixture.componentInstance.casos().length;
+
+    fixture.componentInstance.editarCaso(casoExistente.id);
+    expect(fixture.componentInstance.empresa()).toBe(casoExistente.nombre);
+
+    fixture.componentInstance.empresa.set('Nombre editado');
+    fixture.componentInstance.guardarCaso();
+
+    expect(fixture.componentInstance.casos()).toHaveLength(totalAntes);
+    expect(fixture.componentInstance.casos().find((c) => c.id === casoExistente.id)?.nombre).toBe(
+      'Nombre editado',
+    );
+  });
+
+  it('"Activar" deja ese caso como el único activo', () => {
+    const fixture = TestBed.createComponent(Casos);
+    fixture.detectChanges();
+    const borrador = fixture.componentInstance.casos().find((c) => c.estado === 'borrador');
+    expect(borrador).toBeTruthy();
+
+    fixture.componentInstance.activarCaso(borrador!.id);
+
+    const activos = fixture.componentInstance.casos().filter((c) => c.estado === 'activo');
+    expect(activos).toHaveLength(1);
+    expect(activos[0].id).toBe(borrador!.id);
+  });
 });

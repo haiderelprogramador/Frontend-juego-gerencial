@@ -7,7 +7,8 @@ import { FilaEstudianteExcel } from '../models/estudiante.model';
  * Lee y normaliza el Excel de estudiantes en el navegador con xlsx (SheetJS).
  *
  * No hace validación de negocio ni genera contraseñas: solo convierte el
- * archivo en filas `{ correo, nombre, numeroIdentificacion, columnasAdicionales }`.
+ * archivo en filas `{ correo, nombre, numeroIdentificacion, edad, genero,
+ * columnasAdicionales }` (docs/08 §2: esas 5 son las columnas mínimas).
  * La validación y la previsualización de credenciales las arma el componente
  * de gestión de estudiantes.
  */
@@ -35,6 +36,8 @@ export class ExcelEstudiantesService {
       'cc',
       'dni',
     ],
+    edad: ['edad', 'age'],
+    genero: ['genero', 'sexo', 'gender'],
   };
 
   /** Lee el archivo y devuelve las filas de estudiantes ya normalizadas. */
@@ -72,8 +75,16 @@ export class ExcelEstudiantesService {
     correo?: string;
     nombre?: string;
     numeroIdentificacion?: string;
+    edad?: string;
+    genero?: string;
   } {
-    const mapa: { correo?: string; nombre?: string; numeroIdentificacion?: string } = {};
+    const mapa: {
+      correo?: string;
+      nombre?: string;
+      numeroIdentificacion?: string;
+      edad?: string;
+      genero?: string;
+    } = {};
 
     for (const encabezado of encabezados) {
       const normalizado = this.normalizarTexto(encabezado);
@@ -86,6 +97,10 @@ export class ExcelEstudiantesService {
         this.ALIAS.numeroIdentificacion.includes(normalizado)
       ) {
         mapa.numeroIdentificacion = encabezado;
+      } else if (!mapa.edad && this.ALIAS.edad.includes(normalizado)) {
+        mapa.edad = encabezado;
+      } else if (!mapa.genero && this.ALIAS.genero.includes(normalizado)) {
+        mapa.genero = encabezado;
       }
     }
 
@@ -94,11 +109,17 @@ export class ExcelEstudiantesService {
 
   private normalizarFila(
     filaCruda: Record<string, unknown>,
-    mapa: { correo?: string; nombre?: string; numeroIdentificacion?: string },
+    mapa: {
+      correo?: string;
+      nombre?: string;
+      numeroIdentificacion?: string;
+      edad?: string;
+      genero?: string;
+    },
     numeroFila: number,
   ): FilaEstudianteExcel {
     const usadas = new Set(
-      [mapa.correo, mapa.nombre, mapa.numeroIdentificacion].filter(
+      [mapa.correo, mapa.nombre, mapa.numeroIdentificacion, mapa.edad, mapa.genero].filter(
         (c): c is string => c !== undefined,
       ),
     );
@@ -117,6 +138,8 @@ export class ExcelEstudiantesService {
       numeroIdentificacion: mapa.numeroIdentificacion
         ? this.aTexto(filaCruda[mapa.numeroIdentificacion]).trim()
         : '',
+      edad: mapa.edad ? this.aTexto(filaCruda[mapa.edad]).trim() : '',
+      genero: mapa.genero ? this.aTexto(filaCruda[mapa.genero]).trim() : '',
       columnasAdicionales,
     };
   }

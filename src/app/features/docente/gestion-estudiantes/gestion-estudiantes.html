@@ -1,133 +1,190 @@
 <section class="gestion">
   <header class="gestion__head">
-    <h2 class="gestion__title">Carga masiva de estudiantes</h2>
-    <p class="gestion__lead">
-      Sube el archivo Excel con el listado. Se necesitan, como mínimo, las columnas
-      <strong>correo</strong>, <strong>nombre</strong> y
-      <strong>número de identificación</strong>; cualquier otra columna se conserva.
-    </p>
+    <h2 class="gestion__title">Equipos y estudiantes</h2>
   </header>
 
-  <!-- Paso 1: elegir archivo -->
-  <div class="uploader">
-    <label class="btn btn--primary">
-      Elegir archivo Excel
-      <input type="file" accept=".xlsx,.xls" hidden (change)="onArchivo($event)" />
-    </label>
-    @if (nombreArchivo(); as nombre) {
-      <span class="uploader__file">{{ nombre }}</span>
-    }
-  </div>
+  <nav class="subtabs">
+    <button type="button" [class.is-active]="seccion() === 'estudiantes'" (click)="irA('estudiantes')">
+      Estudiantes
+    </button>
+    <button type="button" [class.is-active]="seccion() === 'equipos'" (click)="irA('equipos')">
+      Equipos
+    </button>
+  </nav>
 
-  @if (yaCargados() > 0) {
-    <p class="gestion__hint">
-      Ya hay {{ yaCargados() }} estudiante(s) cargados. El sistema asigna a cada nuevo
-      estudiante una contraseña con el patrón USU-###-&lt;identificación&gt;.
+  @if (seccion() === 'estudiantes') {
+    <p class="gestion__lead">
+      Sube el archivo Excel con el listado. Se necesitan, como mínimo, las columnas
+      <strong>correo</strong>, <strong>nombre</strong>, <strong>número de identificación</strong>,
+      <strong>edad</strong> y <strong>género</strong>; cualquier otra columna se conserva.
     </p>
-  }
 
-  @if (errorArchivo(); as msg) {
-    <app-alerta tipo="error" [mensaje]="msg" />
-  }
-
-  <!-- Paso 2: previsualización -->
-  @if (estado() === 'previsualizando' || estado() === 'cargando') {
-    <div class="resumen">
-      <span class="chip chip--ok">{{ totalOk() }} listos para cargar</span>
-      @if (totalError() > 0) {
-        <span class="chip chip--error">{{ totalError() }} con problemas (se omiten)</span>
+    <!-- Paso 1: elegir archivo -->
+    <div class="uploader">
+      <label class="btn btn--primary">
+        Elegir archivo Excel
+        <input type="file" accept=".xlsx,.xls" hidden (change)="onArchivo($event)" />
+      </label>
+      @if (nombreArchivo(); as nombre) {
+        <span class="uploader__file">{{ nombre }}</span>
       }
     </div>
 
-    <div class="tabla-scroll">
-      <table class="tabla">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Estado</th>
-            <th>Nombre</th>
-            <th>Correo</th>
-            <th>N.º identificación</th>
-            @for (col of columnasExtra(); track col) {
-              <th>{{ col }}</th>
-            }
-            <th>Observaciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (f of filas(); track f.fila) {
-            <tr [class.fila-error]="f.estado === 'error'">
-              <td>{{ f.fila }}</td>
-              <td>
-                @if (f.estado === 'ok') {
-                  <span class="chip chip--ok">OK</span>
-                } @else {
-                  <span class="chip chip--error">Error</span>
-                }
-              </td>
-              <td>{{ f.nombre || '—' }}</td>
-              <td>{{ f.correo || '—' }}</td>
-              <td>{{ f.numeroIdentificacion || '—' }}</td>
-              @for (col of columnasExtra(); track col) {
-                <td>{{ f.columnasAdicionales[col] || '—' }}</td>
-              }
-              <td class="obs">{{ f.errores.join(' ') }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-
-    <div class="acciones">
-      <button type="button" class="btn btn--primary" [disabled]="totalOk() === 0 || estado() === 'cargando'"
-        (click)="confirmar()">
-        {{ estado() === 'cargando' ? 'Cargando…' : 'Confirmar carga de ' + totalOk() + ' estudiante(s)' }}
-      </button>
-      <button type="button" class="btn btn--ghost" [disabled]="estado() === 'cargando'" (click)="reiniciar()">
-        Cancelar
-      </button>
-    </div>
-  }
-
-  <!-- Paso 3: resultado -->
-  @if (estado() === 'resultado' && resultado(); as res) {
-    <app-alerta tipo="exito" [mensaje]="res.creados.length + ' estudiante(s) cargados correctamente.'" />
-
-    @if (res.errores.length > 0) {
-      <app-alerta tipo="error"
-        [mensaje]="res.errores.length + ' fila(s) rechazadas por el servidor (ver detalle abajo).'" />
-      <ul class="errores-servidor">
-        @for (e of res.errores; track e.correo) {
-          <li><strong>{{ e.correo }}</strong>: {{ e.motivo }}</li>
-        }
-      </ul>
+    @if (yaCargados() > 0) {
+      <p class="gestion__hint">
+        Ya hay {{ yaCargados() }} estudiante(s) cargados. El sistema asigna a cada nuevo
+        estudiante una contraseña con el patrón USU-###-&lt;identificación&gt;.
+      </p>
     }
 
-    <div class="tabla-scroll">
-      <table class="tabla">
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Correo</th>
-            <th>N.º identificación</th>
-            <th>Contraseña</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (e of res.creados; track e.id) {
-            <tr>
-              <td>{{ e.nombre }}</td>
-              <td>{{ e.correo }}</td>
-              <td>{{ e.numeroIdentificacion }}</td>
-              <td><code>{{ e.contrasenaGenerada }}</code></td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+    @if (errorArchivo(); as msg) {
+      <app-alerta tipo="error" [mensaje]="msg" />
+    }
 
-    <div class="acciones">
-      <button type="button" class="btn btn--primary" (click)="reiniciar()">Cargar otro archivo</button>
+    <!-- Paso 2: previsualización -->
+    @if (estado() === 'previsualizando' || estado() === 'cargando') {
+      <div class="resumen">
+        <span class="chip chip--ok">{{ totalOk() }} listos para cargar</span>
+        @if (totalError() > 0) {
+          <span class="chip chip--error">{{ totalError() }} con problemas (se omiten)</span>
+        }
+      </div>
+
+      <div class="tabla-scroll">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Estado</th>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>N.º identificación</th>
+              <th>Edad</th>
+              <th>Género</th>
+              @for (col of columnasExtra(); track col) {
+                <th>{{ col }}</th>
+              }
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (f of filas(); track f.fila) {
+              <tr [class.fila-error]="f.estado === 'error'">
+                <td>{{ f.fila }}</td>
+                <td>
+                  @if (f.estado === 'ok') {
+                    <span class="chip chip--ok">OK</span>
+                  } @else {
+                    <span class="chip chip--error">Error</span>
+                  }
+                </td>
+                <td>{{ f.nombre || '—' }}</td>
+                <td>{{ f.correo || '—' }}</td>
+                <td>{{ f.numeroIdentificacion || '—' }}</td>
+                <td>{{ f.edad || '—' }}</td>
+                <td>{{ f.genero || '—' }}</td>
+                @for (col of columnasExtra(); track col) {
+                  <td>{{ f.columnasAdicionales[col] || '—' }}</td>
+                }
+                <td class="obs">{{ f.errores.join(' ') }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="acciones">
+        <button type="button" class="btn btn--primary" [disabled]="totalOk() === 0 || estado() === 'cargando'"
+          (click)="confirmar()">
+          {{ estado() === 'cargando' ? 'Cargando…' : 'Confirmar carga de ' + totalOk() + ' estudiante(s)' }}
+        </button>
+        <button type="button" class="btn btn--ghost" [disabled]="estado() === 'cargando'" (click)="reiniciar()">
+          Cancelar
+        </button>
+      </div>
+    }
+
+    <!-- Paso 3: resultado -->
+    @if (estado() === 'resultado' && resultado(); as res) {
+      <app-alerta tipo="exito" [mensaje]="res.creados.length + ' estudiante(s) cargados correctamente.'" />
+
+      @if (res.errores.length > 0) {
+        <app-alerta tipo="error"
+          [mensaje]="res.errores.length + ' fila(s) rechazadas por el servidor (ver detalle abajo).'" />
+        <ul class="errores-servidor">
+          @for (e of res.errores; track e.correo) {
+            <li><strong>{{ e.correo }}</strong>: {{ e.motivo }}</li>
+          }
+        </ul>
+      }
+
+      <div class="tabla-scroll">
+        <table class="tabla">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Correo</th>
+              <th>N.º identificación</th>
+              <th>Edad</th>
+              <th>Género</th>
+              <th>Contraseña</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of res.creados; track e.id) {
+              <tr>
+                <td>{{ e.nombre }}</td>
+                <td>{{ e.correo }}</td>
+                <td>{{ e.numeroIdentificacion }}</td>
+                <td>{{ e.edad || '—' }}</td>
+                <td>{{ e.genero || '—' }}</td>
+                <td><code>{{ e.contrasenaGenerada }}</code></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="acciones">
+        <button type="button" class="btn btn--primary" (click)="reiniciar()">Cargar otro archivo</button>
+      </div>
+    }
+
+    <!-- Tabla persistente de estudiantes ya cargados -->
+    <div class="card estudiantes-cargados">
+      <h3 class="estudiantes-cargados__title">Estudiantes cargados ({{ estudiantesCargados().length }})</h3>
+      @if (cargandoListado()) {
+        <p class="gestion__hint">Cargando…</p>
+      } @else if (estudiantesCargados().length === 0) {
+        <p class="gestion__hint">Aún no has cargado estudiantes.</p>
+      } @else {
+        <div class="tabla-scroll">
+          <table class="tabla">
+            <thead>
+              <tr>
+                <th>Correo</th>
+                <th>Nombre</th>
+                <th>N.º identificación</th>
+                <th>Edad</th>
+                <th>Género</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (e of estudiantesCargados(); track e.id) {
+                <tr>
+                  <td>{{ e.correo }}</td>
+                  <td>{{ e.nombre }}</td>
+                  <td>{{ e.numeroIdentificacion }}</td>
+                  <td>{{ e.edad || '—' }}</td>
+                  <td>{{ e.genero || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     </div>
+  } @else {
+    <app-formar-equipos />
   }
 </section>
