@@ -47,6 +47,9 @@ export class GestionEstudiantes {
   readonly filas = signal<FilaPrevisualizacion[]>([]);
   readonly resultado = signal<CargaMasivaResponse | null>(null);
 
+  /** Archivo crudo seleccionado — se manda tal cual (multipart) al confirmar. */
+  private archivoActual: File | null = null;
+
   /** Estudiantes ya cargados (solo informativo para el docente). */
   readonly yaCargados = signal<number>(this.estudiantes.contarExistentes());
 
@@ -84,6 +87,7 @@ export class GestionEstudiantes {
 
     this.reiniciar();
     this.nombreArchivo.set(archivo.name);
+    this.archivoActual = archivo;
 
     let filasCrudas: FilaEstudianteExcel[];
     try {
@@ -103,7 +107,7 @@ export class GestionEstudiantes {
 
   confirmar(): void {
     const validas = this.filasValidas();
-    if (validas.length === 0 || this.estado() === 'cargando') {
+    if (validas.length === 0 || this.estado() === 'cargando' || !this.archivoActual) {
       return;
     }
 
@@ -120,15 +124,16 @@ export class GestionEstudiantes {
       })),
     };
 
-    this.estudiantes.cargaMasiva(req).subscribe({
+    this.estudiantes.cargaMasiva(req, this.archivoActual).subscribe({
       next: (res) => {
         this.resultado.set(res);
         this.yaCargados.update((n) => n + res.creados.length);
         this.estado.set('resultado');
         this.cargarListado();
       },
-      error: (err: { message?: string }) => {
-        this.errorArchivo.set(err?.message ?? 'No se pudo completar la carga.');
+      error: (err: { message?: string; error?: { message?: string } }) => {
+        // err.error.message -> HttpErrorResponse real; err.message -> mock demo.
+        this.errorArchivo.set(err?.error?.message ?? err?.message ?? 'No se pudo completar la carga.');
         this.estado.set('previsualizando');
       },
     });
@@ -140,6 +145,7 @@ export class GestionEstudiantes {
     this.errorArchivo.set(null);
     this.filas.set([]);
     this.resultado.set(null);
+    this.archivoActual = null;
     this.yaCargados.set(this.estudiantes.contarExistentes());
   }
 

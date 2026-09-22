@@ -16,17 +16,17 @@ import { generarContrasena } from './generar-contrasena';
 /**
  * Carga masiva y consulta de estudiantes (rol DOCENTE).
  *
- * Contrato de API (Spring Boot, aún no implementado):
+ * Contrato de API (backend real, docs/07 §2.2 — opción B, multipart):
  *  - GET  {@link API_CONFIG.endpoints.estudiantes}            -> EstudianteCargado[]
- *  - POST {@link API_CONFIG.endpoints.estudiantesCargaMasiva} body CargaMasivaRequest
- *        -> CargaMasivaResponse { creados, errores }
+ *  - POST {@link API_CONFIG.endpoints.estudiantesCargaMasiva} multipart/form-data,
+ *        campo `archivo` con el .xlsx crudo -> CargaMasivaResponse { creados, errores }
+ *        (el backend lo parsea con Apache POI; el front ya NO manda las filas en JSON).
  *
- * El frontend envía SOLO los datos del Excel. La asignación del consecutivo y la
- * generación de la contraseña (patrón USU-###-<identificación>) son
- * responsabilidad del BACKEND; aquí el MOCK las simula (ver `generarContrasena`,
- * que en producción no se usaría) y persiste en {@link DemoDb} (localStorage)
- * para que el estudiante pueda iniciar sesión de inmediato. La firma pública no
- * cambia cuando llegue el backend real.
+ * En modo demo no hay backend que parsee el archivo, así que el mock sigue
+ * usando las filas ya parseadas en el navegador (`CargaMasivaRequest`) para
+ * simular la creación (ver `generarContrasena`, que en producción no se usa) y
+ * persiste en {@link DemoDb} (localStorage) para que el estudiante pueda
+ * iniciar sesión de inmediato.
  */
 @Injectable({ providedIn: 'root' })
 export class EstudianteService {
@@ -51,11 +51,15 @@ export class EstudianteService {
     );
   }
 
-  cargaMasiva(req: CargaMasivaRequest): Observable<CargaMasivaResponse> {
+  cargaMasiva(req: CargaMasivaRequest, archivo: File): Observable<CargaMasivaResponse> {
     if (!API_CONFIG.demoMode) {
+      const formData = new FormData();
+      formData.append('archivo', archivo);
+      // No seteamos Content-Type a mano: HttpClient arma el boundary multipart
+      // correcto a partir del FormData.
       return this.http.post<CargaMasivaResponse>(
         apiUrl(API_CONFIG.endpoints.estudiantesCargaMasiva),
-        req,
+        formData,
       );
     }
 
@@ -81,7 +85,7 @@ export class EstudianteService {
     for (const e of req.estudiantes) {
       const correo = e.correo.toLowerCase();
       if (yaRegistrados.has(correo)) {
-        errores.push({ correo: e.correo, motivo: 'Ya existe un estudiante con ese correo.' });
+        errores.push({ correo: e.correo, mensaje: 'Ya existe un estudiante con ese correo.' });
         continue;
       }
       yaRegistrados.add(correo);

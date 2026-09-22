@@ -14,18 +14,21 @@ describe('EstudianteService (mock)', () => {
     const service = TestBed.inject(EstudianteService);
 
     const res = await firstValueFrom(
-      service.cargaMasiva({
-        estudiantes: [
-          {
-            nombre: 'Juan Pérez',
-            correo: 'juan@uni.edu',
-            numeroIdentificacion: '1094567890',
-            edad: '22',
-            genero: 'Masculino',
-            columnasAdicionales: {},
-          },
-        ],
-      }),
+      service.cargaMasiva(
+        {
+          estudiantes: [
+            {
+              nombre: 'Juan Pérez',
+              correo: 'juan@uni.edu',
+              numeroIdentificacion: '1094567890',
+              edad: '22',
+              genero: 'Masculino',
+              columnasAdicionales: {},
+            },
+          ],
+        },
+        new File([], 'estudiantes.xlsx'),
+      ),
     );
 
     expect(res.creados).toHaveLength(1);
@@ -44,8 +47,9 @@ describe('EstudianteService (mock)', () => {
       columnasAdicionales: {},
     };
 
-    await firstValueFrom(service.cargaMasiva({ estudiantes: [fila] }));
-    const segunda = await firstValueFrom(service.cargaMasiva({ estudiantes: [fila] }));
+    const archivo = new File([], 'estudiantes.xlsx');
+    await firstValueFrom(service.cargaMasiva({ estudiantes: [fila] }, archivo));
+    const segunda = await firstValueFrom(service.cargaMasiva({ estudiantes: [fila] }, archivo));
 
     expect(segunda.creados).toHaveLength(0);
     expect(segunda.errores[0].correo).toBe('ana@uni.edu');

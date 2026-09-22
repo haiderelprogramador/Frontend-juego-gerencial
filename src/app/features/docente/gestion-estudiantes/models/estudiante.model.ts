@@ -79,6 +79,9 @@ export interface EstudianteCargado {
 /** Respuesta de POST /docente/estudiantes/carga-masiva. */
 export interface CargaMasivaResponse {
   creados: EstudianteCargado[];
-  /** Filas rechazadas por el backend (p. ej. correo ya existente). */
-  errores: Array<{ correo: string; motivo: string }>;
+  /**
+   * Filas rechazadas por el backend (p. ej. correo ya existente).
+   * `mensaje` (no `motivo`): así lo devuelve el backend real.
+   */
+  errores: Array<{ fila?: number; correo: string; mensaje: string }>;
 }

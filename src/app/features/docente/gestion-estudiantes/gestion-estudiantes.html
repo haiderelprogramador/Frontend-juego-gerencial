@@ -113,7 +113,7 @@
           [mensaje]="res.errores.length + ' fila(s) rechazadas por el servidor (ver detalle abajo).'" />
         <ul class="errores-servidor">
           @for (e of res.errores; track e.correo) {
-            <li><strong>{{ e.correo }}</strong>: {{ e.motivo }}</li>
+            <li><strong>{{ e.correo }}</strong>: {{ e.mensaje }}</li>
           }
         </ul>
       }

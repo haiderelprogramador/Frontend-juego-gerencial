@@ -50,9 +50,12 @@ export class RegistroDocente {
         this.enviando.set(false);
         void this.router.navigate(['/docente/panel']);
       },
-      error: (err: { message?: string }) => {
+      error: (err: { message?: string; error?: { message?: string } }) => {
         this.enviando.set(false);
-        this.error.set(err?.message ?? 'No se pudo completar el registro. Intenta de nuevo.');
+        // err.error.message -> HttpErrorResponse real; err.message -> mock demo.
+        this.error.set(
+          err?.error?.message ?? err?.message ?? 'No se pudo completar el registro. Intenta de nuevo.',
+        );
       },
     });
   }

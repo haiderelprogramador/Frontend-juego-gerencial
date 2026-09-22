@@ -8,11 +8,17 @@
  * mismas rutas se usan contra el servidor real, sin reescribir los servicios.
  */
 export const API_CONFIG = {
-  /** Prefijo común. En producción será algo como `https://<host>/api`. */
-  baseUrl: '/api',
+  /**
+   * Prefijo común.
+   *
+   * 🎨 Apuntando temporalmente al backend real expuesto por un compañero vía
+   * ngrok, para probar el flujo end-to-end. Para volver a modo demo: poner
+   * `baseUrl` en `/api` y `demoMode` en `true`.
+   */
+  baseUrl: 'https://unnatural-resonate-gift.ngrok-free.dev/api',
 
   /** true = respuestas simuladas; false = HttpClient real contra Spring Boot. */
-  demoMode: true,
+  demoMode: false,
 
   /** Latencia simulada (ms) para que el flujo demo se sienta como red real. */
   demoLatenciaMs: 400,

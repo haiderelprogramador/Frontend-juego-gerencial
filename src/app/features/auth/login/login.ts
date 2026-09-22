@@ -54,9 +54,12 @@ export class Login {
         this.enviando.set(false);
         this.redirigirPorRol(res.usuario.rol);
       },
-      error: (err: { message?: string }) => {
+      error: (err: { message?: string; error?: { message?: string } }) => {
         this.enviando.set(false);
-        this.error.set(err?.message ?? 'No se pudo iniciar sesión. Intenta de nuevo.');
+        // err.error.message -> HttpErrorResponse real; err.message -> mock demo.
+        this.error.set(
+          err?.error?.message ?? err?.message ?? 'No se pudo iniciar sesión. Intenta de nuevo.',
+        );
       },
     });
   }
