@@ -39,6 +39,68 @@ export const API_CONFIG = {
     estudiantesCargaMasiva: '/docente/estudiantes/carga-masiva',
     /** GET (rol DOCENTE) -> EstudianteCargado[] : estudiantes ya cargados por el docente. */
     estudiantes: '/docente/estudiantes',
+
+    /**
+     * Equipos (backend rama `develop`, EquipoController):
+     *  GET  -> EquipoApi[] · POST {estudianteIds, liderId} -> EquipoApi (201)
+     *  GET/PUT `/docente/equipos/{id}` (PUT con el mismo cuerpo que POST).
+     */
+    equipos: '/docente/equipos',
+
+    /**
+     * Partidas (backend rama `develop`, PartidaController):
+     *  GET / POST · GET/PUT/DELETE `/{id}` · POST `/{id}/programar|iniciar|finalizar`
+     *  GET/POST `/{id}/equipos` · DELETE `/{id}/equipos/{equipoId}`.
+     */
+    partidas: '/docente/partidas',
+
+    /**
+     * Casos (API Estratego, 56 endpoints, doc 28-sep-2026 — CasoApiService):
+     *  GET / POST -> CasoRequest ; GET/PUT/DELETE `/{id}` ; POST `/{id}/activar`
+     *  GET `/{id}/decisiones` -> DecisionEmpresa[]. Rol DOCENTE.
+     */
+    casos: '/docente/casos',
+
+    /**
+     * Simulaciones (contrato 56 endpoints — SimulacionService). Rol DOCENTE.
+     * También base de las rutas anidadas `/{id}/casos` y `/{id}/empresas`.
+     *  GET/POST -> SimulacionRequest ; GET/PUT/DELETE `/{id}` ;
+     *  POST `/{id}/programar|iniciar|finalizar`.
+     */
+    simulacionesDocente: '/docente/simulaciones',
+    /**
+     * Empresas (mismo doc — EmpresaService). Rol DOCENTE.
+     * GET/PUT/DELETE por id cuelgan de acá; el alta cuelga de
+     * `simulacionesDocente/{id}/empresas`. También base de
+     * `/{id}/integrantes` (IntegranteService).
+     */
+    empresasDocente: '/docente/empresas',
+
+    /**
+     * Portal del estudiante (mismo doc — PortalEstudianteService). Rol ESTUDIANTE.
+     *  GET `?idSimulacion=` -> CasoActual, 200 o 204 si no hay caso activo visible.
+     */
+    estudianteCasoActual: '/estudiante/caso-actual',
+    /** POST {idCaso, idOpcion} -> Decision (201). La toma el líder, una vez por empresa/caso. */
+    estudianteDecision: '/estudiante/decision',
+    /** GET -> MiSimulacion[] (la más reciente primero). */
+    estudianteSimulaciones: '/estudiante/simulaciones',
+    /** GET `/{idEmpresa}` -> MiEmpresa (con integrantes[]); 400 si no pertenece. */
+    estudianteEmpresas: '/estudiante/empresas',
+    /** GET `/{id}` -> CasoEstudiante; 400 si el caso aún no es visible. */
+    estudianteCasos: '/estudiante/casos',
+  },
+
+  /**
+   * Endpoints del contrato que el backend TODAVÍA NO expone. Mientras estén en
+   * `false`, el frontend usa un respaldo en vez de llamarlos. Cuando Camilo
+   * los active, se cambian a `true` aquí y listo.
+   */
+  disponible: {
+    /** GET /docente/estudiantes — confirmado funcionando (53/53 endpoints probados, 29-sep-2026). */
+    listarEstudiantes: true,
+    /** DELETE /docente/equipos/{id} (no existe en EquipoController). */
+    eliminarEquipo: false,
   },
 } as const;
 

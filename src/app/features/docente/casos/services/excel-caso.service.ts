@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 import * as XLSX from 'xlsx';
 
-export interface FinancieroExcel {
-  activoTotal: string;
-  pasivoTotal: string;
-  patrimonio: string;
-  utilidadNeta: string;
-}
+import {
+  CAMPOS_FINANCIEROS,
+  CampoFinanciero,
+  ETIQUETAS_FINANCIERO,
+  FinancieroTexto,
+  financieroEstaVacio,
+} from '../../../simulacion/models/financiero.model';
 
 export interface OpcionExcelFila {
   opcion: string;
@@ -14,6 +15,23 @@ export interface OpcionExcelFila {
 }
 
 type AliasMap = Record<string, string[]>;
+
+/** Variantes de encabezado además de la etiqueta del formulario y el nombre del campo. */
+const ALIAS_EXTRA: Partial<Record<CampoFinanciero, string[]>> = {
+  efectivo: ['caja', 'efectivo y equivalentes'],
+  propiedadPlantaEquipo: ['propiedad planta y equipo', 'ppe'],
+  activosIntangibles: ['intangibles'],
+  obligacionesFinancierasCortoPlazo: ['obligaciones financieras cp', 'obligaciones financieras corto plazo'],
+  obligacionesFinancierasLargoPlazo: ['obligaciones financieras lp', 'obligaciones financieras largo plazo'],
+  capitalSocial: ['capital'],
+  ventasNetas: ['ventas', 'ingresos'],
+  costoVentas: ['costo de ventas', 'costo ventas'],
+  gastosAdministracion: ['gastos administrativos', 'gastos de administracion'],
+  impuestoRenta: ['impuesto de renta', 'impuestos'],
+  flujoOperativo: ['flujo operativo', 'flujo de operacion', 'flujo de efectivo operativo'],
+  flujoInversion: ['flujo de inversion'],
+  flujoFinanciacion: ['flujo de financiacion', 'flujo de financiamiento'],
+};
 
 /**
  * Lee en el navegador (xlsx/SheetJS) los Excel de configuración de un Caso:
@@ -25,20 +43,26 @@ type AliasMap = Record<string, string[]>;
  */
 @Injectable()
 export class ExcelCasoService {
-  private readonly ALIAS_FINANCIERO: AliasMap = {
-    activoTotal: ['activo total', 'activo', 'total activo'],
-    pasivoTotal: ['pasivo total', 'pasivo', 'total pasivo'],
-    patrimonio: ['patrimonio', 'patrimonio neto'],
-    utilidadNeta: ['utilidad neta', 'utilidad', 'utilidad del periodo'],
-  };
+  /**
+   * Una columna por partida: se reconoce por la etiqueta que muestra el
+   * formulario ("Cuentas por cobrar") o por el nombre del campo
+   * ("cuentasPorCobrar"), más algunas variantes.
+   * TODO: confirmar con el cliente el formato del Excel de estados iniciales.
+   */
+  private readonly ALIAS_FINANCIERO: AliasMap = Object.fromEntries(
+    CAMPOS_FINANCIEROS.map((c) => [
+      c,
+      [this.normalizarTexto(ETIQUETAS_FINANCIERO[c]), c.toLowerCase(), ...(ALIAS_EXTRA[c] ?? [])],
+    ]),
+  );
 
   private readonly ALIAS_OPCION: AliasMap = {
     opcion: ['opcion', 'decision', 'opcion de decision', 'texto de la opcion'],
     resultado: ['resultado', 'efecto'],
   };
 
-  /** Espera una fila con Activo total / Pasivo total / Patrimonio / Utilidad neta. */
-  async parsearFinanciero(archivo: File): Promise<FinancieroExcel> {
+  /** Espera una fila con una columna por partida (las 19 del balance, resultados y flujo). */
+  async parsearFinanciero(archivo: File): Promise<FinancieroTexto> {
     const filas = await this.leerFilas(archivo);
     if (filas.length === 0) {
       throw new Error('El archivo no tiene filas de datos.');
@@ -47,16 +71,13 @@ export class ExcelCasoService {
     const fila = filas[0];
     const mapa = this.mapearColumnas(Object.keys(fila), this.ALIAS_FINANCIERO);
 
-    const resultado: FinancieroExcel = {
-      activoTotal: this.obtener(fila, mapa, 'activoTotal'),
-      pasivoTotal: this.obtener(fila, mapa, 'pasivoTotal'),
-      patrimonio: this.obtener(fila, mapa, 'patrimonio'),
-      utilidadNeta: this.obtener(fila, mapa, 'utilidadNeta'),
-    };
+    const resultado = Object.fromEntries(
+      CAMPOS_FINANCIEROS.map((c) => [c, this.obtener(fila, mapa, c)]),
+    ) as FinancieroTexto;
 
-    if (!resultado.activoTotal && !resultado.pasivoTotal && !resultado.patrimonio && !resultado.utilidadNeta) {
+    if (financieroEstaVacio(resultado)) {
       throw new Error(
-        'No se reconoció ninguna columna esperada (Activo total, Pasivo total, Patrimonio, Utilidad neta).',
+        'No se reconoció ninguna columna esperada (ej. Efectivo, Cuentas por cobrar, Ventas netas, Flujo de operación).',
       );
     }
     return resultado;

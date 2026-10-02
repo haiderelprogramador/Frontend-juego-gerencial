@@ -85,3 +85,24 @@ export interface CargaMasivaResponse {
    */
   errores: Array<{ fila?: number; correo: string; mensaje: string }>;
 }
+
+/**
+ * Respuesta CRUDA del backend real (rama `develop`, CreadoEstudianteResponse):
+ * `id` y `edad` vienen como número. `EstudianteService` la normaliza a
+ * {@link CargaMasivaResponse} antes de entregarla a la pantalla.
+ */
+export interface CargaMasivaResponseApi {
+  creados: Array<{
+    id: number | string;
+    nombre: string;
+    correo: string;
+    numeroIdentificacion: string;
+    edad: number | null;
+    genero: string | null;
+    rol?: string;
+    contrasenaGenerada?: string;
+    /** El backend todavía no lo envía; si llega, se respeta. */
+    cargadoEn?: string;
+  }>;
+  errores: Array<{ fila?: number; correo: string; numeroIdentificacion?: string; mensaje: string }>;
+}

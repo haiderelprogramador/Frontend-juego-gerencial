@@ -1,69 +1,104 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { firstValueFrom } from 'rxjs';
 
-import { EquipoService } from './equipo.service';
+import { API_CONFIG, apiUrl } from '../../../../core/api/api.config';
+import { EquipoApi, EquipoService } from './equipo.service';
 
-describe('EquipoService', () => {
+const URL = apiUrl(API_CONFIG.endpoints.equipos);
+
+function equipoApi(id: number, estudianteIds: number[], liderId = estudianteIds[0]): EquipoApi {
+  return { id, nombre: `Equipo ${id}`, docenteId: 9, liderId, estudianteIds };
+}
+
+/** Backend real simulado con HttpTestingController (nunca sale a ngrok). */
+describe('EquipoService (backend real)', () => {
   let service: EquipoService;
+  let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     service = TestBed.inject(EquipoService);
+    http = TestBed.inject(HttpTestingController);
   });
 
-  it('arranca sin equipos', () => {
-    expect(service.equipos()).toHaveLength(0);
-  });
+  afterEach(() => http.verify());
 
-  it('crear() agrega un equipo vacío', () => {
-    const equipo = service.crear('Equipo Cóndor');
+  it('cargar() hace GET y convierte los ids numéricos a texto', async () => {
+    const promesa = firstValueFrom(service.cargar());
+    http.expectOne({ method: 'GET', url: URL }).flush([equipoApi(1, [10, 11], 11)]);
+
+    const lista = await promesa;
+    expect(lista[0]).toEqual({ id: '1', nombre: 'Equipo 1', liderId: '11', estudianteIds: ['10', '11'] });
     expect(service.equipos()).toHaveLength(1);
-    expect(equipo.estudianteIds).toHaveLength(0);
   });
 
-  it('asignarEstudiante() lo agrega, y lo saca de cualquier otro equipo antes', () => {
-    const a = service.crear('Equipo A');
-    const b = service.crear('Equipo B');
+  it('crear() hace POST con ids numéricos y agrega el equipo que devuelve el backend', async () => {
+    const promesa = firstValueFrom(service.crear(['10', '11'], '11'));
+    const req = http.expectOne({ method: 'POST', url: URL });
+    expect(req.request.body).toEqual({ estudianteIds: [10, 11], liderId: 11 });
+    req.flush(equipoApi(5, [10, 11], 11));
 
-    service.asignarEstudiante(a.id, 'est-1');
-    expect(service.equipos().find((e) => e.id === a.id)?.estudianteIds).toContain('est-1');
-
-    service.asignarEstudiante(b.id, 'est-1');
-    expect(service.equipos().find((e) => e.id === a.id)?.estudianteIds).not.toContain('est-1');
-    expect(service.equipos().find((e) => e.id === b.id)?.estudianteIds).toContain('est-1');
+    const equipo = await promesa;
+    expect(equipo.nombre).toBe('Equipo 5');
+    expect(service.equipos().map((e) => e.id)).toEqual(['5']);
   });
 
-  it('quitarEstudiante() lo remueve del equipo', () => {
-    const a = service.crear('Equipo A');
-    service.asignarEstudiante(a.id, 'est-1');
-    service.quitarEstudiante(a.id, 'est-1');
-    expect(service.equipos().find((e) => e.id === a.id)?.estudianteIds).toHaveLength(0);
+  it('no llama al backend si el líder no es integrante o hay más de 4', async () => {
+    await expect(firstValueFrom(service.crear(['10'], '99'))).rejects.toMatchObject({
+      message: expect.stringContaining('líder'),
+    });
+    await expect(firstValueFrom(service.crear(['1', '2', '3', '4', '5'], '1'))).rejects.toMatchObject({
+      message: expect.stringContaining('entre 1 y 4'),
+    });
+    http.expectNone(URL);
   });
 
-  it('eliminar() quita el equipo de la lista', () => {
-    const a = service.crear('Equipo A');
-    service.eliminar(a.id);
-    expect(service.equipos()).toHaveLength(0);
+  it('no deja poner en un equipo a alguien que ya está en otro', async () => {
+    const carga = firstValueFrom(service.cargar());
+    http.expectOne(URL).flush([equipoApi(1, [10])]);
+    await carga;
+
+    await expect(firstValueFrom(service.crear(['10', '12'], '12'))).rejects.toMatchObject({
+      message: expect.stringContaining('Equipo 1'),
+    });
+    http.expectNone(URL);
   });
 
-  it('asignarAutomaticamente() reparte a todos los estudiantes sin equipo entre los equipos existentes', () => {
-    service.crear('Equipo A');
-    service.crear('Equipo B');
+  it('quitarEstudiante() hace PUT y, si sale el líder, el siguiente pasa a ser líder', async () => {
+    const carga = firstValueFrom(service.cargar());
+    http.expectOne(URL).flush([equipoApi(1, [10, 11], 10)]);
+    await carga;
 
-    service.asignarAutomaticamente(['est-1', 'est-2', 'est-3', 'est-4']);
+    const promesa = firstValueFrom(service.quitarEstudiante('1', '10'));
+    const req = http.expectOne({ method: 'PUT', url: `${URL}/1` });
+    expect(req.request.body).toEqual({ estudianteIds: [11], liderId: 11 });
+    req.flush(equipoApi(1, [11], 11));
 
-    const total = service.equipos().reduce((acc, e) => acc + e.estudianteIds.length, 0);
-    expect(total).toBe(4);
+    await promesa;
+    expect(service.equipos()[0].estudianteIds).toEqual(['11']);
   });
 
-  it('asignarAutomaticamente() no toca a un estudiante que ya tiene equipo', () => {
-    const a = service.crear('Equipo A');
-    service.crear('Equipo B');
-    service.asignarEstudiante(a.id, 'est-1');
+  it('armarAutomaticamente() crea equipos de hasta 4, uno tras otro', async () => {
+    const promesa = firstValueFrom(service.armarAutomaticamente(['1', '2', '3', '4', '5']));
 
-    service.asignarAutomaticamente(['est-1', 'est-2']);
+    const primero = http.expectOne({ method: 'POST', url: URL });
+    expect(primero.request.body.estudianteIds).toHaveLength(4);
+    primero.flush(equipoApi(1, primero.request.body.estudianteIds));
 
-    expect(service.equipos().find((e) => e.id === a.id)?.estudianteIds).toContain('est-1');
-    const total = service.equipos().reduce((acc, e) => acc + e.estudianteIds.length, 0);
-    expect(total).toBe(2);
+    const segundo = http.expectOne({ method: 'POST', url: URL });
+    expect(segundo.request.body.estudianteIds).toHaveLength(1);
+    segundo.flush(equipoApi(2, segundo.request.body.estudianteIds));
+
+    expect(await promesa).toHaveLength(2);
+  });
+
+  it('eliminar() no llama al backend mientras no exista DELETE', async () => {
+    expect(service.puedeEliminar()).toBe(API_CONFIG.demoMode || API_CONFIG.disponible.eliminarEquipo);
+    if (!service.puedeEliminar()) {
+      await expect(firstValueFrom(service.eliminar('1'))).rejects.toBeTruthy();
+      http.expectNone(`${URL}/1`);
+    }
   });
 });

@@ -110,6 +110,33 @@ export class AuthService {
   // Sesión
   // ---------------------------------------------------------------------------
 
+  /**
+   * Valida el token actual contra el backend y refresca el `Usuario` en
+   * memoria (rehidratar la sesión al recargar la página). 401 si el token no
+   * es válido — el llamador decide si hace `logout()` con eso.
+   */
+  sesion(): Observable<{ usuario: Usuario }> {
+    if (!API_CONFIG.demoMode) {
+      return this.http.get<{ usuario: Usuario }>(apiUrl(API_CONFIG.endpoints.sesion)).pipe(
+        tap((res) => {
+          const actual = this._sesion();
+          if (actual) {
+            this.establecerSesion({ ...actual, usuario: res.usuario });
+          }
+        }),
+      );
+    }
+
+    // --- Implementación DEMO ---------------------------------------------------
+    const actual = this._sesion();
+    if (!actual) {
+      return throwError(() => ({ status: 401, message: 'No hay sesión activa.' })).pipe(
+        delay(API_CONFIG.demoLatenciaMs),
+      );
+    }
+    return of({ usuario: actual.usuario }).pipe(delay(API_CONFIG.demoLatenciaMs));
+  }
+
   logout(): void {
     this.demo.borrarSesion();
     this._sesion.set(null);

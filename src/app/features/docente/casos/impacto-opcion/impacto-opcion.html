@@ -1,0 +1,64 @@
+<button type="button" class="imp-toggle" [attr.aria-expanded]="abierta()" (click)="abierta.set(!abierta())">
+  <span class="imp-toggle__chevron" [class.is-open]="abierta()">▸</span>
+  Impacto financiero <span class="imp-toggle__nota">(opcional)</span>
+  @if (cantidad() > 0) {
+    <span class="imp-toggle__conteo">{{ cantidad() }} {{ cantidad() === 1 ? 'driver' : 'drivers' }}</span>
+  }
+</button>
+
+@if (abierta()) {
+  <div class="imp-cuerpo">
+    <p class="field__hint">
+      Deja vacío un driver para que no tenga efecto. En % se aplica sobre el valor base del caso; en monto fijo
+      se suma (o resta, si es negativo).
+    </p>
+
+    @for (d of drivers; track d) {
+      <div class="imp-fila" [class.imp-fila--error]="invalidos().has(d)">
+        <span class="imp-fila__etiqueta">{{ etiquetas[d] }}</span>
+        <div class="imp-tipo" role="group" [attr.aria-label]="'Tipo de impacto en ' + etiquetas[d]">
+          <button type="button" [class.is-active]="impacto()[d].tipo === 'porcentaje'"
+            [attr.aria-pressed]="impacto()[d].tipo === 'porcentaje'" (click)="setTipo(d, 'porcentaje')">%</button>
+          <button type="button" [class.is-active]="impacto()[d].tipo === 'monto'"
+            [attr.aria-pressed]="impacto()[d].tipo === 'monto'" (click)="setTipo(d, 'monto')">$</button>
+        </div>
+        <input type="text" inputmode="decimal" [value]="impacto()[d].valor"
+          [attr.aria-label]="'Valor del impacto en ' + etiquetas[d]"
+          [attr.aria-invalid]="invalidos().has(d)"
+          [placeholder]="impacto()[d].tipo === 'porcentaje' ? 'ej. 10 o -5' : 'ej. 50000'"
+          (input)="setValor(d, $any($event.target).value)" />
+        @if (invalidos().has(d)) {
+          <span class="imp-fila__error">En porcentaje no puede ser menor a -100.</span>
+        }
+      </div>
+    }
+
+    @if (invalidos().size > 0) {
+      <p class="field__hint">Corrige los valores en rojo para ver la vista previa.</p>
+    } @else if (cantidad() > 0) {
+      <div class="imp-previa" role="status">
+        <p class="imp-previa__titulo">Si se elige esta opción:</p>
+        @if (baseVacia()) {
+          <p class="field__hint">
+            La Información Financiera del caso está vacía: la vista previa parte de $0 (un % sobre 0 no mueve nada).
+          </p>
+        }
+        <ul>
+          <li>
+            Utilidad neta pasa de <strong>{{ moneda(previa().utilidadNetaAntes) }}</strong> a
+            <strong>{{ moneda(previa().utilidadNetaDespues) }}</strong>
+          </li>
+          <li>
+            Efectivo pasa de <strong>{{ moneda(previa().efectivoAntes) }}</strong> a
+            <strong>{{ moneda(previa().efectivoDespues) }}</strong>
+          </li>
+          <li>
+            Patrimonio pasa de <strong>{{ moneda(previa().patrimonioAntes) }}</strong> a
+            <strong>{{ moneda(previa().patrimonioDespues) }}</strong>
+          </li>
+        </ul>
+        <p class="field__hint">Solo vista previa: no se guarda ningún valor calculado.</p>
+      </div>
+    }
+  </div>
+}

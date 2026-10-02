@@ -5,15 +5,25 @@
       <button type="button" class="btn btn--primario" (click)="nuevoCaso()">+ Nuevo caso</button>
     </div>
 
+    @if (error(); as msg) {
+      <app-alerta tipo="error" [mensaje]="msg" />
+    }
+
+    @if (cargando()) {
+      <p class="t-muted">Cargando casos…</p>
+    } @else if (casos().length === 0) {
+      <p class="t-muted">Todavía no hay casos creados.</p>
+    } @else {
     <div class="card">
       <table class="tabla-casos">
         <thead>
-          <tr><th>Caso</th><th>Tipo</th><th>Estado</th><th></th></tr>
+          <tr><th>Caso</th><th>Simulación</th><th>Tipo</th><th>Estado</th><th></th></tr>
         </thead>
         <tbody>
           @for (c of casos(); track c.id) {
             <tr>
               <td>{{ c.nombre }}</td>
+              <td>{{ nombreSimulacion(c.idSimulacion) }}</td>
               <td>{{ c.tipo }}</td>
               <td>
                 @if (c.estado === 'activo') {
@@ -35,6 +45,7 @@
         </tbody>
       </table>
     </div>
+    }
   </div>
 }
 
@@ -57,10 +68,83 @@
       </button>
     </nav>
 
+    @if (errorFormulario(); as msg) {
+      <app-alerta tipo="error" [mensaje]="msg" />
+    }
+
     <div class="card casos-form__body">
       @switch (tabForm()) {
         @case ('general') {
           <div class="form-grid">
+            <div class="field field--full">
+              <span class="field__label">Simulación</span>
+              @if (!casoEnEdicionId()) {
+                <div class="selector-sim">
+                  <select aria-label="Simulación"
+                    (change)="idSimulacion.set($any($event.target).value ? +$any($event.target).value : null)">
+                    <option value="" disabled [selected]="idSimulacion() == null">Selecciona una simulación</option>
+                    @for (s of simulacionesDisponibles(); track s.id) {
+                      <option [value]="s.id" [selected]="s.id === idSimulacion()">
+                        {{ s.nombre }} ({{ s.fechaInicio }} – {{ s.fechaFin }})
+                      </option>
+                    }
+                  </select>
+                  @if (!creandoSimulacion()) {
+                    <button type="button" class="btn btn--secundario" (click)="abrirNuevaSimulacion()">
+                      + Nueva simulación
+                    </button>
+                  }
+                </div>
+                @if (errorSimulaciones(); as msg) {
+                  <app-alerta tipo="error" [mensaje]="msg" />
+                } @else if (simulacionesDisponibles().length === 0 && !creandoSimulacion()) {
+                  <p class="field__hint">
+                    No hay simulaciones en borrador o programadas — creá una con "+ Nueva simulación".
+                  </p>
+                }
+
+                @if (creandoSimulacion()) {
+                  <div class="nueva-sim">
+                    <p class="nueva-sim__titulo">Nueva simulación</p>
+                    <div class="nueva-sim__campos">
+                      <label class="field">
+                        <span class="field__label">Nombre</span>
+                        <input type="text" [value]="nuevaSimNombre()"
+                          (input)="nuevaSimNombre.set($any($event.target).value)"
+                          placeholder="Ej. Gerencia 2026-2" />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Inicio</span>
+                        <input type="datetime-local" [value]="nuevaSimInicio()"
+                          (input)="nuevaSimInicio.set($any($event.target).value)" />
+                      </label>
+                      <label class="field">
+                        <span class="field__label">Fin</span>
+                        <input type="datetime-local" [value]="nuevaSimFin()"
+                          (input)="nuevaSimFin.set($any($event.target).value)" />
+                      </label>
+                    </div>
+                    @if (errorNuevaSimulacion(); as msg) {
+                      <app-alerta tipo="error" [mensaje]="msg" />
+                    }
+                    <div class="nueva-sim__acciones">
+                      <button type="button" class="btn btn--ghost btn--sm" [disabled]="guardandoSimulacion()"
+                        (click)="cancelarNuevaSimulacion()">Cancelar</button>
+                      <button type="button" class="btn btn--primario btn--sm" [disabled]="guardandoSimulacion()"
+                        (click)="crearSimulacion()">
+                        {{ guardandoSimulacion() ? 'Creando…' : 'Crear simulación' }}
+                      </button>
+                    </div>
+                  </div>
+                }
+              } @else {
+                <select disabled aria-label="Simulación">
+                  <option>{{ nombreSimulacion(idSimulacion()!) }}</option>
+                </select>
+                <p class="field__hint">La simulación no se puede cambiar al editar un caso.</p>
+              }
+            </div>
+
             <label class="field">
               <span class="field__label">Nombre de la empresa</span>
               <input type="text" [value]="empresa()" (input)="empresa.set($any($event.target).value)"
@@ -147,24 +231,7 @@
           </div>
 
           @if (modoFinanciera() === 'manual') {
-            <div class="form-grid">
-              <label class="field">
-                <span class="field__label">Activo total</span>
-                <input type="text" [value]="activoTotal()" (input)="activoTotal.set($any($event.target).value)" />
-              </label>
-              <label class="field">
-                <span class="field__label">Pasivo total</span>
-                <input type="text" [value]="pasivoTotal()" (input)="pasivoTotal.set($any($event.target).value)" />
-              </label>
-              <label class="field">
-                <span class="field__label">Patrimonio</span>
-                <input type="text" [value]="patrimonio()" (input)="patrimonio.set($any($event.target).value)" />
-              </label>
-              <label class="field">
-                <span class="field__label">Utilidad neta</span>
-                <input type="text" [value]="utilidadNeta()" (input)="utilidadNeta.set($any($event.target).value)" />
-              </label>
-            </div>
+            <app-financiero-caso [(valores)]="financiero" [totalesAnteriores]="totalesAnteriores()" />
           } @else {
             <div class="excel-upload">
               <label class="btn btn--secundario">
@@ -172,7 +239,8 @@
                 <input type="file" accept=".xlsx,.xls" hidden (change)="onArchivoFinanciero($event)" />
               </label>
               <p class="field__hint">
-                El archivo debe traer Activo total, Pasivo total, Patrimonio y Utilidad neta.
+                Una fila con una columna por partida, con el mismo nombre que en el formulario manual
+                (ej. "Efectivo", "Cuentas por cobrar", "Ventas netas", "Flujo de inversión").
               </p>
               @if (errorImportFinanciero(); as msg) {
                 <app-alerta tipo="error" [mensaje]="msg" />
@@ -213,6 +281,8 @@
                     <textarea rows="2" [value]="o.resultado"
                       (input)="actualizarOpcionResultado(o.id, $any($event.target).value)"></textarea>
                   </label>
+                  <app-impacto-opcion [impacto]="o.impacto" (impactoChange)="actualizarOpcionImpacto(o.id, $event)"
+                    [base]="baseFinanciera()" [baseVacia]="financieroSinDatos()" />
                 </div>
               }
             </div>
@@ -234,8 +304,12 @@
     </div>
 
     <div class="casos-form__actions">
-      <button type="button" class="btn btn--secundario" (click)="volverALista()">Cancelar</button>
-      <button type="button" class="btn btn--primario" (click)="guardarCaso()">Guardar caso</button>
+      <button type="button" class="btn btn--secundario" [disabled]="guardando()" (click)="volverALista()">
+        Cancelar
+      </button>
+      <button type="button" class="btn btn--primario" [disabled]="guardando()" (click)="guardarCaso()">
+        {{ guardando() ? 'Guardando…' : 'Guardar caso' }}
+      </button>
     </div>
   </div>
 }

@@ -1,0 +1,148 @@
+<ng-template #campo let-c>
+  <label class="fin-fila" [class.fin-fila--error]="signoInvalido().has(c)">
+    <span class="fin-fila__etiqueta">
+      {{ etiquetas[clave(c)] }}
+      @if (admiteNegativo(c)) {
+        <span class="fin-fila__nota">(admite negativo)</span>
+      }
+    </span>
+    <input type="text" inputmode="decimal" [value]="valores()[clave(c)]"
+      [attr.aria-invalid]="signoInvalido().has(c)"
+      (input)="actualizar(c, $any($event.target).value)" />
+    @if (signoInvalido().has(c)) {
+      <span class="fin-fila__error">No puede ser negativo.</span>
+    }
+  </label>
+</ng-template>
+
+<ng-template #subtotal let-etiqueta let-valor="valor" let-total="total">
+  <div class="fin-subtotal" [class.fin-subtotal--total]="total">
+    <span>{{ etiqueta }}</span>
+    <output>{{ moneda(valor) }}</output>
+  </div>
+</ng-template>
+
+@if (totalesAnteriores(); as previos) {
+  <div class="fin-legado">
+    <p class="fin-legado__titulo">Totales guardados con el modelo anterior (solo referencia)</p>
+    <p class="field__hint">
+      Este caso se creó antes del desglose por partidas. Llena las partidas de abajo; los totales nuevos se
+      calculan a partir de ellas.
+    </p>
+    <dl class="fin-legado__valores">
+      <div><dt>Activo total</dt><dd>{{ moneda(previos.activoTotal) }}</dd></div>
+      <div><dt>Pasivo total</dt><dd>{{ moneda(previos.pasivoTotal) }}</dd></div>
+      <div><dt>Patrimonio</dt><dd>{{ moneda(previos.patrimonio) }}</dd></div>
+      <div><dt>Utilidad neta</dt><dd>{{ moneda(previos.utilidadNeta) }}</dd></div>
+    </dl>
+  </div>
+}
+
+@if (!vacio()) {
+  <div class="fin-cuadre" [class.fin-cuadre--ok]="cuadra()" role="status">
+    @if (cuadra()) {
+      ✓ El balance cuadra: activo total = pasivo total + patrimonio ({{ moneda(totales().activoTotal) }}).
+    } @else {
+      Diferencia: {{ moneda(resultado().descuadre) }} — el balance no cuadra.
+      <span class="fin-cuadre__detalle">
+        Activo total {{ moneda(totales().activoTotal) }} vs. pasivo total + patrimonio
+        {{ moneda(totales().pasivoTotal + totales().patrimonio) }}.
+      </span>
+    }
+  </div>
+}
+
+<nav class="subtabs fin-subtabs">
+  <button type="button" [class.is-active]="subtab() === 'balance'" (click)="subtab.set('balance')">Balance</button>
+  <button type="button" [class.is-active]="subtab() === 'resultados'" (click)="subtab.set('resultados')">
+    Estado de Resultados
+  </button>
+  <button type="button" [class.is-active]="subtab() === 'flujo'" (click)="subtab.set('flujo')">
+    Flujo de Efectivo
+  </button>
+</nav>
+
+@switch (subtab()) {
+  @case ('balance') {
+    <div class="fin-balance">
+      <section class="fin-bloque">
+        <h3 class="fin-bloque__titulo">Activo</h3>
+        @for (c of ['efectivo', 'cuentasPorCobrar', 'inventarios']; track c) {
+          <ng-container *ngTemplateOutlet="campo; context: { $implicit: c }" />
+        }
+        <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Activo corriente', valor: totales().activoCorriente }" />
+        @for (c of ['propiedadPlantaEquipo', 'activosIntangibles']; track c) {
+          <ng-container *ngTemplateOutlet="campo; context: { $implicit: c }" />
+        }
+        <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Activo no corriente', valor: totales().activoNoCorriente }" />
+        <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Activo total', valor: totales().activoTotal, total: true }" />
+      </section>
+
+      <section class="fin-bloque">
+        <h3 class="fin-bloque__titulo">Pasivo</h3>
+        @for (c of ['cuentasPorPagar', 'obligacionesFinancierasCortoPlazo']; track c) {
+          <ng-container *ngTemplateOutlet="campo; context: { $implicit: c }" />
+        }
+        <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Pasivo corriente', valor: totales().pasivoCorriente }" />
+        <ng-container *ngTemplateOutlet="campo; context: { $implicit: 'obligacionesFinancierasLargoPlazo' }" />
+        <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Pasivo no corriente', valor: totales().pasivoNoCorriente }" />
+        <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Pasivo total', valor: totales().pasivoTotal, total: true }" />
+
+        <h3 class="fin-bloque__titulo">Patrimonio</h3>
+        @for (c of ['capitalSocial', 'utilidadesRetenidas']; track c) {
+          <ng-container *ngTemplateOutlet="campo; context: { $implicit: c }" />
+        }
+        <div class="fin-subtotal">
+          <span>Utilidad neta del período <span class="fin-fila__nota">(del Estado de Resultados)</span></span>
+          <output>{{ moneda(totales().utilidadNeta) }}</output>
+        </div>
+        <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Patrimonio', valor: totales().patrimonio, total: true }" />
+        <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Pasivo + patrimonio', valor: totales().pasivoTotal + totales().patrimonio, total: true }" />
+      </section>
+    </div>
+  }
+
+  @case ('resultados') {
+    <section class="fin-bloque fin-bloque--angosto">
+      <ng-container *ngTemplateOutlet="campo; context: { $implicit: 'ventasNetas' }" />
+      <ng-container *ngTemplateOutlet="campo; context: { $implicit: 'costoVentas' }" />
+      <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Utilidad bruta', valor: totales().utilidadBruta }" />
+      @for (c of ['gastosAdministracion', 'gastosVentas']; track c) {
+        <ng-container *ngTemplateOutlet="campo; context: { $implicit: c }" />
+      }
+      <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Utilidad operativa', valor: totales().utilidadOperativa }" />
+      <ng-container *ngTemplateOutlet="campo; context: { $implicit: 'gastosFinancieros' }" />
+      <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Utilidad antes de impuestos', valor: totales().utilidadAntesImpuestos }" />
+      <ng-container *ngTemplateOutlet="campo; context: { $implicit: 'impuestoRenta' }" />
+      <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Utilidad neta', valor: totales().utilidadNeta, total: true }" />
+      <p class="field__hint">Costos, gastos e impuesto se escriben en positivo: el cálculo los resta.</p>
+    </section>
+  }
+
+  @case ('flujo') {
+    <section class="fin-bloque fin-bloque--angosto">
+      <div class="fin-subtotal">
+        <span>Efectivo inicial <span class="fin-fila__nota">(Efectivo del Balance)</span></span>
+        <output>{{ moneda(numeros().efectivo) }}</output>
+      </div>
+      @for (c of ['flujoOperativo', 'flujoInversion', 'flujoFinanciacion']; track c) {
+        <ng-container *ngTemplateOutlet="campo; context: { $implicit: c }" />
+      }
+      <ng-container *ngTemplateOutlet="subtotal; context: { $implicit: 'Efectivo final', valor: totales().efectivoFinal, total: true }" />
+      <p class="field__hint">Los flujos llevan su signo: un flujo que saca efectivo (ej. comprar maquinaria) va en negativo.</p>
+    </section>
+  }
+}
+
+<section class="fin-indicadores">
+  <h3 class="fin-bloque__titulo">Indicadores financieros</h3>
+  <dl class="fin-indicadores__grid">
+    <div><dt>Razón corriente</dt><dd>{{ razon(indicadores().razonCorriente) }}</dd></div>
+    <div><dt>Prueba ácida</dt><dd>{{ razon(indicadores().pruebaAcida) }}</dd></div>
+    <div><dt>Endeudamiento</dt><dd>{{ porcentaje(indicadores().endeudamiento) }}</dd></div>
+    <div><dt>Margen neto</dt><dd>{{ porcentaje(indicadores().margenNeto) }}</dd></div>
+    <div><dt>ROE</dt><dd>{{ porcentaje(indicadores().roe) }}</dd></div>
+    <div><dt>ROA</dt><dd>{{ porcentaje(indicadores().roa) }}</dd></div>
+  </dl>
+  <p class="field__hint">"—" = no se puede calcular (el denominador es 0).</p>
+</section>

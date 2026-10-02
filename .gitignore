@@ -42,3 +42,7 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Credenciales de pruebas de integración (nunca commitear) — ver .env.test.example
+.env.test
+.env.test.local

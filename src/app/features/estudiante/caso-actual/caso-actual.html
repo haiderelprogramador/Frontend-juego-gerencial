@@ -1,20 +1,10 @@
-<!-- 🎨 Ayuda de desarrollo — no es parte del diseño -->
-<div class="fase-preview">
-  <span class="fase-preview__label">Vista previa de fase</span>
-  <div class="fase-preview__opts">
-    <button type="button" [class.is-active]="fase() === 'visualizacion'" (click)="irAFase('visualizacion')">
-      Visualización
-    </button>
-    <button type="button" [class.is-active]="fase() === 'partida'" (click)="irAFase('partida')">
-      Selección
-    </button>
-    <button type="button" [class.is-active]="fase() === 'cierre'" (click)="irAFase('cierre')">
-      Resultado
-    </button>
-  </div>
-</div>
+@if (error(); as msg) {
+  <app-alerta tipo="error" [mensaje]="msg" />
+}
 
-@if (caso(); as c) {
+@if (cargando()) {
+  <p class="t-muted">Cargando…</p>
+} @else if (caso(); as c) {
   <section class="caso">
     <header class="card stepper-card">
       <div class="stepper">
@@ -109,14 +99,18 @@
                     <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
                 </span>
-                <app-badge variante="muted">Disponible cuando el docente inicie la partida</app-badge>
-                <p class="opciones__eyebrow t-eyebrow">La partida se habilita en</p>
-                <div class="cuenta-regresiva">
-                  <div class="cuenta"><span class="cuenta__val num">{{ cuenta.dias }}</span><span class="cuenta__label">días</span></div>
-                  <div class="cuenta"><span class="cuenta__val num">{{ cuenta.horas }}</span><span class="cuenta__label">horas</span></div>
-                  <div class="cuenta"><span class="cuenta__val num">{{ cuenta.min }}</span><span class="cuenta__label">min</span></div>
-                  <div class="cuenta"><span class="cuenta__val num">{{ cuenta.seg }}</span><span class="cuenta__label">seg</span></div>
-                </div>
+                @if (bloqueadoPorFecha()) {
+                  <app-badge variante="muted">Disponible cuando el docente inicie la partida</app-badge>
+                  <p class="opciones__eyebrow t-eyebrow">La partida se habilita en</p>
+                  <div class="cuenta-regresiva">
+                    <div class="cuenta"><span class="cuenta__val num">{{ cuenta().dias }}</span><span class="cuenta__label">días</span></div>
+                    <div class="cuenta"><span class="cuenta__val num">{{ cuenta().horas }}</span><span class="cuenta__label">horas</span></div>
+                    <div class="cuenta"><span class="cuenta__val num">{{ cuenta().min }}</span><span class="cuenta__label">min</span></div>
+                    <div class="cuenta"><span class="cuenta__val num">{{ cuenta().seg }}</span><span class="cuenta__label">seg</span></div>
+                  </div>
+                } @else {
+                  <app-badge variante="muted">Solo el líder de tu empresa puede decidir</app-badge>
+                }
                 <ul class="bloqueadas">
                   @for (o of c.opciones; track o.id; let i = $index) {
                     <li class="bloqueada">
@@ -132,24 +126,26 @@
             }
             @case ('seleccion') {
               <app-tarjeta-seleccion [opciones]="opcionesSeleccion()" [(valor)]="eleccion" />
-              <button type="button" class="btn btn--primario btn--block" [disabled]="!eleccion()"
+              <button type="button" class="btn btn--primario btn--block" [disabled]="!eleccion() || enviando()"
                 (click)="confirmarDecision()">
-                Confirmar decisión
+                {{ enviando() ? 'Enviando…' : 'Confirmar decisión' }}
               </button>
             }
             @case ('resultado') {
               <ul class="revisadas">
                 @for (o of c.opciones; track o.id) {
-                  <li class="revisada" [class.revisada--elegida]="o.id === eleccion()">
+                  <li class="revisada" [class.revisada--elegida]="o.id === idOpcionElegida()">
                     {{ o.opcion }}
-                    @if (o.id === eleccion()) {
+                    @if (o.id === idOpcionElegida()) {
                       <app-badge variante="estudiante">Elegida</app-badge>
                     }
                   </li>
                 }
               </ul>
-              @if (opcionElegida(); as oe) {
-                <app-kpi etiqueta="Resultado" [valor]="oe.resultado" />
+              @if (decisionActual(); as dec) {
+                <app-kpi etiqueta="Resultado" [valor]="dec.resultado" />
+              } @else {
+                <app-alerta tipo="info" mensaje="El equipo no decidió a tiempo — se aplicó la penalización por defecto." />
               }
             }
           }

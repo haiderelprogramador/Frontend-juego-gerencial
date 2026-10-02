@@ -17,19 +17,26 @@ describe('ExcelCasoService', () => {
     service = new ExcelCasoService();
   });
 
-  it('parsea la información financiera con encabezados reales', async () => {
+  it('parsea las partidas financieras por etiqueta, nombre de campo o variante', async () => {
     const archivo = archivoDesdeFilas([
-      { 'Activo total': '1850000', 'Pasivo total': '720000', Patrimonio: '1130000', 'Utilidad neta': '142000' },
+      {
+        Efectivo: '200000',
+        'Cuentas por cobrar': '150000',
+        'Propiedad, planta y equipo': '900000',
+        ventasNetas: '1200000',
+        'Flujo de Inversión': '-80000',
+      },
     ]);
 
     const resultado = await service.parsearFinanciero(archivo);
 
-    expect(resultado).toEqual({
-      activoTotal: '1850000',
-      pasivoTotal: '720000',
-      patrimonio: '1130000',
-      utilidadNeta: '142000',
-    });
+    expect(resultado.efectivo).toBe('200000');
+    expect(resultado.cuentasPorCobrar).toBe('150000');
+    expect(resultado.propiedadPlantaEquipo).toBe('900000');
+    expect(resultado.ventasNetas).toBe('1200000');
+    expect(resultado.flujoInversion).toBe('-80000');
+    // Las columnas que no vienen quedan vacías, no "undefined".
+    expect(resultado.inventarios).toBe('');
   });
 
   it('rechaza un Excel de financiero sin columnas reconocibles', async () => {
