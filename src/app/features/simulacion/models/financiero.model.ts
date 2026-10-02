@@ -355,3 +355,31 @@ const FORMATO_MONEDA = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2
 export function formatearMoneda(n: number): string {
   return n < 0 ? `−$${FORMATO_MONEDA.format(-n)}` : `$${FORMATO_MONEDA.format(n)}`;
 }
+
+const FORMATO_PORCENTAJE_IMPACTO = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
+
+export interface LineaImpacto {
+  etiqueta: string;
+  /** "+10%", "−5%", "+$50.000", "−$30.000". */
+  valor: string;
+}
+
+/** Impacto declarado -> líneas legibles, solo de los drivers con valor, en el orden de `DRIVERS_IMPACTO`. */
+export function describirImpacto(impacto: ImpactoOpcion | null | undefined): LineaImpacto[] {
+  if (!impacto) {
+    return [];
+  }
+  return DRIVERS_IMPACTO.flatMap((d) => {
+    const driver = impacto[d];
+    if (!driver || !esTipoImpacto(driver.tipo) || driver.valor == null) {
+      return [];
+    }
+    const signo = driver.valor < 0 ? '−' : '+';
+    const absoluto = Math.abs(driver.valor);
+    const valor =
+      driver.tipo === 'porcentaje'
+        ? `${signo}${FORMATO_PORCENTAJE_IMPACTO.format(absoluto)}%`
+        : `${signo}${formatearMoneda(absoluto)}`;
+    return [{ etiqueta: ETIQUETAS_FINANCIERO[d], valor }];
+  });
+}

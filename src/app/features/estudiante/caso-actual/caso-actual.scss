@@ -252,3 +252,35 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Detalle financiero de la opción elegida: cerrado por defecto, para no
+   competir con el texto narrativo del resultado. */
+.detalle-financiero {
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+
+  summary {
+    cursor: pointer;
+    width: fit-content;
+    font-weight: 600;
+    color: var(--bs-primary);
+
+    &:focus-visible {
+      outline: 2px solid var(--bs-primary);
+      outline-offset: 2px;
+    }
+  }
+  ul {
+    margin: 0.5rem 0 0;
+    padding: 0.6rem 0.9rem 0.6rem 1.8rem;
+    border-radius: var(--bs-radius-sm);
+    background: var(--bs-surface-2);
+    color: var(--bs-foreground);
+  }
+  li + li {
+    margin-top: 0.2rem;
+  }
+  strong {
+    font-family: var(--bs-font-mono);
+  }
+}

@@ -144,6 +144,16 @@
               </ul>
               @if (decisionActual(); as dec) {
                 <app-kpi etiqueta="Resultado" [valor]="dec.resultado" />
+                @if (detalleImpacto().length > 0) {
+                  <details class="detalle-financiero">
+                    <summary>Ver detalle financiero</summary>
+                    <ul>
+                      @for (l of detalleImpacto(); track l.etiqueta) {
+                        <li>{{ l.etiqueta }}: <strong>{{ l.valor }}</strong></li>
+                      }
+                    </ul>
+                  </details>
+                }
               } @else {
                 <app-alerta tipo="info" mensaje="El equipo no decidió a tiempo — se aplicó la penalización por defecto." />
               }

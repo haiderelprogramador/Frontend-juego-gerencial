@@ -227,6 +227,30 @@ describe('CasoActual', () => {
     expect(host.textContent).toContain('Utilidad neta +25000');
   });
 
+  it('muestra el impacto de la opción elegida en un detalle cerrado por defecto', () => {
+    const fixture = crearFixture(
+      casoActualDto({
+        caso: casoEstudiante(-2 * UNA_HORA_MS, -UNA_HORA_MS),
+        decision: {
+          ...decision(1, 'Las ventas suben.'),
+          impacto: { ventasNetas: { tipo: 'porcentaje', valor: 15 }, gastosFinancieros: { tipo: 'monto', valor: 30000 } },
+        },
+      }),
+    );
+    const detalle = (fixture.nativeElement as HTMLElement).querySelector<HTMLDetailsElement>('details.detalle-financiero')!;
+    expect(detalle.open).toBe(false);
+    expect(detalle.querySelector('summary')!.textContent).toContain('Ver detalle financiero');
+    const lineas = [...detalle.querySelectorAll('li')].map((li) => li.textContent!.replace(/\s+/g, ' ').trim());
+    expect(lineas).toEqual(['Ventas netas: +15%', 'Gastos financieros: +$30.000']);
+  });
+
+  it('sin impacto en la opción elegida, no muestra el detalle financiero', () => {
+    const fixture = crearFixture(
+      casoActualDto({ caso: casoEstudiante(-2 * UNA_HORA_MS, -UNA_HORA_MS), decision: decision(2, 'Sin cambios') }),
+    );
+    expect((fixture.nativeElement as HTMLElement).querySelector('details.detalle-financiero')).toBeNull();
+  });
+
   it('pasa de "visualizacion" a "partida" solo, sin recargar, cuando el reloj cruza fechaInicioPartida', () => {
     const fixture = crearFixture(casoActualDto({ caso: casoEstudiante(3000, UNA_HORA_MS) }));
     expect(fixture.componentInstance.fase()).toBe('visualizacion');

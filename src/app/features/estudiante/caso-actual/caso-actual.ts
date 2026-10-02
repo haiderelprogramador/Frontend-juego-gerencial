@@ -9,6 +9,7 @@ import {
   TarjetaSeleccion,
 } from '../../../shared/components/tarjeta-seleccion/tarjeta-seleccion';
 import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
+import { describirImpacto } from '../../simulacion/models/financiero.model';
 import { CasoActual as CasoActualDto } from '../models/portal-estudiante.model';
 import { PortalEstudianteService } from '../services/portal-estudiante.service';
 
@@ -87,6 +88,8 @@ export class CasoActual implements OnDestroy {
   readonly esLider = computed(() => this.datos()?.esLider ?? false);
   readonly puedeDecidir = computed(() => this.datos()?.puedeDecidir ?? false);
   readonly decisionActual = computed(() => this.datos()?.decision ?? null);
+  /** Impacto financiero de la opción elegida, en líneas legibles (vacío si no tenía). */
+  readonly detalleImpacto = computed(() => describirImpacto(this.decisionActual()?.impacto));
 
   /** Reloj reactivo: se actualiza solo cada `INTERVALO_RELOJ_MS` (ver `ngOnDestroy`). */
   private readonly ahora = signal(Date.now());

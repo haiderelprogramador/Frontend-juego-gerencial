@@ -70,6 +70,19 @@ describe('ImpactoFinancieroOpcion', () => {
     expect(previa).toContain('Efectivo pasa de $100.000 a $200.000');
   });
 
+  it('aclara la coma decimal una sola vez, arriba de la lista de drivers', () => {
+    const fixture = crear();
+    fixture.componentInstance.abierta.set(true);
+    fixture.detectChanges();
+
+    const ayudas = el(fixture).querySelectorAll('.imp-decimales');
+    expect(ayudas).toHaveLength(1);
+    expect(ayudas[0].textContent).toContain('Usa coma para decimales (ej: 12,5 = 12,5%)');
+    // Va antes de la primera fila de drivers.
+    const primeraFila = el(fixture).querySelector('.imp-fila')!;
+    expect(ayudas[0].compareDocumentPosition(primeraFila) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('marca en rojo un porcentaje menor a -100, pero no un monto', () => {
     const impacto = impactoVacio();
     impacto.ventasNetas = { tipo: 'porcentaje', valor: '-150' };

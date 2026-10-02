@@ -1,6 +1,7 @@
 import {
   FinancieroEntrada,
   aplicarImpacto,
+  describirImpacto,
   driversConPorcentajeInvalido,
   impactoANumeros,
   impactoDesdeApi,
@@ -173,6 +174,21 @@ describe('financiero.model', () => {
       expect(texto.ventasNetas).toEqual({ tipo: 'porcentaje', valor: '5' });
       expect(texto.costoVentas.valor).toBe('');
       expect(impactoDesdeApi(null)).toEqual(impactoVacio());
+    });
+
+    it('describe el impacto en líneas legibles, con signo y en orden de drivers', () => {
+      expect(
+        describirImpacto({
+          gastosFinancieros: { tipo: 'monto', valor: 30000 },
+          ventasNetas: { tipo: 'porcentaje', valor: 12.5 },
+          costoVentas: { tipo: 'porcentaje', valor: -5 },
+        }),
+      ).toEqual([
+        { etiqueta: 'Ventas netas', valor: '+12,5%' },
+        { etiqueta: 'Costo de ventas', valor: '−5%' },
+        { etiqueta: 'Gastos financieros', valor: '+$30.000' },
+      ]);
+      expect(describirImpacto(null)).toEqual([]);
     });
   });
 });

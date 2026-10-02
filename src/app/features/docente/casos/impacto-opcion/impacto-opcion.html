@@ -12,6 +12,7 @@
       Deja vacío un driver para que no tenga efecto. En % se aplica sobre el valor base del caso; en monto fijo
       se suma (o resta, si es negativo).
     </p>
+    <p class="field__hint imp-decimales">Usa coma para decimales (ej: 12,5 = 12,5%).</p>
 
     @for (d of drivers; track d) {
       <div class="imp-fila" [class.imp-fila--error]="invalidos().has(d)">
@@ -25,7 +26,7 @@
         <input type="text" inputmode="decimal" [value]="impacto()[d].valor"
           [attr.aria-label]="'Valor del impacto en ' + etiquetas[d]"
           [attr.aria-invalid]="invalidos().has(d)"
-          [placeholder]="impacto()[d].tipo === 'porcentaje' ? 'ej. 10 o -5' : 'ej. 50000'"
+          [placeholder]="impacto()[d].tipo === 'porcentaje' ? 'ej. 12,5 o -5' : 'ej. 50000'"
           (input)="setValor(d, $any($event.target).value)" />
         @if (invalidos().has(d)) {
           <span class="imp-fila__error">En porcentaje no puede ser menor a -100.</span>
