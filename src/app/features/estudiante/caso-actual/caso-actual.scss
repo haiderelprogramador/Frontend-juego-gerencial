@@ -284,3 +284,33 @@
     font-family: var(--bs-font-mono);
   }
 }
+
+.selector-simulacion {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+
+  &__label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--bs-muted);
+  }
+  select {
+    min-width: 0;
+    max-width: 32rem;
+    flex: 1;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--bs-border-strong);
+    border-radius: var(--bs-radius-sm);
+    font: inherit;
+    font-size: 0.85rem;
+    background: var(--bs-surface);
+    color: var(--bs-foreground);
+
+    &:focus-visible {
+      outline: 2px solid var(--bs-primary);
+      outline-offset: 1px;
+    }
+  }
+}

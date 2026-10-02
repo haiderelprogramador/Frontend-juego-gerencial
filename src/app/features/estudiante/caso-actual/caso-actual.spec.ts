@@ -6,11 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
 import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
 import { financieroANumeros, financieroVacio } from '../../simulacion/models/financiero.model';
-import { CasoActual as CasoActualDto, Decision } from '../models/portal-estudiante.model';
+import { signal } from '@angular/core';
+import { AuthService } from '../../../core/services/auth.service';
+import { CasoActual as CasoActualDto, Decision, MiSimulacion } from '../models/portal-estudiante.model';
 import { aFechaBogota, calcularFase, CasoActual, formatearCuenta } from './caso-actual';
 
 const URL_CASO_ACTUAL = apiUrl(API_CONFIG.endpoints.estudianteCasoActual);
 const URL_DECISION = apiUrl(API_CONFIG.endpoints.estudianteDecision);
+const URL_SIMULACIONES = apiUrl(API_CONFIG.endpoints.estudianteSimulaciones);
 
 const AHORA = Date.parse('2026-09-29T12:00:00');
 const UNA_HORA_MS = 60 * 60 * 1000;
@@ -51,6 +54,21 @@ function decision(idOpcion: number, resultado: string): Decision {
     impacto: null,
     decididaPor: 'Estudiante Líder',
     fechaDecision: new Date(AHORA).toISOString(),
+  };
+}
+
+function miSimulacion(idSimulacion: number, estado: string): MiSimulacion {
+  return {
+    idSimulacion,
+    nombreSimulacion: `Simulación ${idSimulacion}`,
+    fechaInicio: '2026-10-01',
+    fechaFin: '2026-10-09',
+    estado,
+    idEmpresa: 20,
+    codigoEmpresa: 'EMP-001',
+    nombreEmpresa: 'TextilAndes S.A.',
+    departamento: 'GERENCIA_GENERAL',
+    esLider: true,
   };
 }
 
@@ -134,10 +152,11 @@ describe('CasoActual', () => {
     vi.useRealTimers();
   });
 
-  /** El constructor dispara GET /estudiante/caso-actual. */
-  function crearFixture(dto: CasoActualDto | null) {
+  /** El constructor dispara GET /estudiante/caso-actual (sin idSimulacion) y GET /estudiante/simulaciones. */
+  function crearFixture(dto: CasoActualDto | null, simulaciones: MiSimulacion[] = []) {
     const fixture = TestBed.createComponent(CasoActual);
     http.expectOne({ method: 'GET', url: URL_CASO_ACTUAL }).flush(dto, dto === null ? { status: 204, statusText: 'No Content' } : undefined);
+    http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush(simulaciones);
     fixture.detectChanges();
     return fixture;
   }
@@ -251,6 +270,40 @@ describe('CasoActual', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('details.detalle-financiero')).toBeNull();
   });
 
+  it('con una sola simulación no muestra el selector', () => {
+    const fixture = crearFixture(casoActualDto(), [miSimulacion(23, 'EN_CURSO')]);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.selector-simulacion')).toBeNull();
+  });
+
+  it('con varias simulaciones muestra el selector y cambiar de simulación recarga ese caso-actual', () => {
+    const fixture = crearFixture(casoActualDto(), [miSimulacion(23, 'FINALIZADA'), miSimulacion(40, 'EN_CURSO')]);
+    const select = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('.selector-simulacion select')!;
+    expect(select.value).toBe('23'); // la que eligió el backend
+    expect(select.options[1].textContent).toContain('Simulación 40 · TextilAndes S.A. (en curso)');
+
+    select.value = '40';
+    select.dispatchEvent(new Event('change'));
+    http
+      .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '40')
+      .flush(casoActualDto({ idSimulacion: 40 }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.idSimulacionMostrada()).toBe(40);
+  });
+
+  it('si la simulación elegida no tiene caso activo (204), el selector sigue visible para volver', () => {
+    const fixture = crearFixture(casoActualDto(), [miSimulacion(23, 'EN_CURSO'), miSimulacion(40, 'PROGRAMADA')]);
+    fixture.componentInstance.elegirSimulacion(40);
+    http
+      .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '40')
+      .flush(null, { status: 204, statusText: 'No Content' });
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).toContain('No hay un caso activo todavía');
+    expect(host.querySelector<HTMLSelectElement>('.selector-simulacion select')!.value).toBe('40');
+  });
+
   it('pasa de "visualizacion" a "partida" solo, sin recargar, cuando el reloj cruza fechaInicioPartida', () => {
     const fixture = crearFixture(casoActualDto({ caso: casoEstudiante(3000, UNA_HORA_MS) }));
     expect(fixture.componentInstance.fase()).toBe('visualizacion');
@@ -269,5 +322,58 @@ describe('CasoActual', () => {
     vi.advanceTimersByTime(60000);
 
     expect(instancia.fase()).toBe('visualizacion');
+  });
+});
+
+describe('CasoActual — simulación recordada', () => {
+  let http: HttpTestingController;
+  const CLAVE = 'portal-estudiante.simulacion.50';
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(AHORA);
+    await TestBed.configureTestingModule({
+      imports: [CasoActual],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: AuthService, useValue: { usuarioActual: signal({ id: '50' }) } },
+      ],
+    }).compileComponents();
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.removeItem(CLAVE);
+    vi.useRealTimers();
+  });
+
+  it('recuerda la simulación elegida: al volver a entrar (F5) pide esa, no la del backend', () => {
+    const primera = TestBed.createComponent(CasoActual);
+    http.expectOne({ method: 'GET', url: URL_CASO_ACTUAL }).flush(casoActualDto());
+    http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([miSimulacion(23, 'FINALIZADA'), miSimulacion(40, 'EN_CURSO')]);
+    primera.componentInstance.elegirSimulacion(40);
+    http.expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '40').flush(casoActualDto({ idSimulacion: 40 }));
+    primera.destroy();
+
+    TestBed.createComponent(CasoActual);
+    http.expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '40').flush(casoActualDto({ idSimulacion: 40 }));
+    http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([]);
+  });
+
+  it('si la simulación recordada ya no es válida, la olvida y vuelve a la del backend', () => {
+    localStorage.setItem(CLAVE, '99');
+    const fixture = TestBed.createComponent(CasoActual);
+    http
+      .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '99')
+      .flush({ message: 'No perteneces a esa simulación' }, { status: 400, statusText: 'Bad Request' });
+    http.expectOne((r) => r.url === URL_CASO_ACTUAL && !r.params.has('idSimulacion')).flush(casoActualDto());
+    http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([]);
+    fixture.detectChanges();
+
+    expect(localStorage.getItem(CLAVE)).toBeNull();
+    expect(fixture.componentInstance.error()).toBeNull();
+    expect(fixture.componentInstance.caso()).toBeTruthy();
   });
 });

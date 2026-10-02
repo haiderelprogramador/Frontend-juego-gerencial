@@ -10,7 +10,8 @@ import {
 } from '../../../shared/components/tarjeta-seleccion/tarjeta-seleccion';
 import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
 import { describirImpacto } from '../../simulacion/models/financiero.model';
-import { CasoActual as CasoActualDto } from '../models/portal-estudiante.model';
+import { AuthService } from '../../../core/services/auth.service';
+import { CasoActual as CasoActualDto, MiSimulacion } from '../models/portal-estudiante.model';
 import { PortalEstudianteService } from '../services/portal-estudiante.service';
 
 type Fase = 'visualizacion' | 'partida' | 'cierre';
@@ -68,6 +69,13 @@ function mensaje(err: ErrorHttp, porDefecto: string): string {
  * si el estudiante deja la pantalla abierta, pase de fase sola cuando
  * corresponda (sin recargar la página).
  */
+const ESTADOS_SIMULACION: Record<string, string> = {
+  BORRADOR: 'borrador',
+  PROGRAMADA: 'programada',
+  EN_CURSO: 'en curso',
+  FINALIZADA: 'finalizada',
+};
+
 @Component({
   selector: 'app-caso-actual',
   imports: [Badge, Alerta, Kpi, TarjetaSeleccion],
@@ -77,6 +85,19 @@ function mensaje(err: ErrorHttp, porDefecto: string): string {
 })
 export class CasoActual implements OnDestroy {
   private readonly portal = inject(PortalEstudianteService);
+  private readonly auth = inject(AuthService);
+
+  /**
+   * Simulaciones del estudiante, para el selector. Red de seguridad: sin
+   * `idSimulacion`, el backend no siempre elige la simulación esperada
+   * (confirmado en vivo, 02-oct-2026: devuelve una FINALIZADA aunque haya
+   * otras EN_CURSO con caso activo).
+   */
+  readonly simulaciones = signal<MiSimulacion[]>([]);
+  /** Simulación pedida explícitamente (selector o la recordada); `undefined` = la que elija el backend. */
+  private readonly idSolicitada = signal<number | undefined>(undefined);
+  /** Lo que muestra el selector: la simulación del caso cargado, o la pedida si no tiene caso (204). */
+  readonly idSimulacionMostrada = computed(() => this.datos()?.idSimulacion ?? this.idSolicitada() ?? null);
 
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
@@ -161,7 +182,21 @@ export class CasoActual implements OnDestroy {
   readonly bloqueadoPorFecha = computed(() => this.fase() === 'visualizacion');
 
   constructor() {
-    this.cargar();
+    this.cargar(this.leerSimulacionRecordada());
+    this.portal.misSimulaciones().subscribe({
+      next: (lista) => this.simulaciones.set(lista),
+      // Sin la lista no hay selector; el resto de la pantalla funciona igual.
+      error: () => this.simulaciones.set([]),
+    });
+  }
+
+  elegirSimulacion(id: number): void {
+    this.recordarSimulacion(id);
+    this.cargar(id);
+  }
+
+  estadoLegible(estado: string): string {
+    return ESTADOS_SIMULACION[estado] ?? estado.toLowerCase();
   }
 
   confirmarDecision(): void {
@@ -200,16 +235,57 @@ export class CasoActual implements OnDestroy {
   private cargar(idSimulacion?: number): void {
     this.cargando.set(true);
     this.error.set(null);
+    this.idSolicitada.set(idSimulacion);
     this.portal.casoActual(idSimulacion).subscribe({
       next: (dto) => {
         this.datos.set(dto);
         this.cargando.set(false);
       },
       error: (err: ErrorHttp) => {
+        // La simulación recordada ya no es válida (ej. el estudiante salió de
+        // esa empresa): se olvida y se vuelve a la que elija el backend.
+        if (idSimulacion !== undefined && idSimulacion === this.leerSimulacionRecordada()) {
+          this.olvidarSimulacion();
+          this.cargar();
+          return;
+        }
         this.cargando.set(false);
         this.error.set(mensaje(err, 'No se pudo cargar el caso actual.'));
       },
     });
+  }
+
+  private claveSimulacion(): string | null {
+    const id = this.auth.usuarioActual()?.id;
+    return id ? `portal-estudiante.simulacion.${id}` : null;
+  }
+
+  private leerSimulacionRecordada(): number | undefined {
+    const clave = this.claveSimulacion();
+    try {
+      const valor = clave ? Number(localStorage.getItem(clave)) : NaN;
+      return Number.isInteger(valor) && valor > 0 ? valor : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private recordarSimulacion(id: number): void {
+    const clave = this.claveSimulacion();
+    try {
+      if (clave) localStorage.setItem(clave, String(id));
+    } catch {
+      // Sin storage (modo privado, bloqueado): el selector igual funciona en esta visita.
+    }
+  }
+
+  private olvidarSimulacion(): void {
+    const clave = this.claveSimulacion();
+    try {
+      if (clave) localStorage.removeItem(clave);
+    } catch {
+      // idem
+    }
   }
 
   private formatearFecha(valor: string | undefined): string | null {

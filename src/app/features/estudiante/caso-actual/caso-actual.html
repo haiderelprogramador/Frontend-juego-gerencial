@@ -1,3 +1,16 @@
+@if (simulaciones().length > 1) {
+  <label class="selector-simulacion">
+    <span class="selector-simulacion__label">Simulación</span>
+    <select [disabled]="cargando()" (change)="elegirSimulacion(+$any($event.target).value)">
+      @for (s of simulaciones(); track s.idSimulacion) {
+        <option [value]="s.idSimulacion" [selected]="s.idSimulacion === idSimulacionMostrada()">
+          {{ s.nombreSimulacion }} · {{ s.nombreEmpresa }} ({{ estadoLegible(s.estado) }})
+        </option>
+      }
+    </select>
+  </label>
+}
+
 @if (error(); as msg) {
   <app-alerta tipo="error" [mensaje]="msg" />
 }
