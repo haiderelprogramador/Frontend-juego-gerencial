@@ -3,6 +3,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
+import { contrasenaSegura, mensajeErrorContrasena } from '../../../core/validators/contrasena.validator';
 import { Alerta } from '../../../shared/components/alerta/alerta';
 
 /**
@@ -33,8 +34,13 @@ export class RegistroDocente {
     nombre: ['', [Validators.required, Validators.minLength(3)]],
     correo: ['', [Validators.required, Validators.email]],
     numeroIdentificacion: ['', [Validators.required, Validators.pattern(/^[0-9]{5,15}$/)]],
-    contrasena: ['', [Validators.required, Validators.minLength(8)]],
+    contrasena: ['', [Validators.required, contrasenaSegura()]],
   });
+
+  /** Qué reglas de contraseña faltan (null si es válida). */
+  errorContrasena(): string | null {
+    return mensajeErrorContrasena(this.form.controls.contrasena.errors);
+  }
 
   enviar(): void {
     if (this.form.invalid || this.enviando()) {

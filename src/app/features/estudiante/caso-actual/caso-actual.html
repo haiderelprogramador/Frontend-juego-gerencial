@@ -81,19 +81,19 @@
           <div class="financiero__grid">
             <div class="financiero__item">
               <span class="financiero__label">Activo total</span>
-              <span class="financiero__val num">{{ c.financiero.activoTotal || '—' }}</span>
+              <span class="financiero__val num">{{ moneda(c.financiero.activoTotal) }}</span>
             </div>
             <div class="financiero__item">
               <span class="financiero__label">Pasivo total</span>
-              <span class="financiero__val num">{{ c.financiero.pasivoTotal || '—' }}</span>
+              <span class="financiero__val num">{{ moneda(c.financiero.pasivoTotal) }}</span>
             </div>
             <div class="financiero__item">
               <span class="financiero__label">Patrimonio</span>
-              <span class="financiero__val num">{{ c.financiero.patrimonio || '—' }}</span>
+              <span class="financiero__val num">{{ moneda(c.financiero.patrimonio) }}</span>
             </div>
             <div class="financiero__item">
               <span class="financiero__label">Utilidad neta</span>
-              <span class="financiero__val num">{{ c.financiero.utilidadNeta || '—' }}</span>
+              <span class="financiero__val num">{{ moneda(c.financiero.utilidadNeta) }}</span>
             </div>
           </div>
         </div>

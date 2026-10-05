@@ -24,7 +24,7 @@ describe('RegistroDocente', () => {
       nombre: 'Ana Docente',
       correo: 'ana@uni.edu',
       numeroIdentificacion: '1094567890',
-      contrasena: 'claveSegura1',
+      contrasena: 'claveSegura1!',
     });
     expect(fixture.componentInstance.form.valid).toBe(true);
   });
@@ -36,7 +36,7 @@ describe('RegistroDocente', () => {
       nombre: 'Ana Docente',
       correo: 'ana@uni.edu',
       numeroIdentificacion: '1094567890',
-      contrasena: 'claveSegura1',
+      contrasena: 'claveSegura1!',
     });
     fixture.detectChanges();
 

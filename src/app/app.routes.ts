@@ -37,6 +37,11 @@ export const routes: Routes = [
         loadChildren: () => import('./features/docente/docente.routes').then((m) => m.DOCENTE_ROUTES),
       },
       {
+        // Docente y estudiante: un solo componente para ambos roles.
+        path: 'mi-cuenta',
+        loadComponent: () => import('./features/cuenta/mi-cuenta/mi-cuenta').then((m) => m.MiCuenta),
+      },
+      {
         path: 'clasificacion',
         loadChildren: () =>
           import('./features/clasificacion/clasificacion.routes').then((m) => m.CLASIFICACION_ROUTES),

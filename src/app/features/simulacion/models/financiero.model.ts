@@ -246,9 +246,8 @@ export interface ImpactoDriver {
 
 /**
  * Impacto tal como lo declara el docente: solo los drivers que tocó. Un
- * driver ausente no tiene efecto.
- * TODO: confirmar con backend el shape exacto de `impacto` en el JSON
- * (objeto por driver vs. lista `[{ driver, tipo, valor }]`) antes de conectar.
+ * driver ausente no tiene efecto. Objeto con clave por rubro, no lista
+ * (contrato 5-oct-2026).
  */
 export type ImpactoOpcion = Partial<Record<DriverImpacto, ImpactoDriver>>;
 

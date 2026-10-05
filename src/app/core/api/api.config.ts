@@ -30,6 +30,11 @@ export const API_CONFIG = {
     registroDocente: '/auth/registro-docente',
     /** GET (con Bearer token) -> { usuario: Usuario } ; 401 si el token no es válido. */
     sesion: '/auth/sesion',
+    /**
+     * POST (con Bearer token) -> CambiarContrasenaRequest ; 200 -> { message }.
+     * Contraseña nueva con las mismas reglas que el registro.
+     */
+    cambiarContrasena: '/auth/cambiar-contrasena',
 
     /**
      * POST (rol DOCENTE) -> CargaMasivaRequest ; 200 -> CargaMasivaResponse.
@@ -55,14 +60,14 @@ export const API_CONFIG = {
     partidas: '/docente/partidas',
 
     /**
-     * Casos (API Estratego, 56 endpoints, doc 28-sep-2026 — CasoApiService):
+     * Casos (API Estratego, 57 endpoints, doc 28-sep-2026 — CasoApiService):
      *  GET / POST -> CasoRequest ; GET/PUT/DELETE `/{id}` ; POST `/{id}/activar`
      *  GET `/{id}/decisiones` -> DecisionEmpresa[]. Rol DOCENTE.
      */
     casos: '/docente/casos',
 
     /**
-     * Simulaciones (contrato 56 endpoints — SimulacionService). Rol DOCENTE.
+     * Simulaciones (contrato 57 endpoints — SimulacionService). Rol DOCENTE.
      * También base de las rutas anidadas `/{id}/casos` y `/{id}/empresas`.
      *  GET/POST -> SimulacionRequest ; GET/PUT/DELETE `/{id}` ;
      *  POST `/{id}/programar|iniciar|finalizar`.

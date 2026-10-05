@@ -9,7 +9,7 @@ import {
   TarjetaSeleccion,
 } from '../../../shared/components/tarjeta-seleccion/tarjeta-seleccion';
 import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
-import { describirImpacto } from '../../simulacion/models/financiero.model';
+import { describirImpacto, formatearMoneda } from '../../simulacion/models/financiero.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { CasoActual as CasoActualDto, MiSimulacion } from '../models/portal-estudiante.model';
 import { PortalEstudianteService } from '../services/portal-estudiante.service';
@@ -193,6 +193,11 @@ export class CasoActual implements OnDestroy {
   elegirSimulacion(id: number): void {
     this.recordarSimulacion(id);
     this.cargar(id);
+  }
+
+  /** Total financiero con formato de moneda; un 0 se muestra como $0, solo `null` es "—". */
+  moneda(valor: number | null | undefined): string {
+    return valor == null ? '—' : formatearMoneda(valor);
   }
 
   estadoLegible(estado: string): string {

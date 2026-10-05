@@ -91,6 +91,27 @@ export class DemoDb {
     return combinados;
   }
 
+  /**
+   * Cambia la contraseña de un docente o estudiante si `actual` coincide.
+   * `false` si no existe el correo o la contraseña actual no es la correcta.
+   */
+  cambiarContrasena(correo: string, actual: string, nueva: string): boolean {
+    const objetivo = correo.trim().toLowerCase();
+    for (const key of [KEYS.docentes, KEYS.estudiantes]) {
+      const registros = this.leer<{ usuario: Usuario; contrasena: string }[]>(key, []);
+      const registro = registros.find((r) => r.usuario.correo.toLowerCase() === objetivo);
+      if (registro) {
+        if (registro.contrasena !== actual) {
+          return false;
+        }
+        registro.contrasena = nueva;
+        this.escribir(key, registros);
+        return true;
+      }
+    }
+    return false;
+  }
+
   // ---------------------------------------------------------------------------
   // Sesión
   // ---------------------------------------------------------------------------

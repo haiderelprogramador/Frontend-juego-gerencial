@@ -1,0 +1,60 @@
+<section class="cuenta">
+  <header class="cuenta__head">
+    <h1 class="t-display">Mi cuenta</h1>
+    <p class="cuenta__sub">{{ usuario()?.nombre }} · {{ usuario()?.correo }}</p>
+  </header>
+
+  <div class="card cuenta__card">
+    <h2 class="t-title">Cambiar contraseña</h2>
+
+    <form class="form" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+      <label class="field">
+        <span class="field__label">Contraseña actual</span>
+        <input [type]="verContrasenas() ? 'text' : 'password'" formControlName="contrasenaActual"
+          autocomplete="current-password" />
+        @if (form.controls.contrasenaActual.touched && form.controls.contrasenaActual.invalid) {
+          <span class="field__error">Escribe tu contraseña actual.</span>
+        }
+      </label>
+
+      <label class="field">
+        <span class="field__label">Contraseña nueva</span>
+        <input [type]="verContrasenas() ? 'text' : 'password'" formControlName="contrasenaNueva"
+          autocomplete="new-password" />
+        <span class="field__hint">8 a 72 caracteres, con mayúscula, minúscula, número y símbolo.</span>
+        @if (form.controls.contrasenaNueva.touched && errorContrasenaNueva(); as msg) {
+          <span class="field__error">{{ msg }}</span>
+        }
+      </label>
+
+      <label class="field">
+        <span class="field__label">Confirmar contraseña nueva</span>
+        <input [type]="verContrasenas() ? 'text' : 'password'" formControlName="confirmar"
+          autocomplete="new-password" />
+        @if (form.controls.confirmar.touched) {
+          @if (form.controls.confirmar.invalid) {
+            <span class="field__error">Repite la contraseña nueva.</span>
+          } @else if (form.hasError('noCoincide')) {
+            <span class="field__error">No coincide con la contraseña nueva.</span>
+          }
+        }
+      </label>
+
+      <label class="cuenta__ver">
+        <input type="checkbox" [checked]="verContrasenas()" (change)="verContrasenas.set(!verContrasenas())" />
+        Mostrar contraseñas
+      </label>
+
+      @if (error(); as msg) {
+        <app-alerta tipo="error" [mensaje]="msg" />
+      }
+      @if (exito(); as msg) {
+        <app-alerta tipo="exito" [mensaje]="msg" />
+      }
+
+      <button type="submit" class="btn btn--primario" [disabled]="enviando()">
+        {{ enviando() ? 'Guardando…' : 'Cambiar contraseña' }}
+      </button>
+    </form>
+  </div>
+</section>

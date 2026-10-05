@@ -181,8 +181,9 @@ export class Casos {
       this.errorNuevaSimulacion.set('Poné un nombre y la fecha de inicio.');
       return;
     }
-    if (fin && new Date(fin) <= new Date(inicio)) {
-      this.errorNuevaSimulacion.set('La fecha de fin tiene que ser posterior a la de inicio.');
+    // Contrato: fechaFin no puede ser ANTERIOR a fechaInicio (igual sí se permite).
+    if (fin && new Date(fin) < new Date(inicio)) {
+      this.errorNuevaSimulacion.set('La fecha de fin no puede ser anterior a la de inicio.');
       return;
     }
 

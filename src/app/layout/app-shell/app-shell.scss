@@ -125,7 +125,8 @@
       color: var(--bs-sidebar-muted);
     }
   }
-  &__logout {
+  /* Botones del bloque de usuario: Mi cuenta y Cerrar sesión. */
+  &__user-btn {
     display: grid;
     place-items: center;
     width: 1.9rem;
@@ -136,7 +137,8 @@
     color: var(--bs-sidebar-muted);
     cursor: pointer;
     flex: none;
-    &:hover {
+    &:hover,
+    &.is-active {
       color: #fff;
       background: #24304b;
     }

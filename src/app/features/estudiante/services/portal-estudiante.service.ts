@@ -8,7 +8,7 @@ import { CasoEstudiante, aCasoEstudiante } from '../../simulacion/models/caso-ap
 import { CasoActual, Decision, MiEmpresa, MiSimulacion } from '../models/portal-estudiante.model';
 
 /**
- * Portal del estudiante — cliente de `/api/estudiante/*` (API Estratego, 56
+ * Portal del estudiante — cliente de `/api/estudiante/*` (API Estratego, 57
  * endpoints, doc 28-sep-2026). Rol ESTUDIANTE.
  *
  * Regla clave de `decidir()`: la decisión la toma EL LÍDER por toda la
@@ -16,9 +16,10 @@ import { CasoActual, Decision, MiEmpresa, MiSimulacion } from '../models/portal-
  * simulación PROGRAMADA/EN_CURSO y dentro de [fechaInicioPartida,
  * fechaFinPartida]. Es permanente: no se puede cambiar ni borrar.
  *
- * Visibilidad (regla de negocio, no técnica): un caso aparece desde
- * `fechaVisualizacion` y nunca con la simulación en BORRADOR; sus opciones,
- * desde `fechaInicioPartida`.
+ * Visibilidad (contrato "API Estratego — Endpoints para frontend", 5-oct-2026,
+ * pág. 10): un caso aparece desde `fechaVisualizacion` y nunca con la
+ * simulación en BORRADOR; sus opciones, desde `fechaInicioPartida`. La aplica
+ * el backend; la UI además bloquea las opciones antes de `fechaInicioPartida`.
  *
  * Solo backend real (sin rama demo), igual que `PartidaService`/`CasoApiService`.
  *
@@ -30,9 +31,10 @@ export class PortalEstudianteService {
   private readonly http = inject(HttpClient);
 
   /**
-   * El caso activo visible para la empresa del estudiante. Sin `idSimulacion`
-   * toma la simulación más reciente con caso activo. `null` si el backend
-   * responde 204 (no hay caso activo visible).
+   * El caso visible para la empresa del estudiante. Sin `idSimulacion`, el
+   * backend elige (contrato 5-oct-2026): (1) partida en curso — si hay varias,
+   * la de la simulación más reciente; (2) el próximo caso por empezar; (3) el
+   * caso terminado más reciente. `null` si responde 204 (nada aplica).
    */
   casoActual(idSimulacion?: number): Observable<CasoActual | null> {
     let params = new HttpParams();

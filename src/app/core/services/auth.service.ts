@@ -8,6 +8,7 @@ import { DemoDb } from '../demo/demo-db';
 import { Rol } from '../models/rol.enum';
 import {
   AuthResponse,
+  CambiarContrasenaRequest,
   LoginRequest,
   RegistroDocenteRequest,
   Usuario,
@@ -16,10 +17,11 @@ import {
 /**
  * Autenticación y sesión de la app.
  *
- * Contrato de API (Spring Boot, aún no implementado):
- *  - POST {@link API_CONFIG.endpoints.login}          body LoginRequest            -> AuthResponse
- *  - POST {@link API_CONFIG.endpoints.registroDocente} body RegistroDocenteRequest -> AuthResponse
- *  - GET  {@link API_CONFIG.endpoints.sesion}          (Bearer token)              -> { usuario: Usuario }
+ * Contrato de API (API Estratego, 57 endpoints, 5-oct-2026):
+ *  - POST {@link API_CONFIG.endpoints.login}             body LoginRequest              -> AuthResponse
+ *  - POST {@link API_CONFIG.endpoints.registroDocente}   body RegistroDocenteRequest    -> AuthResponse
+ *  - GET  {@link API_CONFIG.endpoints.sesion}            (Bearer token)                 -> { usuario: Usuario }
+ *  - POST {@link API_CONFIG.endpoints.cambiarContrasena} body CambiarContrasenaRequest  -> { message }
  *
  * Mientras `API_CONFIG.demoMode` sea true, cada método resuelve contra
  * {@link DemoDb} (localStorage) simulando latencia de red. La firma pública
@@ -135,6 +137,27 @@ export class AuthService {
       );
     }
     return of({ usuario: actual.usuario }).pipe(delay(API_CONFIG.demoLatenciaMs));
+  }
+
+  /**
+   * Cambia la contraseña del usuario con sesión (docente o estudiante). La
+   * sesión sigue igual: no devuelve token nuevo. 400 si la actual no coincide
+   * o la nueva no cumple las reglas (ver `contrasenaSegura()`).
+   */
+  cambiarContrasena(req: CambiarContrasenaRequest): Observable<{ message: string }> {
+    if (!API_CONFIG.demoMode) {
+      return this.http.post<{ message: string }>(apiUrl(API_CONFIG.endpoints.cambiarContrasena), req);
+    }
+
+    // --- Implementación DEMO ---------------------------------------------------
+    const correo = this._sesion()?.usuario.correo;
+    if (!correo || !this.demo.cambiarContrasena(correo, req.contrasenaActual, req.contrasenaNueva)) {
+      return throwError(() => ({
+        status: 400,
+        message: 'La contraseña actual no es correcta.',
+      })).pipe(delay(API_CONFIG.demoLatenciaMs));
+    }
+    return of({ message: 'Contraseña actualizada.' }).pipe(delay(API_CONFIG.demoLatenciaMs));
   }
 
   logout(): void {

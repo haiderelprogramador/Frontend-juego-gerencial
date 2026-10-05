@@ -30,6 +30,12 @@ export interface RegistroDocenteRequest {
   contrasena: string;
 }
 
+/** Cuerpo de POST /auth/cambiar-contrasena (rol DOCENTE o ESTUDIANTE, con sesión). */
+export interface CambiarContrasenaRequest {
+  contrasenaActual: string;
+  contrasenaNueva: string;
+}
+
 /**
  * Respuesta de /auth/login y /auth/registro-docente.
  * `token` será un JWT emitido por Spring Boot; en modo demo es un valor simulado.

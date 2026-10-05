@@ -48,7 +48,7 @@
       <span class="field__label">Contraseña</span>
       <span class="field__control">
         <input [type]="verContrasena() ? 'text' : 'password'" formControlName="contrasena"
-          autocomplete="new-password" placeholder="Mínimo 8 caracteres" />
+          autocomplete="new-password" placeholder="8+ caracteres, mayúscula, número y símbolo" />
         <button type="button" class="field__toggle" [attr.aria-pressed]="verContrasena()"
           [attr.aria-label]="verContrasena() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
           (click)="verContrasena.set(!verContrasena())">
@@ -69,8 +69,8 @@
           }
         </button>
       </span>
-      @if (form.controls.contrasena.touched && form.controls.contrasena.invalid) {
-        <span class="field__error">Mínimo 8 caracteres.</span>
+      @if (form.controls.contrasena.touched && errorContrasena(); as msg) {
+        <span class="field__error">{{ msg }}</span>
       }
     </label>
 
