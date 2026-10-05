@@ -1,0 +1,224 @@
+.empresas {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+
+  &__head h1 {
+    margin: 0 0 0.25rem;
+  }
+  &__sub {
+    margin: 0;
+    color: var(--bs-muted);
+    font-size: 0.9rem;
+  }
+
+  &__sim,
+  &__vacio {
+    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__barra {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  &__lista {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(26rem, 100%), 1fr));
+    gap: 1rem;
+  }
+}
+
+.selector-sim {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+
+  select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.nueva-sim {
+  padding: 1rem;
+  border: 1px solid var(--bs-border-strong);
+  border-radius: var(--bs-radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  &__titulo {
+    margin: 0;
+    font-weight: 600;
+  }
+  &__campos {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 0.75rem;
+  }
+  &__acciones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+}
+
+.form-empresa {
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  &__titulo {
+    margin: 0;
+    font-weight: 600;
+  }
+  &__campos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  &__full {
+    grid-column: 1 / -1;
+  }
+  &__acciones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+}
+
+.empresa {
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  &__titulo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  &__codigo {
+    font-family: var(--bs-font-mono, monospace);
+    font-size: 0.75rem;
+    color: var(--bs-muted);
+  }
+  &__acciones {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+  &__confirmar {
+    font-size: 0.8rem;
+    color: var(--bs-muted);
+  }
+  &__estrategia,
+  &__vacia {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  &__estrategia {
+    color: var(--bs-muted);
+  }
+}
+
+.integrantes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--bs-border);
+}
+
+.integrante {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--bs-border);
+  flex-wrap: wrap;
+
+  &__nombre {
+    flex: 1;
+    min-width: 9rem;
+    display: flex;
+    flex-direction: column;
+    font-size: 0.875rem;
+
+    small {
+      color: var(--bs-muted);
+      font-size: 0.75rem;
+      overflow-wrap: anywhere;
+    }
+  }
+  &__depto {
+    font-size: 0.8rem;
+  }
+}
+
+.agregar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  select {
+    flex: 1;
+    min-width: 9rem;
+  }
+  &__lider {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+  }
+}
+
+.empresas select,
+.empresas textarea {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--bs-border-strong);
+  border-radius: var(--bs-radius-sm);
+  font: inherit;
+  font-size: 0.85rem;
+  background: #fff;
+  color: var(--bs-foreground);
+}
+
+@media (max-width: 700px) {
+  .empresas__lista {
+    grid-template-columns: 1fr;
+  }
+  .selector-sim {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .nueva-sim__campos,
+  .form-empresa__campos {
+    grid-template-columns: 1fr;
+  }
+}

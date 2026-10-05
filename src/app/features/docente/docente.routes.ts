@@ -16,5 +16,11 @@ export const DOCENTE_ROUTES: Routes = [
     loadComponent: () =>
       import('./gestion-estudiantes/gestion-estudiantes').then((m) => m.GestionEstudiantes),
   },
+  {
+    // Reemplazo de "Formar equipos" (Empresas + Integrantes). `?simulacion=ID`.
+    path: 'empresas',
+    title: 'Empresas · BizSim',
+    loadComponent: () => import('./empresas/empresas').then((m) => m.Empresas),
+  },
   { path: '', pathMatch: 'full', redirectTo: 'panel' },
 ];

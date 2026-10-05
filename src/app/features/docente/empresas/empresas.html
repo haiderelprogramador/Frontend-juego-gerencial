@@ -1,0 +1,246 @@
+<section class="empresas">
+  <header class="empresas__head">
+    <h1 class="t-display">Empresas</h1>
+    <p class="empresas__sub">Arma las empresas de una simulación y asigna sus integrantes.</p>
+  </header>
+
+  <div class="card empresas__sim">
+    <label class="field">
+      <span class="field__label">Simulación</span>
+      <div class="selector-sim">
+        <select aria-label="Simulación" (change)="elegirSimulacion($any($event.target).value)">
+          <option value="" [selected]="idSimulacion() === null">Selecciona una simulación</option>
+          @for (s of simulaciones(); track s.id) {
+            <option [value]="s.id" [selected]="s.id === idSimulacion()">
+              {{ s.nombre }} ({{ estadosSimulacion[s.estado] }})
+            </option>
+          }
+        </select>
+        @if (!creandoSimulacion()) {
+          <button type="button" class="btn btn--secundario" (click)="abrirNuevaSimulacion()">
+            + Nueva simulación
+          </button>
+        }
+      </div>
+    </label>
+    @if (errorSimulaciones(); as msg) {
+      <app-alerta tipo="error" [mensaje]="msg" />
+    }
+
+    @if (creandoSimulacion()) {
+      <div class="nueva-sim">
+        <p class="nueva-sim__titulo">Nueva simulación</p>
+        <div class="nueva-sim__campos">
+          <label class="field">
+            <span class="field__label">Nombre</span>
+            <input type="text" [value]="nuevaSimNombre()" (input)="nuevaSimNombre.set($any($event.target).value)"
+              placeholder="Ej. Gerencia 2026-2" />
+          </label>
+          <label class="field">
+            <span class="field__label">Inicio</span>
+            <input type="datetime-local" [value]="nuevaSimInicio()"
+              (input)="nuevaSimInicio.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span class="field__label">Fin</span>
+            <input type="datetime-local" [value]="nuevaSimFin()" (input)="nuevaSimFin.set($any($event.target).value)" />
+          </label>
+        </div>
+        @if (errorNuevaSimulacion(); as msg) {
+          <app-alerta tipo="error" [mensaje]="msg" />
+        }
+        <div class="nueva-sim__acciones">
+          <button type="button" class="btn btn--ghost btn--sm" [disabled]="guardandoSimulacion()"
+            (click)="creandoSimulacion.set(false)">Cancelar</button>
+          <button type="button" class="btn btn--primario btn--sm" [disabled]="guardandoSimulacion()"
+            (click)="crearSimulacion()">
+            {{ guardandoSimulacion() ? 'Creando…' : 'Crear simulación' }}
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (simulacion(); as s) {
+      @if (!editable()) {
+        <app-alerta tipo="info"
+          [mensaje]="'La simulación está ' + estadosSimulacion[s.estado] + ': las empresas y sus integrantes ya no se pueden modificar.'" />
+      }
+    }
+  </div>
+
+  @if (idSimulacion() === null) {
+    <p class="t-muted">Elige una simulación para ver y armar sus empresas.</p>
+  } @else if (cargando()) {
+    <p class="t-muted">Cargando empresas…</p>
+  } @else {
+    @if (error(); as msg) {
+      <app-alerta tipo="error" [mensaje]="msg" />
+    }
+    @if (errorEstudiantes(); as msg) {
+      <app-alerta tipo="error" [mensaje]="msg" />
+    }
+
+    <div class="empresas__barra">
+      <span class="t-muted">
+        {{ empresas().length }} empresa(s) · {{ disponibles().length }} estudiante(s) sin empresa en esta simulación
+      </span>
+      @if (editable() && formEmpresa() === null) {
+        <button type="button" class="btn btn--primario" (click)="nuevaEmpresa()">+ Nueva empresa</button>
+      }
+    </div>
+
+    @if (formEmpresa(); as f) {
+      <div class="card form-empresa">
+        <p class="form-empresa__titulo">{{ editandoEmpresaId() === null ? 'Nueva empresa' : 'Editar empresa' }}</p>
+        <div class="form-empresa__campos">
+          <label class="field">
+            <span class="field__label">Nombre</span>
+            <input type="text" [value]="f.nombre" (input)="actualizarFormEmpresa({ nombre: $any($event.target).value })"
+              placeholder="Ej. Cóndor S.A." />
+          </label>
+          <label class="field">
+            <span class="field__label">Tipo de jugador</span>
+            <select [value]="f.tipoJugador"
+              (change)="actualizarFormEmpresa({ tipoJugador: $any($event.target).value })">
+              <option value="MULTIUSUARIO">Multiusuario (varios integrantes)</option>
+              <option value="MONOUSUARIO">Monousuario (un solo integrante)</option>
+            </select>
+          </label>
+          <label class="field form-empresa__full">
+            <span class="field__label">Estrategia (opcional)</span>
+            <textarea rows="2" [value]="f.estrategia"
+              (input)="actualizarFormEmpresa({ estrategia: $any($event.target).value })"></textarea>
+          </label>
+        </div>
+        <p class="field__hint">El código (EMP-001, EMP-002…) lo asigna el sistema.</p>
+        @if (errorEmpresa(); as msg) {
+          <app-alerta tipo="error" [mensaje]="msg" />
+        }
+        <div class="form-empresa__acciones">
+          <button type="button" class="btn btn--ghost btn--sm" [disabled]="ocupado()" (click)="cancelarEmpresa()">
+            Cancelar
+          </button>
+          <button type="button" class="btn btn--primario btn--sm" [disabled]="ocupado()" (click)="guardarEmpresa()">
+            {{ editandoEmpresaId() === null ? 'Crear empresa' : 'Guardar cambios' }}
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (empresas().length === 0 && formEmpresa() === null) {
+      <div class="card empresas__vacio">
+        <p class="t-muted">Esta simulación todavía no tiene empresas.</p>
+      </div>
+    }
+
+    <div class="empresas__lista">
+      @for (e of empresas(); track e.id) {
+        <article class="card empresa">
+          <header class="empresa__head">
+            <div class="empresa__titulo">
+              <span class="empresa__codigo">{{ e.codigoEmpresa }}</span>
+              <strong>{{ e.nombre }}</strong>
+              <app-badge [variante]="e.tipoJugador === 'MONOUSUARIO' ? 'pendiente' : 'neutro'">
+                {{ e.tipoJugador === 'MONOUSUARIO' ? 'Monousuario' : 'Multiusuario' }}
+              </app-badge>
+            </div>
+            @if (sinLider(e.id)) {
+              <app-badge variante="peligro" title="Sin líder nadie de esta empresa puede tomar decisiones">Sin líder</app-badge>
+            }
+            @if (editable()) {
+              <div class="empresa__acciones">
+                @if (confirmandoEliminar() === e.id) {
+                  <span class="empresa__confirmar">
+                    ¿Eliminar{{ integrantesDe(e.id).length ? ' y quitar ' + integrantesDe(e.id).length + ' integrante(s)' : '' }}?
+                  </span>
+                  <button type="button" class="btn btn--ghost btn--sm" (click)="confirmandoEliminar.set(null)">No</button>
+                  <button type="button" class="btn btn--peligro btn--sm" [disabled]="ocupado()"
+                    (click)="eliminarEmpresa(e.id)">Sí, eliminar</button>
+                } @else {
+                  <button type="button" class="btn btn--ghost btn--sm" [disabled]="ocupado()"
+                    (click)="editarEmpresa(e)">Editar</button>
+                  <button type="button" class="btn btn--ghost btn--sm" [disabled]="ocupado()"
+                    (click)="confirmandoEliminar.set(e.id)">Eliminar</button>
+                }
+              </div>
+            }
+          </header>
+          @if (e.estrategia) {
+            <p class="empresa__estrategia">{{ e.estrategia }}</p>
+          }
+
+          @if (integrantesDe(e.id).length === 0) {
+            <p class="t-muted empresa__vacia">Sin integrantes.</p>
+          } @else {
+            <ul class="integrantes">
+              @for (i of integrantesDe(e.id); track i.idUsuario) {
+                <li class="integrante">
+                  <span class="integrante__nombre">
+                    {{ i.nombre }}
+                    <small>{{ i.correo }}</small>
+                  </span>
+                  @if (editable()) {
+                    <select class="integrante__depto" aria-label="Departamento" [disabled]="ocupado()"
+                      (change)="cambiarDepartamento(e.id, i, $any($event.target).value)">
+                      @for (d of departamentos; track d.valor) {
+                        <option [value]="d.valor" [selected]="d.valor === i.departamento">{{ d.etiqueta }}</option>
+                      }
+                    </select>
+                  } @else {
+                    <span class="integrante__depto">{{ nombreDepartamento(i.departamento) }}</span>
+                  }
+                  @if (i.esLider) {
+                    <app-badge variante="estudiante">★ Líder</app-badge>
+                  } @else if (editable() && e.tipoJugador === 'MULTIUSUARIO') {
+                    <button type="button" class="btn btn--ghost btn--sm" [disabled]="ocupado()"
+                      (click)="hacerLider(e.id, i)">Hacer líder</button>
+                  }
+                  @if (editable()) {
+                    <button type="button" class="btn btn--ghost btn--sm" [disabled]="ocupado()"
+                      (click)="quitarIntegrante(e.id, i)" [attr.aria-label]="'Quitar a ' + i.nombre">Quitar</button>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          @if (puedeAgregar(e)) {
+            @let f = formIntegrante(e.id);
+            <div class="agregar">
+              <select aria-label="Estudiante" [disabled]="ocupado() || disponibles().length === 0"
+                (change)="actualizarFormIntegrante(e.id, { idUsuario: $any($event.target).value })">
+                <option value="" [selected]="f.idUsuario === ''">
+                  {{ disponibles().length ? 'Elige un estudiante' : 'No quedan estudiantes sin empresa' }}
+                </option>
+                @for (est of disponibles(); track est.id) {
+                  <option [value]="est.id" [selected]="est.id === f.idUsuario">{{ est.nombre }}</option>
+                }
+              </select>
+              <select aria-label="Departamento del nuevo integrante" [disabled]="ocupado()"
+                (change)="actualizarFormIntegrante(e.id, { departamento: $any($event.target).value })">
+                @for (d of departamentos; track d.valor) {
+                  <option [value]="d.valor" [selected]="d.valor === f.departamento">{{ d.etiqueta }}</option>
+                }
+              </select>
+              @if (e.tipoJugador === 'MULTIUSUARIO') {
+                <label class="agregar__lider">
+                  <input type="checkbox" [checked]="f.esLider"
+                    (change)="actualizarFormIntegrante(e.id, { esLider: $any($event.target).checked })" />
+                  Líder
+                </label>
+              }
+              <button type="button" class="btn btn--secundario btn--sm" [disabled]="ocupado() || !f.idUsuario"
+                (click)="agregarIntegrante(e)">Agregar</button>
+            </div>
+          } @else if (editable() && monousuarioCompleta(e)) {
+            <p class="field__hint">Empresa monousuario: ya tiene su único integrante.</p>
+          }
+
+          @if (erroresEmpresa()[e.id]; as msg) {
+            <app-alerta tipo="error" [mensaje]="msg" />
+          }
+        </article>
+      }
+    </div>
+  }
+</section>

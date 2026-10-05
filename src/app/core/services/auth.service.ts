@@ -155,7 +155,7 @@ export class AuthService {
     if (req.contrasenaNueva === req.contrasenaActual) {
       return throwError(() => ({
         status: 400,
-        message: 'La contraseña nueva debe ser distinta de la actual.',
+        message: 'La nueva contraseña debe ser diferente a la actual',
       })).pipe(delay(API_CONFIG.demoLatenciaMs));
     }
     const correo = this._sesion()?.usuario.correo;

@@ -46,6 +46,7 @@ export class AppShell {
           items: [
             { ruta: '/docente/panel', texto: 'Panel del docente', icono: 'grid' },
             { ruta: '/docente/estudiantes', texto: 'Equipos', icono: 'users' },
+            { ruta: '/docente/empresas', texto: 'Empresas', icono: 'building' },
             { ruta: '/clasificacion', texto: 'Clasificación', icono: 'trophy' },
           ],
         },
