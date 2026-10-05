@@ -141,8 +141,10 @@ export class AuthService {
 
   /**
    * Cambia la contraseña del usuario con sesión (docente o estudiante). La
-   * sesión sigue igual: no devuelve token nuevo. 400 si la actual no coincide
-   * o la nueva no cumple las reglas (ver `contrasenaSegura()`).
+   * sesión sigue igual: no devuelve token nuevo. 400 si la nueva no cumple las
+   * reglas (ver `contrasenaSegura()`) o es igual a la actual; 401 si la actual
+   * es incorrecta. Ese 401 es un error de formulario, NO de sesión: si algún
+   * día se agrega un "logout ante 401", tiene que exceptuar esta ruta.
    */
   cambiarContrasena(req: CambiarContrasenaRequest): Observable<{ message: string }> {
     if (!API_CONFIG.demoMode) {
@@ -150,14 +152,20 @@ export class AuthService {
     }
 
     // --- Implementación DEMO ---------------------------------------------------
+    if (req.contrasenaNueva === req.contrasenaActual) {
+      return throwError(() => ({
+        status: 400,
+        message: 'La contraseña nueva debe ser distinta de la actual.',
+      })).pipe(delay(API_CONFIG.demoLatenciaMs));
+    }
     const correo = this._sesion()?.usuario.correo;
     if (!correo || !this.demo.cambiarContrasena(correo, req.contrasenaActual, req.contrasenaNueva)) {
       return throwError(() => ({
-        status: 400,
-        message: 'La contraseña actual no es correcta.',
+        status: 401,
+        message: 'La contraseña actual es incorrecta',
       })).pipe(delay(API_CONFIG.demoLatenciaMs));
     }
-    return of({ message: 'Contraseña actualizada.' }).pipe(delay(API_CONFIG.demoLatenciaMs));
+    return of({ message: 'Contraseña actualizada correctamente' }).pipe(delay(API_CONFIG.demoLatenciaMs));
   }
 
   logout(): void {

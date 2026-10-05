@@ -32,7 +32,9 @@ export const API_CONFIG = {
     sesion: '/auth/sesion',
     /**
      * POST (con Bearer token) -> CambiarContrasenaRequest ; 200 -> { message }.
-     * Contraseña nueva con las mismas reglas que el registro.
+     * 400 si la nueva no cumple las reglas del registro o es igual a la actual;
+     * 401 "La contraseña actual es incorrecta" — ese 401 NO significa token
+     * vencido: nada debe cerrar sesión por él.
      */
     cambiarContrasena: '/auth/cambiar-contrasena',
 
