@@ -138,6 +138,18 @@ export class Empresas {
   readonly editandoEmpresaId = signal<number | null>(null);
   readonly errorEmpresa = signal<string | null>(null);
   readonly confirmandoEliminar = signal<number | null>(null);
+  /** Líder a punto de ser quitado (pide confirmación: la empresa queda sin líder). */
+  readonly confirmandoQuitarLider = signal<{ idEmpresa: number; idUsuario: number } | null>(null);
+
+  /**
+   * Al editar una empresa con 2+ integrantes no se ofrece MONOUSUARIO (el
+   * backend responde 400 "No se puede cambiar a MONOUSUARIO: la empresa tiene
+   * N integrantes y solo admite 1"). Con 1 sí se permite.
+   */
+  readonly monousuarioBloqueado = computed(() => {
+    const id = this.editandoEmpresaId();
+    return id !== null && this.integrantesDe(id).length >= 2;
+  });
 
   readonly formsIntegrante = signal<Record<number, FormIntegrante>>({});
   /** Error de una acción dentro de una tarjeta, por id de empresa. */
@@ -278,6 +290,11 @@ export class Empresas {
         );
         if (idEdicion === null) {
           this.integrantes.update((m) => ({ ...m, [empresa.id]: [] }));
+        } else if (empresa.tipoJugador === 'MONOUSUARIO') {
+          // Su único integrante pasa a ser líder automático: traerlo del backend,
+          // no asumir que ya lo era.
+          this.ocupar(empresa.id);
+          this.recargarIntegrantes(empresa.id);
         }
       },
       error: (err: ErrorHttp) => {
@@ -387,7 +404,26 @@ export class Empresas {
     });
   }
 
+  /**
+   * "Quitar". Al líder se le pide confirmación antes del DELETE: es la única
+   * forma de dejar la empresa sin líder (permitido a propósito, ej. un
+   * estudiante que se retiró). Al resto se lo quita directo.
+   */
+  pedirQuitarIntegrante(idEmpresa: number, i: Integrante): void {
+    if (i.esLider) {
+      this.confirmandoQuitarLider.set({ idEmpresa, idUsuario: i.idUsuario });
+    } else {
+      this.quitarIntegrante(idEmpresa, i);
+    }
+  }
+
+  confirmandoQuitar(idEmpresa: number, i: Integrante): boolean {
+    const c = this.confirmandoQuitarLider();
+    return c !== null && c.idEmpresa === idEmpresa && c.idUsuario === i.idUsuario;
+  }
+
   quitarIntegrante(idEmpresa: number, i: Integrante): void {
+    this.confirmandoQuitarLider.set(null);
     this.ocupar(idEmpresa);
     this.integranteService.eliminar(idEmpresa, i.idUsuario).subscribe({
       next: () => this.recargarIntegrantes(idEmpresa),

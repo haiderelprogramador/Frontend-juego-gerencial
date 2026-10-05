@@ -128,6 +128,75 @@ describe.runIf(!API_CONFIG.demoMode && API_CONFIG.disponible.listarEstudiantes)(
     expect(cmp.sinLider(1)).toBe(true);
   });
 
+  it('al editar una empresa con 2+ integrantes, MONOUSUARIO queda deshabilitado', () => {
+    const fixture = montar();
+    const cmp = fixture.componentInstance;
+    cmp.integrantes.update((m) => ({ ...m, 1: [integrante(1, 10, true), integrante(1, 30)] }));
+    cmp.editarEmpresa(cmp.empresas()[0]);
+    fixture.detectChanges();
+    const opcion = (fixture.nativeElement as HTMLElement).querySelector<HTMLOptionElement>(
+      '.form-empresa option[value="MONOUSUARIO"]',
+    )!;
+    expect(cmp.monousuarioBloqueado()).toBe(true);
+    expect(opcion.disabled).toBe(true);
+
+    // Con 1 solo integrante sí se ofrece.
+    cmp.integrantes.update((m) => ({ ...m, 1: [integrante(1, 10, true)] }));
+    fixture.detectChanges();
+    expect(opcion.disabled).toBe(false);
+  });
+
+  it('pasar a MONOUSUARIO con 1 integrante recarga sus integrantes (queda líder automático)', () => {
+    const cmp = montar().componentInstance;
+    cmp.integrantes.update((m) => ({ ...m, 1: [integrante(1, 10)] }));
+    cmp.editarEmpresa(cmp.empresas()[0]);
+    cmp.actualizarFormEmpresa({ tipoJugador: 'MONOUSUARIO' });
+    cmp.guardarEmpresa();
+    http.expectOne({ method: 'PUT', url: `${EMPRESAS}/1` }).flush(empresa(1, 'MONOUSUARIO'));
+    http.expectOne({ method: 'GET', url: `${EMPRESAS}/1/integrantes` }).flush([integrante(1, 10, true)]);
+    expect(cmp.integrantesDe(1)[0].esLider).toBe(true);
+    expect(cmp.empresas()[0].tipoJugador).toBe('MONOUSUARIO');
+  });
+
+  it('muestra tal cual el 400 de cambiar a MONOUSUARIO', () => {
+    const cmp = montar().componentInstance;
+    cmp.editarEmpresa(cmp.empresas()[0]);
+    cmp.actualizarFormEmpresa({ tipoJugador: 'MONOUSUARIO' });
+    cmp.guardarEmpresa();
+    const msg = 'No se puede cambiar a MONOUSUARIO: la empresa tiene 3 integrantes y solo admite 1';
+    http.expectOne({ method: 'PUT', url: `${EMPRESAS}/1` }).flush({ message: msg }, { status: 400, statusText: 'Bad Request' });
+    expect(cmp.errorEmpresa()).toBe(msg);
+  });
+
+  it('quitar al LÍDER pide confirmación antes del DELETE', () => {
+    const fixture = montar();
+    const cmp = fixture.componentInstance;
+    const lider = integrante(1, 10, true);
+    cmp.pedirQuitarIntegrante(1, lider);
+    fixture.detectChanges();
+    http.expectNone(`${EMPRESAS}/1/integrantes/10`);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.confirmar-lider')?.textContent).toContain(
+      'La empresa quedará sin líder',
+    );
+
+    cmp.confirmandoQuitarLider.set(null); // Cancelar
+    http.expectNone(`${EMPRESAS}/1/integrantes/10`);
+
+    cmp.pedirQuitarIntegrante(1, lider);
+    cmp.quitarIntegrante(1, lider); // "Sí, quitar al líder"
+    http.expectOne({ method: 'DELETE', url: `${EMPRESAS}/1/integrantes/10` }).flush(null);
+    http.expectOne(`${EMPRESAS}/1/integrantes`).flush([]);
+    expect(cmp.confirmandoQuitarLider()).toBeNull();
+  });
+
+  it('quitar a un integrante que NO es líder no pide confirmación', () => {
+    const cmp = montar().componentInstance;
+    cmp.pedirQuitarIntegrante(1, integrante(1, 30));
+    expect(cmp.confirmandoQuitarLider()).toBeNull();
+    http.expectOne({ method: 'DELETE', url: `${EMPRESAS}/1/integrantes/30` }).flush(null);
+    http.expectOne(`${EMPRESAS}/1/integrantes`).flush([integrante(1, 10, true)]);
+  });
+
   it('muestra en la tarjeta el 400 del backend', () => {
     const fixture = montar();
     const cmp = fixture.componentInstance;

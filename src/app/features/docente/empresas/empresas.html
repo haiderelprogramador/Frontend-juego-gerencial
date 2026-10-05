@@ -103,8 +103,11 @@
             <select [value]="f.tipoJugador"
               (change)="actualizarFormEmpresa({ tipoJugador: $any($event.target).value })">
               <option value="MULTIUSUARIO">Multiusuario (varios integrantes)</option>
-              <option value="MONOUSUARIO">Monousuario (un solo integrante)</option>
+              <option value="MONOUSUARIO" [disabled]="monousuarioBloqueado()">Monousuario (un solo integrante)</option>
             </select>
+            @if (monousuarioBloqueado()) {
+              <span class="field__hint">Para pasarla a monousuario, deja un solo integrante.</span>
+            }
           </label>
           <label class="field form-empresa__full">
             <span class="field__label">Estrategia (opcional)</span>
@@ -196,8 +199,18 @@
                       (click)="hacerLider(e.id, i)">Hacer líder</button>
                   }
                   @if (editable()) {
-                    <button type="button" class="btn btn--ghost btn--sm" [disabled]="ocupado()"
-                      (click)="quitarIntegrante(e.id, i)" [attr.aria-label]="'Quitar a ' + i.nombre">Quitar</button>
+                    <button type="button" class="btn btn--ghost btn--sm" [disabled]="ocupado() || confirmandoQuitar(e.id, i)"
+                      (click)="pedirQuitarIntegrante(e.id, i)" [attr.aria-label]="'Quitar a ' + i.nombre">Quitar</button>
+                  }
+                  @if (confirmandoQuitar(e.id, i)) {
+                    <div class="confirmar-lider" role="alertdialog" aria-label="Confirmar quitar al líder">
+                      <p>La empresa quedará sin líder: nadie podrá decidir y sus casos contarán penalizados. ¿Continuar?</p>
+                      <div class="confirmar-lider__acciones">
+                        <button type="button" class="btn btn--ghost btn--sm" (click)="confirmandoQuitarLider.set(null)">Cancelar</button>
+                        <button type="button" class="btn btn--peligro btn--sm" [disabled]="ocupado()"
+                          (click)="quitarIntegrante(e.id, i)">Sí, quitar al líder</button>
+                      </div>
+                    </div>
                   }
                 </li>
               }
