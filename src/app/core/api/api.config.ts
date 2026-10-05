@@ -47,19 +47,6 @@ export const API_CONFIG = {
     /** GET (rol DOCENTE) -> EstudianteCargado[] : estudiantes ya cargados por el docente. */
     estudiantes: '/docente/estudiantes',
 
-    /**
-     * Equipos (backend rama `develop`, EquipoController):
-     *  GET  -> EquipoApi[] · POST {estudianteIds, liderId} -> EquipoApi (201)
-     *  GET/PUT `/docente/equipos/{id}` (PUT con el mismo cuerpo que POST).
-     */
-    equipos: '/docente/equipos',
-
-    /**
-     * Partidas (backend rama `develop`, PartidaController):
-     *  GET / POST · GET/PUT/DELETE `/{id}` · POST `/{id}/programar|iniciar|finalizar`
-     *  GET/POST `/{id}/equipos` · DELETE `/{id}/equipos/{equipoId}`.
-     */
-    partidas: '/docente/partidas',
 
     /**
      * Casos (API Estratego, 57 endpoints, doc 28-sep-2026 — CasoApiService):
@@ -111,8 +98,6 @@ export const API_CONFIG = {
   disponible: {
     /** GET /docente/estudiantes — confirmado funcionando (53/53 endpoints probados, 29-sep-2026). */
     listarEstudiantes: true,
-    /** DELETE /docente/equipos/{id} (no existe en EquipoController). */
-    eliminarEquipo: false,
   },
 } as const;
 

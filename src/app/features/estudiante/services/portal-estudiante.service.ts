@@ -21,7 +21,7 @@ import { CasoActual, Decision, MiEmpresa, MiSimulacion } from '../models/portal-
  * simulación en BORRADOR; sus opciones, desde `fechaInicioPartida`. La aplica
  * el backend; la UI además bloquea las opciones antes de `fechaInicioPartida`.
  *
- * Solo backend real (sin rama demo), igual que `PartidaService`/`CasoApiService`.
+ * Solo backend real (sin rama demo), igual que `CasoApiService`.
  *
  * Todo caso que entra por aquí pasa por `aCasoEstudiante()`: las opciones se
  * reconstruyen por lista blanca, sin `resultado` ni `impacto`.

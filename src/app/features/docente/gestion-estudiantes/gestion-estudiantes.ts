@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { Alerta } from '../../../shared/components/alerta/alerta';
-import { FormarEquipos } from '../equipos/equipos';
 import {
   CargaMasivaRequest,
   CargaMasivaResponse,
@@ -13,23 +13,22 @@ import { EstudianteService } from './services/estudiante.service';
 import { ExcelEstudiantesService } from './services/excel-estudiantes.service';
 
 type EstadoPantalla = 'inicial' | 'previsualizando' | 'cargando' | 'resultado';
-type Seccion = 'estudiantes' | 'equipos';
 
 const RE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RE_SOLO_DIGITOS = /^[0-9]+$/;
 
 /**
- * "Equipos y estudiantes" del docente (docs/03, docs/08 §2/§5).
+ * "Estudiantes" del docente (docs/03, docs/08 §2/§5): carga masiva por Excel
+ * (correo/nombre/identificación/edad/género — docs/08 §2) + tabla de los ya
+ * cargados (`EstudianteService.listar()`).
  *
- * Tiene dos secciones, cada una en su propio componente (no se mezclan):
- *  - "Estudiantes": carga masiva por Excel (correo/nombre/identificación/edad/
- *    género — docs/08 §2) + tabla de los ya cargados (`EstudianteService.listar()`).
- *  - "Equipos": formar equipos a partir de esos estudiantes (`<app-formar-equipos>`).
- *    Distinto de la "asignación de equipos" del formulario de un Caso puntual.
+ * Los equipos ya no se forman acá: son las Empresas de cada simulación
+ * (`/docente/empresas`, contrato 57 endpoints). "Formar equipos" y
+ * `/docente/equipos` se retiraron.
  */
 @Component({
   selector: 'app-gestion-estudiantes',
-  imports: [Alerta, FormarEquipos],
+  imports: [Alerta, RouterLink],
   templateUrl: './gestion-estudiantes.html',
   styleUrl: './gestion-estudiantes.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,8 +37,6 @@ const RE_SOLO_DIGITOS = /^[0-9]+$/;
 export class GestionEstudiantes {
   private readonly excel = inject(ExcelEstudiantesService);
   private readonly estudiantes = inject(EstudianteService);
-
-  readonly seccion = signal<Seccion>('estudiantes');
 
   readonly estado = signal<EstadoPantalla>('inicial');
   readonly nombreArchivo = signal<string | null>(null);
@@ -72,10 +69,6 @@ export class GestionEstudiantes {
 
   constructor() {
     this.cargarListado();
-  }
-
-  irA(seccion: Seccion): void {
-    this.seccion.set(seccion);
   }
 
   async onArchivo(event: Event): Promise<void> {

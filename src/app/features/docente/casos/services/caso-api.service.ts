@@ -17,9 +17,7 @@ import { CasoApi, CasoRequest, DecisionEmpresa } from '../../../simulacion/model
  *    pasa a `borrador`.
  *  - `eliminar` solo si BORRADOR/PROGRAMADA y sin decisiones.
  *
- * Solo backend real (sin rama demo): igual que `PartidaService`, todavía no
- * tiene implementación mock ni pantalla propia — la pantalla actual de
- * "Casos" sigue sobre el `CasoService` en memoria de `features/simulacion`.
+ * Solo backend real (sin rama demo).
  */
 @Injectable({ providedIn: 'root' })
 export class CasoApiService {

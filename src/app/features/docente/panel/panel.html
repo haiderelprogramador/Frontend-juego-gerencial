@@ -32,7 +32,7 @@
 
   <nav class="panel__tabs">
     <button type="button" [class.is-active]="tab() === 'periodos'" (click)="irA('periodos')">Control de periodos</button>
-    <button type="button" [class.is-active]="tab() === 'equipos'" (click)="irA('equipos')">Equipos y estudiantes</button>
+    <button type="button" [class.is-active]="tab() === 'equipos'" (click)="irA('equipos')">Estudiantes y empresas</button>
     <button type="button" [class.is-active]="tab() === 'casos'" (click)="irA('casos')">Casos</button>
     <button type="button" [class.is-active]="tab() === 'parametros'" (click)="irA('parametros')">Parámetros</button>
   </nav>
@@ -151,7 +151,7 @@
                 Aún no hay equipos formados. Cuando existan, verás aquí el estado de entrega de cada uno.
               </p>
               <button type="button" class="btn btn--secundario" (click)="irA('equipos')">
-                Ir a Equipos y estudiantes
+                Ir a Estudiantes y empresas
               </button>
             </div>
           }
@@ -160,8 +160,9 @@
     }
     @case ('equipos') {
       <div class="card placeholder">
-        <p>La gestión de equipos y estudiantes vive en su propia pantalla.</p>
-        <a class="btn btn--primario" routerLink="/docente/estudiantes">Ir a Equipos y estudiantes</a>
+        <p>Los estudiantes se cargan en su pantalla y las empresas se arman por simulación.</p>
+        <a class="btn btn--secundario" routerLink="/docente/estudiantes">Ir a Estudiantes</a>
+        <a class="btn btn--primario" routerLink="/docente/empresas">Ir a Empresas</a>
       </div>
     }
     @case ('casos') {

@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
 import * as XLSX from 'xlsx';
 
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
@@ -29,7 +30,7 @@ describe('GestionEstudiantes', () => {
     await TestBed.configureTestingModule({
       imports: [GestionEstudiantes],
       // Backend simulado: los tests nunca salen a ngrok.
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });
@@ -45,25 +46,18 @@ describe('GestionEstudiantes', () => {
     return fixture;
   }
 
-  it('arranca en estado inicial sin filas, en la sección Estudiantes', () => {
+  it('arranca en estado inicial sin filas', () => {
     const fixture = crearFixture();
     expect(fixture.componentInstance.estado()).toBe('inicial');
     expect(fixture.componentInstance.filas().length).toBe(0);
-    expect(fixture.componentInstance.seccion()).toBe('estudiantes');
   });
 
-  it('la sección "Equipos" muestra <app-formar-equipos>', () => {
+  it('ya no forma equipos: enlaza a Empresas', () => {
     const fixture = crearFixture();
-    fixture.componentInstance.irA('equipos');
     fixture.detectChanges();
-    // <app-formar-equipos> recién se instancia acá: dispara sus propias
-    // llamadas (estudiantes + equipos), reales porque no está mockeada aquí.
-    if (API_CONFIG.disponible.listarEstudiantes) {
-      http.expectOne({ method: 'GET', url: apiUrl(API_CONFIG.endpoints.estudiantes) }).flush([]);
-    }
-    http.expectOne({ method: 'GET', url: apiUrl(API_CONFIG.endpoints.equipos) }).flush([]);
-    fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('app-formar-equipos')).toBeTruthy();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('app-formar-equipos')).toBeNull();
+    expect(host.querySelector('a[href="/docente/empresas"]')).toBeTruthy();
   });
 
   it('lee edad y género del Excel y los conserva en la previsualización', async () => {

@@ -56,7 +56,7 @@ function formIntegranteVacio(): FormIntegrante {
 
 /**
  * Empresas e integrantes de una simulación — reemplazo de "Formar equipos"
- * (`/docente/equipos`, que sigue activo hasta confirmar esta pantalla).
+ * (`/docente/equipos`, retirado).
  *
  * La simulación elegida vive en la URL (`?simulacion=ID`). Conectado al
  * backend real: `EmpresaService`, `IntegranteService` y `SimulacionService`.

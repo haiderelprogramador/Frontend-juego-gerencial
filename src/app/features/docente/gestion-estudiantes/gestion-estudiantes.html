@@ -1,18 +1,13 @@
 <section class="gestion">
   <header class="gestion__head">
-    <h2 class="gestion__title">Equipos y estudiantes</h2>
+    <h2 class="gestion__title">Estudiantes</h2>
   </header>
 
-  <nav class="subtabs">
-    <button type="button" [class.is-active]="seccion() === 'estudiantes'" (click)="irA('estudiantes')">
-      Estudiantes
-    </button>
-    <button type="button" [class.is-active]="seccion() === 'equipos'" (click)="irA('equipos')">
-      Equipos
-    </button>
-  </nav>
+  <p class="gestion__hint">
+    Los equipos ahora son las empresas de cada simulación: se arman en
+    <a routerLink="/docente/empresas">Empresas</a>.
+  </p>
 
-  @if (seccion() === 'estudiantes') {
     <p class="gestion__lead">
       Sube el archivo Excel con el listado. Se necesitan, como mínimo, las columnas
       <strong>correo</strong>, <strong>nombre</strong>, <strong>número de identificación</strong>,
@@ -184,7 +179,4 @@
         </div>
       }
     </div>
-  } @else {
-    <app-formar-equipos />
-  }
 </section>
