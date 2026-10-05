@@ -132,10 +132,10 @@ salvedad del cliente "que yo sepa"). Los endpoints **no** se scopean a
 
 | # | Método + ruta | Qué hace | Quién | Entrada → Salida | Etiqueta |
 |---|---|---|---|---|---|
-| Q1 | `GET /api/docente/equipos` | Lista los equipos (con integrantes y estado de configuración). | Docente | — → `Equipo[]` | ⚠️ |
-| Q2 | `POST /api/docente/equipos` | Crea un equipo y le asigna estudiantes. | Docente | `{integrantes: [estudianteId]}` → `Equipo` | ⚠️ 🎨 (checklist del panel) |
-| Q3 | `PUT /api/docente/equipos/{id}` | Cambia integrantes. | Docente | `{integrantes?}` → `Equipo` | ⚠️ |
-| Q4 | `DELETE /api/docente/equipos/{id}` | Elimina un equipo (antes de abrir período). | Docente | — → 204 | ⚠️ |
+| Q1 | ~~`GET /api/docente/equipos`~~ | Lista los equipos (con integrantes y estado de configuración). | Docente | — → `Equipo[]` | 🗑️ **Retirado (oct-2026)** — reemplazado por Empresas + Integrantes (`/docente/simulaciones/{id}/empresas`, `/docente/empresas/{id}/integrantes`) |
+| Q2 | ~~`POST /api/docente/equipos`~~ | Crea un equipo y le asigna estudiantes. | Docente | `{integrantes: [estudianteId]}` → `Equipo` | 🗑️ **Retirado (oct-2026)** — reemplazado por Empresas + Integrantes (`/docente/simulaciones/{id}/empresas`, `/docente/empresas/{id}/integrantes`) |
+| Q3 | ~~`PUT /api/docente/equipos/{id}`~~ | Cambia integrantes. | Docente | `{integrantes?}` → `Equipo` | 🗑️ **Retirado (oct-2026)** — reemplazado por Empresas + Integrantes (`/docente/simulaciones/{id}/empresas`, `/docente/empresas/{id}/integrantes`) |
+| Q4 | ~~`DELETE /api/docente/equipos/{id}`~~ | Elimina un equipo (antes de abrir período). | Docente | — → 204 | 🗑️ **Retirado (oct-2026)** — reemplazado por Empresas + Integrantes (`/docente/simulaciones/{id}/empresas`, `/docente/empresas/{id}/integrantes`) |
 | Q5 | `GET /api/estudiante/equipo` | El estudiante consulta su propio equipo. | Estudiante | — → `Equipo` | ⚠️ (Toma de decisiones muestra "Equipo Cóndor") |
 
 **Sobre el nombre del equipo/empresa** (docs/08 §5): el **nombre de la empresa

@@ -48,10 +48,10 @@ diseño; aquí solo se resume en un lugar. 31 endpoints, 0 marcados ❓.
 
 | # | Método + ruta | Quién | Qué hace |
 |---|---|---|---|
-| Q1 | `GET /api/docente/equipos` | Docente | Lista los equipos con integrantes y estado. ⚠️ |
-| Q2 | `POST /api/docente/equipos` | Docente | Crea un equipo y le asigna estudiantes (sin `nombre`: la empresa lo trae del caso). ⚠️ 🎨 |
-| Q3 | `PUT /api/docente/equipos/{id}` | Docente | Cambia integrantes. ⚠️ |
-| Q4 | `DELETE /api/docente/equipos/{id}` | Docente | Elimina un equipo (antes de abrir período). ⚠️ |
+| Q1 | ~~`GET /api/docente/equipos`~~ | Docente | ~~Lista los equipos con integrantes y estado. ⚠️~~ 🗑️ **Retirado (oct-2026)** — reemplazado por Empresas + Integrantes (`/docente/simulaciones/{id}/empresas`, `/docente/empresas/{id}/integrantes`) |
+| Q2 | ~~`POST /api/docente/equipos`~~ | Docente | ~~Crea un equipo y le asigna estudiantes (sin `nombre`: la empresa lo trae del caso). ⚠️ 🎨~~ 🗑️ **Retirado (oct-2026)** — reemplazado por Empresas + Integrantes (`/docente/simulaciones/{id}/empresas`, `/docente/empresas/{id}/integrantes`) |
+| Q3 | ~~`PUT /api/docente/equipos/{id}`~~ | Docente | ~~Cambia integrantes. ⚠️~~ 🗑️ **Retirado (oct-2026)** — reemplazado por Empresas + Integrantes (`/docente/simulaciones/{id}/empresas`, `/docente/empresas/{id}/integrantes`) |
+| Q4 | ~~`DELETE /api/docente/equipos/{id}`~~ | Docente | ~~Elimina un equipo (antes de abrir período). ⚠️~~ 🗑️ **Retirado (oct-2026)** — reemplazado por Empresas + Integrantes (`/docente/simulaciones/{id}/empresas`, `/docente/empresas/{id}/integrantes`) |
 | Q5 | `GET /api/estudiante/equipo` | Estudiante | Consulta su propio equipo. ⚠️ |
 
 ### Casos (los configura el docente en el sistema)
