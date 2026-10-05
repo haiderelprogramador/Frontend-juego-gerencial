@@ -37,31 +37,57 @@ describe('GestionEstudiantes', () => {
 
   afterEach(() => http.verify());
 
-  /** El constructor dispara `cargarListado()` (GET /docente/estudiantes) de entrada. */
-  function crearFixture() {
-    const fixture = TestBed.createComponent(GestionEstudiantes);
+  /** Al elegir un curso se pide la lista (dos veces: al abrir y tras `prepararCurso`). */
+  function abrirCurso(fixture: ReturnType<typeof TestBed.createComponent<GestionEstudiantes>>) {
+    const cmp = fixture.componentInstance;
+    cmp.nombreCurso.set('Curso de prueba');
+    cmp.crearCurso();
+    const curso = cmp.cursos()[0];
+    cmp.seleccionarCurso(curso.id);
     if (API_CONFIG.disponible.listarEstudiantes) {
-      http.expectOne(apiUrl(API_CONFIG.endpoints.estudiantes)).flush([]);
+      http.match(apiUrl(API_CONFIG.endpoints.estudiantes)).forEach((r) => r.flush([]));
     }
-    return fixture;
+    fixture.detectChanges();
+    return curso;
   }
 
-  it('arranca en estado inicial sin filas', () => {
-    const fixture = crearFixture();
+  it('arranca mostrando el selector de cursos, sin pedir nada al backend', () => {
+    const fixture = TestBed.createComponent(GestionEstudiantes);
+    fixture.detectChanges();
     expect(fixture.componentInstance.estado()).toBe('inicial');
     expect(fixture.componentInstance.filas().length).toBe(0);
+    expect(fixture.componentInstance.cursoActual()).toBeNull();
+    http.expectNone(() => true);
   });
 
-  it('ya no forma equipos: enlaza a Empresas', () => {
-    const fixture = crearFixture();
-    fixture.detectChanges();
+  it('al seleccionar un curso abre su espacio de trabajo, sin sección de equipos', () => {
+    const fixture = TestBed.createComponent(GestionEstudiantes);
+    const curso = abrirCurso(fixture);
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('app-formar-equipos')).toBeNull();
+    expect(fixture.componentInstance.cursoActual()?.id).toBe(curso.id);
+    expect(host.textContent).not.toContain('Equipos formados');
+    expect(host.textContent).not.toContain('Armar equipos');
     expect(host.querySelector('a[href="/docente/empresas"]')).toBeTruthy();
   });
 
+  it('Cursos vive solo en el navegador: crear y eliminar no llaman al backend', () => {
+    const fixture = TestBed.createComponent(GestionEstudiantes);
+    const cmp = fixture.componentInstance;
+    cmp.nombreCurso.set('Gerencia 2026-2');
+    cmp.crearCurso();
+    expect(cmp.cursos().map((c) => c.nombre)).toEqual(['Gerencia 2026-2']);
+    expect(localStorage.length).toBeGreaterThan(0);
+
+    const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    cmp.eliminarCurso(cmp.cursos()[0]);
+    expect(confirmar.mock.calls[0][0]).not.toContain('equipos');
+    expect(cmp.cursos()).toEqual([]);
+    http.expectNone(() => true);
+    confirmar.mockRestore();
+  });
+
   it('lee edad y género del Excel y los conserva en la previsualización', async () => {
-    const fixture = crearFixture();
+    const fixture = TestBed.createComponent(GestionEstudiantes);
     const archivo = archivoDesdeFilas([
       {
         Correo: 'ana@uni.edu',
@@ -81,8 +107,9 @@ describe('GestionEstudiantes', () => {
     expect(fila.genero).toBe('Femenino');
   });
 
-  it('confirmar() sube el Excel al backend y agrega los creados a la tabla', async () => {
-    const fixture = crearFixture();
+  it.runIf(!API_CONFIG.demoMode)('confirmar() sube el Excel crudo (multipart) al backend y refresca la tabla', async () => {
+    const fixture = TestBed.createComponent(GestionEstudiantes);
+    abrirCurso(fixture);
     const archivo = archivoDesdeFilas([
       {
         Correo: 'nueva.prueba@uni.edu',
@@ -98,6 +125,7 @@ describe('GestionEstudiantes', () => {
 
     const req = http.expectOne({ method: 'POST', url: apiUrl(API_CONFIG.endpoints.estudiantesCargaMasiva) });
     expect(req.request.body instanceof FormData).toBe(true);
+    expect((req.request.body as FormData).get('archivo')).toBe(archivo);
     req.flush({
       creados: [
         {
@@ -118,10 +146,10 @@ describe('GestionEstudiantes', () => {
     expect(fixture.componentInstance.estado()).toBe('resultado');
     expect(fixture.componentInstance.resultado()?.creados[0].id).toBe('77');
     if (API_CONFIG.disponible.listarEstudiantes) {
-      http.expectOne(apiUrl(API_CONFIG.endpoints.estudiantes)).flush([]);
-    } else {
-      // Sin GET en el backend: la tabla sale del respaldo local, con el id real.
-      expect(fixture.componentInstance.estudiantesCargados().map((e) => e.id)).toContain('77');
+      http
+        .expectOne(apiUrl(API_CONFIG.endpoints.estudiantes))
+        .flush([{ id: 77, nombre: 'Estudiante Prueba', correo: 'nueva.prueba@uni.edu' }]);
     }
+    expect(fixture.componentInstance.estudiantesCargados().map((e) => e.id)).toContain('77');
   });
 });

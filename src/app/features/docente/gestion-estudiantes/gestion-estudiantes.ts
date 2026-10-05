@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { Curso } from '../../../core/models/curso.model';
+import { CursoService } from '../../../core/services/curso.service';
 import { Alerta } from '../../../shared/components/alerta/alerta';
 import {
   CargaMasivaRequest,
@@ -13,14 +15,14 @@ import { EstudianteService } from './services/estudiante.service';
 import { ExcelEstudiantesService } from './services/excel-estudiantes.service';
 
 type EstadoPantalla = 'inicial' | 'previsualizando' | 'cargando' | 'resultado';
-
 const RE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RE_SOLO_DIGITOS = /^[0-9]+$/;
 
 /**
- * "Estudiantes" del docente (docs/03, docs/08 §2/§5): carga masiva por Excel
- * (correo/nombre/identificación/edad/género — docs/08 §2) + tabla de los ya
- * cargados (`EstudianteService.listar()`).
+ * "Estudiantes" del docente, organizados por curso (docs/03, docs/08 §2/§5):
+ * cursos (solo en este navegador, `CursoService`), carga masiva por Excel
+ * (correo/nombre/identificación/edad/género — docs/08 §2), alta manual y tabla
+ * de los ya cargados (`EstudianteService.listar()`).
  *
  * Los equipos ya no se forman acá: son las Empresas de cada simulación
  * (`/docente/empresas`, contrato 57 endpoints). "Formar equipos" y
@@ -37,6 +39,14 @@ const RE_SOLO_DIGITOS = /^[0-9]+$/;
 export class GestionEstudiantes {
   private readonly excel = inject(ExcelEstudiantesService);
   private readonly estudiantes = inject(EstudianteService);
+  private readonly cursosService = inject(CursoService);
+
+  readonly cursos = this.cursosService.cursos;
+  readonly cursoSeleccionado = signal<string | null>(null);
+  readonly cursoActual = computed<Curso | null>(() => {
+    const id = this.cursoSeleccionado();
+    return id ? (this.cursos().find((curso) => curso.id === id) ?? null) : null;
+  });
 
   readonly estado = signal<EstadoPantalla>('inicial');
   readonly nombreArchivo = signal<string | null>(null);
@@ -48,11 +58,13 @@ export class GestionEstudiantes {
   private archivoActual: File | null = null;
 
   /** Estudiantes ya cargados (solo informativo para el docente). */
-  readonly yaCargados = signal<number>(this.estudiantes.contarExistentes());
+  readonly yaCargados = signal(0);
 
   /** Listado completo de estudiantes ya cargados, para la tabla persistente. */
   readonly estudiantesCargados = signal<EstudianteCargado[]>([]);
   readonly cargandoListado = signal(false);
+  readonly nombreCurso = signal('');
+  readonly menuCursoAbierto = signal<string | null>(null);
 
   readonly filasValidas = computed(() => this.filas().filter((f) => f.estado === 'ok'));
   readonly totalOk = computed(() => this.filasValidas().length);
@@ -68,7 +80,63 @@ export class GestionEstudiantes {
   });
 
   constructor() {
+    // La pantalla inicia deliberadamente en el selector de cursos.
+  }
+
+  crearCurso(): void {
+    const nombre = this.nombreCurso().trim();
+    if (!nombre) {
+      this.errorArchivo.set('Escribe un nombre para crear el curso.');
+      return;
+    }
+    this.cursosService.crearCurso(nombre);
+    this.nombreCurso.set('');
+    this.errorArchivo.set(null);
+  }
+
+  alternarMenuCurso(cursoId: string): void {
+    this.menuCursoAbierto.update((abierto) => (abierto === cursoId ? null : cursoId));
+  }
+
+  modificarNombreCurso(curso: Curso): void {
+    const nombre = window.prompt('Nuevo nombre del curso:', curso.nombre)?.trim();
+    if (!nombre) {
+      return;
+    }
+
+    this.cursosService.modificarNombre(curso.id, nombre);
+    this.menuCursoAbierto.set(null);
+  }
+
+  eliminarCurso(curso: Curso): void {
+    const confirmado = window.confirm(
+      `¿Eliminar "${curso.nombre}"? También se eliminarán sus estudiantes.`,
+    );
+    if (!confirmado) {
+      return;
+    }
+
+    this.estudiantes.eliminarPorCurso(curso.id);
+    this.cursosService.eliminarCurso(curso.id);
+    this.menuCursoAbierto.set(null);
+
+    if (this.cursoSeleccionado() === curso.id) {
+      this.volverACursos();
+    }
+  }
+
+  seleccionarCurso(cursoId: string): void {
+    this.cursoSeleccionado.set(cursoId);
+    this.reiniciar();
     this.cargarListado();
+    this.estudiantes.prepararCurso(cursoId).subscribe(() => this.cargarListado());
+  }
+
+  volverACursos(): void {
+    this.cursoSeleccionado.set(null);
+    this.estudiantesCargados.set([]);
+    this.errorArchivo.set(null);
+    this.reiniciar();
   }
 
   async onArchivo(event: Event): Promise<void> {
@@ -107,6 +175,7 @@ export class GestionEstudiantes {
     this.estado.set('cargando');
 
     const req: CargaMasivaRequest = {
+      cursoId: this.cursoSeleccionado() ?? undefined,
       estudiantes: validas.map((f) => ({
         nombre: f.nombre,
         correo: f.correo,
@@ -120,7 +189,9 @@ export class GestionEstudiantes {
     this.estudiantes.cargaMasiva(req, this.archivoActual).subscribe({
       next: (res) => {
         this.resultado.set(res);
-        this.yaCargados.update((n) => n + res.creados.length);
+        this.yaCargados.set(
+          this.estudiantes.contarExistentes(this.cursoSeleccionado() ?? undefined),
+        );
         this.estado.set('resultado');
         this.cargarListado();
       },
@@ -139,7 +210,7 @@ export class GestionEstudiantes {
     this.filas.set([]);
     this.resultado.set(null);
     this.archivoActual = null;
-    this.yaCargados.set(this.estudiantes.contarExistentes());
+    this.yaCargados.set(this.estudiantes.contarExistentes(this.cursoSeleccionado() ?? undefined));
   }
 
   // ---------------------------------------------------------------------------
@@ -148,10 +219,21 @@ export class GestionEstudiantes {
 
   private cargarListado(): void {
     this.cargandoListado.set(true);
-    this.estudiantes.listar().subscribe((lista) => {
+    this.estudiantes.listar(this.cursoSeleccionado() ?? undefined).subscribe((lista) => {
       this.estudiantesCargados.set(lista);
+      this.yaCargados.set(lista.length);
       this.cargandoListado.set(false);
     });
+  }
+
+  agregarManual(nombre: string, correo: string, identificacion: string): void {
+    const cursoId = this.cursoSeleccionado();
+    if (!cursoId || !nombre.trim() || !correo.trim() || !identificacion.trim()) {
+      this.errorArchivo.set('Completa nombre, correo y número de identificación.');
+      return;
+    }
+    this.estudiantes.agregarManual(cursoId, nombre, correo, identificacion);
+    this.cargarListado();
   }
 
   private construirPrevisualizacion(filas: FilaEstudianteExcel[]): FilaPrevisualizacion[] {

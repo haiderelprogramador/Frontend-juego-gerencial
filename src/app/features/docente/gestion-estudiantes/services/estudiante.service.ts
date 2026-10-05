@@ -33,7 +33,7 @@ import { generarContrasena } from './generar-contrasena';
  * ⚠️ Backend real SIN `GET /docente/estudiantes` todavía
  * (`API_CONFIG.disponible.listarEstudiantes = false`): `listar()` devuelve los
  * estudiantes que el backend creó en las cargas hechas DESDE ESTE NAVEGADOR,
- * guardados con su id real del backend (así se pueden usar para formar equipos).
+ * guardados con su id real del backend (así se pueden agregar a una empresa).
  */
 @Injectable({ providedIn: 'root' })
 export class EstudianteService {
@@ -42,14 +42,14 @@ export class EstudianteService {
   private readonly auth = inject(AuthService);
 
   /** Cantidad de estudiantes ya cargados (dato informativo para el docente). */
-  contarExistentes(): number {
+  contarExistentes(cursoId?: string): number {
     if (!API_CONFIG.demoMode) {
       return this.listaEsLocal() ? this.leerRespaldo().length : 0;
     }
-    return this.demo.estudiantes().length;
+    return cursoId ? this.demo.estudiantesPorCurso(cursoId).length : this.demo.estudiantes().length;
   }
 
-  listar(): Observable<EstudianteCargado[]> {
+  listar(cursoId?: string): Observable<EstudianteCargado[]> {
     if (!API_CONFIG.demoMode) {
       if (this.listaEsLocal()) {
         return of(this.leerRespaldo());
@@ -58,7 +58,8 @@ export class EstudianteService {
         .get<EstudianteCargado[]>(apiUrl(API_CONFIG.endpoints.estudiantes))
         .pipe(map((lista) => lista.map((e) => ({ ...e, id: String(e.id) }))));
     }
-    return of(this.demo.estudiantes().map((r) => this.aEstudianteCargado(r))).pipe(
+    const registros = cursoId ? this.demo.estudiantesPorCurso(cursoId) : this.demo.estudiantes();
+    return of(registros.map((r) => this.aEstudianteCargado(r))).pipe(
       delay(API_CONFIG.demoLatenciaMs),
     );
   }
@@ -79,8 +80,90 @@ export class EstudianteService {
     return of(this.aEstudianteCargado(encontrado)).pipe(delay(API_CONFIG.demoLatenciaMs));
   }
 
-  cargaMasiva(req: CargaMasivaRequest, archivo: File): Observable<CargaMasivaResponse> {
+  agregarManual(
+    cursoId: string,
+    nombre: string,
+    correo: string,
+    numeroIdentificacion: string,
+  ): EstudianteCargado {
+    const registro: DemoEstudianteRecord = {
+      usuario: {
+        id: `est-${cursoId}-${Date.now()}`,
+        nombre: nombre.trim(),
+        correo: correo.trim().toLowerCase(),
+        numeroIdentificacion: numeroIdentificacion.trim(),
+        rol: Rol.ESTUDIANTE,
+      },
+      contrasena: generarContrasena(Date.now(), numeroIdentificacion.trim()),
+      consecutivo: Date.now(),
+      edad: '',
+      genero: '',
+      columnasAdicionales: {},
+      cargadoEn: new Date().toISOString(),
+      cursoId,
+    };
+    this.demo.agregarEstudiantes([registro]);
+    return this.aEstudianteCargado(registro);
+  }
+
+  crearEstudiantesPrueba(cursoId: string): Observable<CargaMasivaResponse> {
+    if (!API_CONFIG.demoMode || this.contarExistentes(cursoId) > 0) {
+      return of({ creados: [], errores: [] });
+    }
+
+    const nombres = [
+      ['Ana Torres', 'ana.torres@demo.com', '10000001'],
+      ['Bruno Castro', 'bruno.castro@demo.com', '10000002'],
+      ['Camila Rojas', 'camila.rojas@demo.com', '10000003'],
+      ['Diego Mendoza', 'diego.mendoza@demo.com', '10000004'],
+      ['Elena Vargas', 'elena.vargas@demo.com', '10000005'],
+      ['Felipe Navarro', 'felipe.navarro@demo.com', '10000006'],
+      ['Gabriela Silva', 'gabriela.silva@demo.com', '10000007'],
+      ['Hugo Paredes', 'hugo.paredes@demo.com', '10000008'],
+    ];
+
+    return this.cargaMasiva(
+      {
+        cursoId,
+        estudiantes: nombres.map(([nombre, correo, numeroIdentificacion]) => ({
+          nombre,
+          correo,
+          numeroIdentificacion,
+          edad: '',
+          genero: '',
+          columnasAdicionales: {},
+        })),
+      },
+    );
+  }
+
+  prepararCurso(cursoId: string): Observable<CargaMasivaResponse> {
+    if (API_CONFIG.demoMode) {
+      this.demo.asignarEstudiantesSinCurso(cursoId);
+    }
+
+    return this.contarExistentes(cursoId) === 0
+      ? this.crearEstudiantesPrueba(cursoId)
+      : of({ creados: [], errores: [] });
+  }
+
+  eliminarPorCurso(cursoId: string): void {
+    if (API_CONFIG.demoMode) {
+      this.demo.eliminarEstudiantesPorCurso(cursoId);
+    }
+  }
+
+  /**
+   * Backend real: sube el .xlsx crudo (`archivo`, obligatorio). Demo: usa las
+   * filas ya parseadas de `req`, dentro del curso `req.cursoId` (Cursos solo
+   * existe en el navegador).
+   */
+  cargaMasiva(req: CargaMasivaRequest, archivo?: File): Observable<CargaMasivaResponse> {
+    const cursoId = req.cursoId;
     if (!API_CONFIG.demoMode) {
+      if (!archivo) {
+        return throwError(() => ({ status: 400, message: 'Falta el archivo Excel.' }));
+      }
       const formData = new FormData();
       formData.append('archivo', archivo);
       // No seteamos Content-Type a mano: HttpClient arma el boundary multipart
@@ -100,13 +183,14 @@ export class EstudianteService {
       );
     }
 
-    const yaRegistrados = new Set(
-      this.demo.estudiantes().map((r) => r.usuario.correo.toLowerCase()),
-    );
+    const registrosCurso = cursoId
+      ? this.demo.estudiantesPorCurso(cursoId)
+      : this.demo.estudiantes();
+    const yaRegistrados = new Set(registrosCurso.map((r) => r.usuario.correo.toLowerCase()));
     // El backend real llevaría este consecutivo; el mock lo continúa desde los
     // estudiantes ya cargados. TODO: confirmar con el cliente el alcance del
     // consecutivo (global / por curso / por docente / por carga).
-    let consecutivo = this.demo.estudiantes().length;
+    let consecutivo = registrosCurso.length;
 
     const nuevos: DemoEstudianteRecord[] = [];
     const errores: CargaMasivaResponse['errores'] = [];
@@ -122,7 +206,7 @@ export class EstudianteService {
       consecutivo += 1;
       nuevos.push({
         usuario: {
-          id: `est-${e.numeroIdentificacion}-${consecutivo}`,
+          id: `est-${cursoId ?? 'global'}-${e.numeroIdentificacion}-${consecutivo}`,
           nombre: e.nombre,
           correo,
           numeroIdentificacion: e.numeroIdentificacion,
@@ -135,6 +219,7 @@ export class EstudianteService {
         genero: e.genero,
         columnasAdicionales: e.columnasAdicionales,
         cargadoEn: ahora,
+        cursoId,
       });
     }
 
@@ -213,6 +298,7 @@ export class EstudianteService {
       genero: r.genero,
       contrasenaGenerada: r.contrasena,
       cargadoEn: r.cargadoEn,
+      cursoId: r.cursoId,
     };
   }
 }
