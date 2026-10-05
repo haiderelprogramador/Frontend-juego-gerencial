@@ -32,6 +32,29 @@ describe('contrasenaSegura', () => {
     expect(reglasContrasenaFaltantes('clave Segura1')).toEqual(['un símbolo']);
   });
 
+  it('"ñ" y vocales con tilde son letras, no símbolos (igual que \\p{L} del backend)', () => {
+    expect(reglasContrasenaFaltantes('Contraseña1')).toEqual(['un símbolo']);
+    expect(reglasContrasenaFaltantes('Canción123')).toEqual(['un símbolo']);
+    expect(reglasContrasenaFaltantes('Contraseña1!')).toEqual([]);
+  });
+
+  it('las letras con tilde o "Ñ" no cuentan como mayúscula/minúscula ([A-Z]/[a-z] ASCII)', () => {
+    expect(reglasContrasenaFaltantes('ÑANDÚ123!')).toEqual(['una minúscula']);
+    expect(reglasContrasenaFaltantes('éáíóú123!')).toEqual(['una mayúscula', 'una minúscula']);
+  });
+
+  it('coincide con el regex exacto del backend en casos borde', () => {
+    // El regex del backend, con \s acotado al espacio ASCII de Java.
+    const backend = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\p{L}\p{N} \t\n\x0B\f\r]).{8,72}$/u;
+    const casos = [
+      'Contraseña1', 'Contraseña1!', 'Canción123', 'Clave 123a', 'Clave 123a', 'Clave_123a',
+      'Clave٣123a', 'Abc1!', 'Aa1!' + 'x'.repeat(68), 'Aa1!' + 'x'.repeat(69), 'ÑANDÚ123!', 'Clave€123a',
+    ];
+    for (const c of casos) {
+      expect(reglasContrasenaFaltantes(c).length === 0, c).toBe(backend.test(c));
+    }
+  });
+
   it('arma un mensaje con lo que falta, no uno genérico', () => {
     expect(mensajeErrorContrasena(validar('claveSegura'))).toBe('Debe tener un número, un símbolo.');
     expect(mensajeErrorContrasena({ required: true })).toBe('Escribe una contraseña.');

@@ -2,18 +2,28 @@ import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 
 /**
  * Reglas de contraseña del contrato (API Estratego, 57 endpoints, 5-oct-2026):
- * las mismas para registro y para cambiar contraseña.
+ * las mismas para registro y para cambiar contraseña. El backend valida con
  *
- * TODO: confirmar con el cliente qué cuenta como "símbolo" exactamente. Acá:
- * cualquier carácter que no sea letra ASCII, dígito ni espacio.
+ *   ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\p{L}\p{N}\s]).{8,72}$
+ *
+ * y acá se replica regla por regla, para poder decir cuál falta:
+ *  - mayúscula/minúscula/número son ASCII: "Ñ" no cuenta como mayúscula, ni
+ *    "é" como minúscula.
+ *  - símbolo = cualquier cosa que no sea letra Unicode (incluye tildes y ñ),
+ *    número Unicode ni espacio. `\s` en Java (sin UNICODE_CHARACTER_CLASS) es
+ *    solo espacio ASCII, por eso va explícito: en JS `\s` incluiría también
+ *    el espacio duro (U+00A0), que para el backend SÍ es símbolo.
+ *  - el largo se cuenta en caracteres (code points), como `.` en Java.
  */
+const SIMBOLO = /[^\p{L}\p{N} \t\n\x0B\f\r]/u;
+
 export const REGLAS_CONTRASENA: readonly { mensaje: string; cumple: (v: string) => boolean }[] = [
-  { mensaje: 'mínimo 8 caracteres', cumple: (v) => v.length >= 8 },
-  { mensaje: 'máximo 72 caracteres', cumple: (v) => v.length <= 72 },
+  { mensaje: 'mínimo 8 caracteres', cumple: (v) => [...v].length >= 8 },
+  { mensaje: 'máximo 72 caracteres', cumple: (v) => [...v].length <= 72 },
   { mensaje: 'una mayúscula', cumple: (v) => /[A-Z]/.test(v) },
   { mensaje: 'una minúscula', cumple: (v) => /[a-z]/.test(v) },
   { mensaje: 'un número', cumple: (v) => /[0-9]/.test(v) },
-  { mensaje: 'un símbolo', cumple: (v) => /[^A-Za-z0-9\s]/.test(v) },
+  { mensaje: 'un símbolo', cumple: (v) => SIMBOLO.test(v) },
 ];
 
 /** Las reglas que `valor` no cumple, como texto legible. */

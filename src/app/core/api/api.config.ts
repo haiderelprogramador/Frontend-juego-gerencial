@@ -72,7 +72,8 @@ export const API_CONFIG = {
      * Simulaciones (contrato 57 endpoints — SimulacionService). Rol DOCENTE.
      * También base de las rutas anidadas `/{id}/casos` y `/{id}/empresas`.
      *  GET/POST -> SimulacionRequest ; GET/PUT/DELETE `/{id}` ;
-     *  POST `/{id}/programar|iniciar|finalizar`.
+     *  POST `/{id}/programar|iniciar|finalizar` ; GET `/{id}/clasificacion`
+     *  -> Clasificacion (cualquier estado; ClasificacionService).
      */
     simulacionesDocente: '/docente/simulaciones',
     /**
@@ -90,7 +91,11 @@ export const API_CONFIG = {
     estudianteCasoActual: '/estudiante/caso-actual',
     /** POST {idCaso, idOpcion} -> Decision (201). La toma el líder, una vez por empresa/caso. */
     estudianteDecision: '/estudiante/decision',
-    /** GET -> MiSimulacion[] (la más reciente primero). */
+    /**
+     * GET -> MiSimulacion[] (la más reciente primero).
+     * GET `/{id}/clasificacion` -> Clasificacion, solo con la simulación
+     * FINALIZADA (400 antes, o si el estudiante no participa).
+     */
     estudianteSimulaciones: '/estudiante/simulaciones',
     /** GET `/{idEmpresa}` -> MiEmpresa (con integrantes[]); 400 si no pertenece. */
     estudianteEmpresas: '/estudiante/empresas',

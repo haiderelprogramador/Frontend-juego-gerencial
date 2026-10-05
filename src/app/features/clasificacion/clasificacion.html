@@ -2,83 +2,148 @@
   <header class="clasif__head">
     <div>
       <h1 class="t-display">Clasificación</h1>
-      <p class="clasif__sub">Ranking de equipos por desempeño acumulado en la simulación.</p>
+      <p class="clasif__sub">Ranking de empresas por utilidad acumulada en la simulación.</p>
     </div>
-    <button type="button" class="btn btn--secundario btn--sm" (click)="alternarVacio()">
-      {{ vacio() ? 'Ver ranking' : 'Ver estado vacío' }}
-    </button>
   </header>
 
-  @if (vacio()) {
-    <div class="card vacio">
-      <span class="vacio__icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor"
-          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16" />
-          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-        </svg>
-      </span>
-      <h2 class="vacio__title">Aún no hay resultados</h2>
-      <p class="vacio__text">
-        La clasificación se genera cuando el docente cierra el primer período y el sistema
-        calcula el desempeño de cada equipo. Aquí verás el podio, la tendencia de cada equipo
-        y su puntaje acumulado.
-      </p>
-    </div>
-  } @else {
-    <div class="card podio">
-      @for (eq of podio(); track eq.equipo; let i = $index) {
-        <div class="podio__col" [attr.data-lugar]="eq.posicion">
-          <span class="podio__nombre">{{ eq.equipo }}</span>
-          <span class="podio__pts num">{{ eq.puntaje }} pts</span>
-          <div class="podio__bloque">
-            <span class="podio__rank">{{ eq.posicion }}</span>
-          </div>
-        </div>
-      }
-    </div>
+  <div class="card clasif__sim">
+    <label class="field">
+      <span class="field__label">Simulación</span>
+      <select aria-label="Simulación" (change)="elegirSimulacion($any($event.target).value)">
+        <option value="" [selected]="idSimulacion() === null">Selecciona una simulación</option>
+        @for (s of simulaciones(); track s.id) {
+          <option [value]="s.id" [selected]="s.id === idSimulacion()">
+            {{ s.nombre }} ({{ estadoLegible(s.estado) }})
+          </option>
+        }
+      </select>
+    </label>
+    @if (errorSimulaciones(); as msg) {
+      <app-alerta tipo="error" [mensaje]="msg" />
+    }
+  </div>
 
-    <div class="card tabla-wrap">
-      <table class="tabla">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Equipo</th>
-            <th>Tend.</th>
-            <th class="ta-right">Ingresos</th>
-            <th class="ta-right">Margen</th>
-            <th class="ta-right">Puntaje</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (eq of equipos(); track eq.equipo) {
-            <tr [class.fila-mia]="eq.esMio">
-              <td>
-                <span class="rank-chip" [class.rank-chip--top]="eq.posicion <= 3">{{ eq.posicion }}</span>
-              </td>
-              <td>
-                <span class="equipo">
-                  {{ eq.equipo }}
-                  @if (eq.esMio) { <app-badge variante="estudiante">Tu equipo</app-badge> }
-                </span>
-                <span class="equipo__sub">{{ eq.integrantes }} integrantes</span>
-              </td>
-              <td>
-                @if (eq.tendencia > 0) {
-                  <span class="tend tend--up">↑ {{ eq.tendencia }}</span>
-                } @else if (eq.tendencia < 0) {
-                  <span class="tend tend--down">↓ {{ -eq.tendencia }}</span>
-                } @else {
-                  <span class="tend">—</span>
-                }
-              </td>
-              <td class="ta-right num">{{ eq.ingresos }}</td>
-              <td class="ta-right num">{{ eq.margen }}</td>
-              <td class="ta-right num tabla__pts">{{ eq.puntaje }}</td>
-            </tr>
+  @switch (estado()) {
+    @case ('sin-simulacion') {
+      <p class="t-muted">Elige una simulación para ver su clasificación.</p>
+    }
+    @case ('cargando') {
+      <p class="t-muted">Cargando clasificación…</p>
+    }
+    @case ('no-disponible') {
+      <app-alerta tipo="info" [mensaje]="mensaje()!" />
+    }
+    @case ('error') {
+      <app-alerta tipo="error" [mensaje]="mensaje()!" />
+    }
+    @case ('ok') {
+      @if (datos(); as d) {
+        <div class="clasif__meta">
+          <strong>{{ d.nombreSimulacion }}</strong>
+          @if (d.definitiva) {
+            <app-badge variante="exito">Definitiva</app-badge>
+          } @else {
+            <app-badge variante="pendiente" [punto]="true">Vista previa — la simulación aún no terminó</app-badge>
           }
-        </tbody>
-      </table>
-    </div>
+          <span class="t-muted">{{ d.casosConsiderados }} caso(s) considerado(s)</span>
+        </div>
+
+        @if (sinResultados()) {
+          <div class="card vacio">
+            <span class="vacio__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor"
+                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16" />
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+              </svg>
+            </span>
+            <h2 class="vacio__title">Todavía no hay resultados</h2>
+            <p class="vacio__text">
+              La clasificación aparece cuando termina el primer caso de la simulación.
+            </p>
+          </div>
+        } @else {
+          <div class="card tabla-wrap">
+            <table class="tabla">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Empresa</th>
+                  <th class="ta-right">Utilidad acumulada</th>
+                  <th class="ta-right">Casos sin decisión</th>
+                  <th><span class="sr-only">Desglose</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (f of d.clasificacion; track f.idEmpresa) {
+                  @let abierta = expandidas().has(f.idEmpresa);
+                  @let mia = f.idEmpresa === miIdEmpresa();
+                  <tr [class.fila-mia]="mia">
+                    <td>
+                      <span class="rank-chip" [class.rank-chip--top]="f.posicion <= 3">{{ f.posicion }}</span>
+                    </td>
+                    <td>
+                      <span class="equipo">
+                        {{ f.nombreEmpresa }}
+                        @if (mia) { <app-badge variante="estudiante">Tu empresa</app-badge> }
+                      </span>
+                      <span class="equipo__sub">{{ f.codigoEmpresa }}</span>
+                    </td>
+                    <td class="ta-right num tabla__pts">{{ moneda(f.utilidadAcumulada) }}</td>
+                    <td class="ta-right num">{{ f.casosSinDecision }}</td>
+                    <td class="ta-right">
+                      <button type="button" class="btn btn--ghost btn--sm" [attr.aria-expanded]="abierta"
+                        [attr.aria-controls]="'desglose-' + f.idEmpresa" (click)="alternar(f.idEmpresa)">
+                        {{ abierta ? 'Ocultar' : 'Ver desglose' }}
+                      </button>
+                    </td>
+                  </tr>
+                  @if (abierta) {
+                    <tr class="desglose-fila" [id]="'desglose-' + f.idEmpresa">
+                      <td colspan="5">
+                        <table class="desglose">
+                          <thead>
+                            <tr>
+                              <th>Caso</th>
+                              <th>Decisión</th>
+                              <th class="ta-right">Utilidad base</th>
+                              <th class="ta-right">Utilidad del caso</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (c of f.desglose; track c.idCaso) {
+                              <tr>
+                                <td>
+                                  {{ c.nombreCaso }}
+                                  <span class="equipo__sub">Cierre {{ fecha(c.fechaFinPartida) }}</span>
+                                </td>
+                                <td class="desglose__decision">
+                                  @if (c.decidio) {
+                                    {{ c.opcionElegida }}
+                                  } @else {
+                                    <app-badge variante="peligro">No decidió</app-badge>
+                                    @if (c.penalizacionPorcentaje != null) {
+                                      <span class="equipo__sub">Penalización {{ c.penalizacionPorcentaje }}%</span>
+                                    }
+                                  }
+                                </td>
+                                <td class="ta-right num">{{ moneda(c.utilidadBase) }}</td>
+                                <td class="ta-right num tabla__pts">{{ moneda(c.utilidadDelCaso) }}</td>
+                              </tr>
+                            } @empty {
+                              <tr><td colspan="4" class="t-muted">Sin casos.</td></tr>
+                            }
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+    }
   }
 </section>
