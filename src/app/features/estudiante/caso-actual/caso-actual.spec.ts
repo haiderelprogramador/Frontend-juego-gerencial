@@ -78,6 +78,10 @@ function casoActualDto(overrides: Partial<CasoActualDto> = {}): CasoActualDto {
     nombreSimulacion: 'Simulación de prueba',
     idEmpresa: 20,
     nombreEmpresa: 'TextilAndes S.A.',
+    financieroEmpresa: {
+      inicial: { origen: 'docente', activoTotal: 1, pasivoTotal: 1, patrimonio: 1, utilidadNeta: 1, ...financieroANumeros(financieroVacio()) },
+      final: null,
+    },
     esLider: true,
     puedeDecidir: true,
     caso: casoEstudiante(UNA_HORA_MS, 2 * UNA_HORA_MS),

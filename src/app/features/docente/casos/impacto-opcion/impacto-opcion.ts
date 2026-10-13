@@ -35,6 +35,12 @@ export class ImpactoFinancieroOpcion {
   readonly base = input.required<FinancieroEntrada>();
   /** `true` si la pestaña Información Financiera está vacía: la vista previa partiría de 0. */
   readonly baseVacia = input(false);
+  /**
+   * Caso que no es el primero de su simulación: no hay un balance único (cada
+   * empresa trae el suyo heredado), así que solo se previsualiza la utilidad
+   * neta. Limitación conocida: es una referencia ilustrativa, no el efecto real.
+   */
+  readonly soloUtilidad = input(false);
 
   readonly drivers = DRIVERS_IMPACTO;
   readonly etiquetas = ETIQUETAS_FINANCIERO;

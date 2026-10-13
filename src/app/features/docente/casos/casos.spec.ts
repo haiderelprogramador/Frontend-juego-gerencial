@@ -19,6 +19,7 @@ function casoApi(id: number, nombre: string, estado: 'borrador' | 'activo' = 'bo
     nombre,
     tipo: 'Manufactura',
     estado,
+    esPrimerCaso: true,
     mision: '',
     vision: '',
     // Caso viejo: 4 totales y las 19 partidas en null (así lo devuelve el backend real).
@@ -101,10 +102,13 @@ describe('Casos', () => {
   afterEach(() => http.verify());
 
   /** El constructor dispara GET /docente/casos y GET /docente/simulaciones. */
-  function crearFixture(casosIniciales: CasoApi[] = [casoApi(1, 'TextilAndes S.A.', 'activo'), casoApi(2, 'Crisis de proveedores')]) {
+  function crearFixture(
+    casosIniciales: CasoApi[] = [casoApi(1, 'TextilAndes S.A.', 'activo'), casoApi(2, 'Crisis de proveedores')],
+    simulaciones: Simulacion[] = [simulacion(1), simulacion(2, 'BORRADOR')],
+  ) {
     const fixture = TestBed.createComponent(Casos);
     http.expectOne({ method: 'GET', url: URL_CASOS }).flush(casosIniciales);
-    http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([simulacion(1), simulacion(2, 'BORRADOR')]);
+    http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush(simulaciones);
     fixture.detectChanges();
     return fixture;
   }
@@ -258,7 +262,7 @@ describe('Casos', () => {
     const fixture = crearFixture();
     const c = fixture.componentInstance;
     c.nuevoCaso();
-    c.idSimulacion.set(1);
+    c.idSimulacion.set(2); // simulación sin casos: es el primero
     c.financiero.set({ ...BALANCE_CUADRADO, inventarios: '', gastosVentas: ' ' });
 
     c.guardarCaso();
@@ -272,7 +276,7 @@ describe('Casos', () => {
     const fixture = crearFixture();
     const c = fixture.componentInstance;
     c.nuevoCaso();
-    c.idSimulacion.set(1);
+    c.idSimulacion.set(2); // simulación sin casos: es el primero
     c.financiero.set({ ...BALANCE_CUADRADO, efectivo: '230000' });
 
     c.guardarCaso();
@@ -286,7 +290,7 @@ describe('Casos', () => {
     const fixture = crearFixture();
     const c = fixture.componentInstance;
     c.nuevoCaso();
-    c.idSimulacion.set(1);
+    c.idSimulacion.set(2); // simulación sin casos: es el primero
     c.financiero.set({ ...BALANCE_CUADRADO, efectivo: '230000' });
     fixture.detectChanges(); // como en la app: cada tecla pasa por un ciclo de detección
     c.guardarCaso();
@@ -303,7 +307,7 @@ describe('Casos', () => {
     const fixture = crearFixture();
     const c = fixture.componentInstance;
     c.nuevoCaso();
-    c.idSimulacion.set(1);
+    c.idSimulacion.set(2); // simulación sin casos: es el primero
     c.financiero.set({ ...BALANCE_CUADRADO, inventarios: '-250000', efectivo: '700000' });
 
     c.guardarCaso();
@@ -316,7 +320,7 @@ describe('Casos', () => {
     const fixture = crearFixture();
     const c = fixture.componentInstance;
     c.nuevoCaso();
-    c.idSimulacion.set(1);
+    c.idSimulacion.set(2); // simulación sin casos: es el primero
     c.financiero.set(BALANCE_CUADRADO);
     const id = c.opciones()[0].id;
     c.actualizarOpcionTexto(id, 'Bajar precios');
@@ -375,6 +379,340 @@ describe('Casos', () => {
     const impacto = fixture.componentInstance.opciones()[0].impacto;
     expect(impacto.costoVentas).toEqual({ tipo: 'monto', valor: '50000' });
     expect(impacto.ventasNetas.valor).toBe('');
+  });
+
+  describe('caso siguiente (balance heredado)', () => {
+    /** Caso siguiente tal como lo devuelve el backend: solo las 6 partidas del estado de resultados, totales de balance en null. */
+    function casoSiguiente(id: number): CasoApi {
+      const caso = casoApi(id, 'Caso 2');
+      caso.esPrimerCaso = false;
+      caso.financiero = {
+        ...PARTIDAS_NULAS,
+        activoTotal: null,
+        pasivoTotal: null,
+        patrimonio: null,
+        utilidadNeta: 130000,
+        ventasNetas: 1200000,
+        costoVentas: 700000,
+        gastosAdministracion: 150000,
+        gastosVentas: 100000,
+        gastosFinancieros: 50000,
+        impuestoRenta: 70000,
+      };
+      return caso;
+    }
+
+    it('un caso nuevo en una simulación que ya tiene casos oculta Balance y Flujo y avisa que se hereda', () => {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(1);
+      c.tabForm.set('financiera');
+      fixture.detectChanges();
+
+      expect(c.esPrimerCaso()).toBe(false);
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('.fin-subtabs')).toBeNull();
+      expect(el.querySelector('.fin-indicadores')).toBeNull();
+      expect(el.textContent).toContain('El balance se hereda');
+      expect(el.textContent).toContain('Ventas netas');
+      expect(el.textContent).not.toContain('Cuentas por cobrar');
+    });
+
+    it('en una simulación sin casos, el caso nuevo es el primero (las 19 partidas, como siempre)', () => {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(2);
+      c.tabForm.set('financiera');
+      fixture.detectChanges();
+
+      expect(c.esPrimerCaso()).toBe(true);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.fin-subtabs')).toBeTruthy();
+    });
+
+    it('solo exige las 6 del estado de resultados, sin cuadre, y manda solo esas 6', () => {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(1);
+
+      c.guardarCaso();
+      expect(c.errorFormulario()).toContain('6 partidas del Estado de Resultados');
+      http.expectNone({ method: 'POST', url: URL_CASOS });
+
+      c.financiero.set({ ...BALANCE_CUADRADO, efectivo: '', inventarios: '-1' });
+      c.guardarCaso();
+
+      const peticion = http.expectOne({ method: 'POST', url: URL_CASOS });
+      expect(peticion.request.body.financiero).toEqual({
+        ventasNetas: 1200000,
+        costoVentas: 700000,
+        gastosAdministracion: 150000,
+        gastosVentas: 100000,
+        gastosFinancieros: 50000,
+        impuestoRenta: 70000,
+      });
+      peticion.flush(casoSiguiente(5));
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([]);
+    });
+
+    it('"Editar" un caso siguiente usa esPrimerCaso del backend y deja guardar con solo las 6', () => {
+      const fixture = crearFixture([casoApi(1, 'Caso 1'), casoSiguiente(2)]);
+      const c = fixture.componentInstance;
+      c.editarCaso(2);
+
+      expect(c.esPrimerCaso()).toBe(false);
+      expect(c.totalesAnteriores()).toBeNull();
+      expect(c.financiero().ventasNetas).toBe('1200000');
+
+      c.guardarCaso();
+
+      const peticion = http.expectOne({ method: 'PUT', url: `${URL_CASOS}/2` });
+      expect(Object.keys(peticion.request.body.financiero)).toHaveLength(6);
+      peticion.flush(casoSiguiente(2));
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([]);
+    });
+
+    it('la vista previa del impacto solo muestra la utilidad neta (el balance es de cada empresa)', () => {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(1);
+      c.financiero.set(BALANCE_CUADRADO);
+      c.actualizarOpcionImpacto(c.opciones()[0].id, {
+        ...c.opciones()[0].impacto,
+        ventasNetas: { tipo: 'porcentaje', valor: '10' },
+      });
+      c.tabForm.set('opciones');
+      fixture.detectChanges();
+
+      const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+      expect(texto).toContain('Utilidad neta pasa de');
+      expect(texto).not.toContain('Efectivo pasa de');
+      expect(texto).toContain('Ilustrativo');
+    });
+
+    it('si el backend todavía no manda esPrimerCaso, todo caso se trata como primero (como antes)', () => {
+      const sinCampo = casoApi(1, 'Sin D2') as Partial<CasoApi>;
+      delete sinCampo.esPrimerCaso;
+      const fixture = crearFixture([sinCampo as CasoApi]);
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(1);
+
+      expect(c.esPrimerCaso()).toBe(true);
+    });
+
+    // -- Simulación sin casos / sin simulación elegida --
+
+    it('sin simulación elegida todavía, el formulario arranca como primer caso', () => {
+      const fixture = crearFixture();
+      fixture.componentInstance.nuevoCaso();
+
+      expect(fixture.componentInstance.idSimulacion()).toBeNull();
+      expect(fixture.componentInstance.esPrimerCaso()).toBe(true);
+    });
+
+    it('sin ningún caso en todo el sistema, el caso nuevo es el primero', () => {
+      const fixture = crearFixture([]);
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(1);
+
+      expect(c.esPrimerCaso()).toBe(true);
+    });
+
+    it('cambiar de simulación en el formulario cambia el modo (con casos -> siguiente, sin casos -> primero)', () => {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.tabForm.set('financiera');
+
+      c.idSimulacion.set(1);
+      fixture.detectChanges();
+      expect(c.esPrimerCaso()).toBe(false);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.fin-subtabs')).toBeNull();
+
+      c.idSimulacion.set(2);
+      fixture.detectChanges();
+      expect(c.esPrimerCaso()).toBe(true);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.fin-subtabs')).toBeTruthy();
+    });
+
+    it('una simulación recién creada con "+ Nueva simulación" no tiene casos: el caso nuevo es el primero', () => {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.abrirNuevaSimulacion();
+      c.nuevaSimNombre.set('Nueva');
+      c.nuevaSimInicio.set('2026-10-05T08:00');
+      c.crearSimulacion();
+      http.expectOne({ method: 'POST', url: URL_SIMULACIONES }).flush(simulacion(7, 'BORRADOR'));
+      http.expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/7/programar` }).flush(simulacion(7));
+
+      expect(c.idSimulacion()).toBe(7);
+      expect(c.esPrimerCaso()).toBe(true);
+    });
+
+    // -- Al editar manda el flag del backend, no el conteo --
+
+    it('"Editar" el primer caso de una simulación con otros casos sigue exigiendo las 19 y el cuadre', () => {
+      const fixture = crearFixture([casoApi(1, 'Caso 1'), casoSiguiente(2)]);
+      const c = fixture.componentInstance;
+      c.editarCaso(1);
+      expect(c.esPrimerCaso()).toBe(true);
+
+      c.financiero.set({ ...BALANCE_CUADRADO, efectivo: '230000' });
+      c.guardarCaso();
+      expect(c.errorFormulario()).toContain('no cuadra');
+      http.expectNone({ method: 'PUT', url: `${URL_CASOS}/1` });
+
+      c.financiero.set(BALANCE_CUADRADO);
+      c.guardarCaso();
+      const peticion = http.expectOne({ method: 'PUT', url: `${URL_CASOS}/1` });
+      expect(Object.keys(peticion.request.body.financiero).sort()).toEqual([...CAMPOS_FINANCIEROS].sort());
+      peticion.flush(casoApi(1, 'Caso 1'));
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([]);
+    });
+
+    it('al pasar de editar un caso siguiente a "+ Nuevo caso" en una simulación vacía, vuelve al modo primero', () => {
+      const fixture = crearFixture([casoApi(1, 'Caso 1'), casoSiguiente(2)]);
+      const c = fixture.componentInstance;
+      c.editarCaso(2);
+      expect(c.esPrimerCaso()).toBe(false);
+
+      c.volverALista();
+      c.nuevoCaso();
+      c.idSimulacion.set(2);
+      expect(c.esPrimerCaso()).toBe(true);
+    });
+
+    // -- Transición: backend sin esPrimerCaso --
+
+    it('transición: si un solo caso de la lista viene sin esPrimerCaso, todo se trata como primero', () => {
+      const sinCampo = casoApi(3, 'Sin D2') as Partial<CasoApi>;
+      delete sinCampo.esPrimerCaso;
+      const fixture = crearFixture([casoApi(1, 'Caso 1'), casoSiguiente(2), sinCampo as CasoApi]);
+      const c = fixture.componentInstance;
+
+      c.editarCaso(2);
+      expect(c.esPrimerCaso()).toBe(true);
+    });
+
+    it('transición: sin esPrimerCaso, un caso nuevo exige las 19 + cuadre y manda las 19', () => {
+      const sinCampo = casoApi(1, 'Sin D2') as Partial<CasoApi>;
+      delete sinCampo.esPrimerCaso;
+      const fixture = crearFixture([sinCampo as CasoApi]);
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(1);
+      c.financiero.set({ ...BALANCE_CUADRADO, efectivo: '' });
+
+      c.guardarCaso();
+      expect(c.errorFormulario()).toContain('Faltan: Efectivo');
+      http.expectNone({ method: 'POST', url: URL_CASOS });
+
+      c.financiero.set(BALANCE_CUADRADO);
+      c.guardarCaso();
+      const peticion = http.expectOne({ method: 'POST', url: URL_CASOS });
+      expect(Object.keys(peticion.request.body.financiero)).toHaveLength(19);
+      peticion.flush(casoApi(5, 'X'));
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([]);
+    });
+
+    // -- Validación de los 6 en casos siguientes --
+
+    it('caso siguiente: si falta alguna de las 6, dice cuál (y no menciona las de balance)', () => {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(1);
+      c.financiero.set({ ...BALANCE_CUADRADO, costoVentas: '', efectivo: '' });
+
+      c.guardarCaso();
+
+      expect(c.errorFormulario()).toContain('Faltan: Costo de ventas.');
+      expect(c.errorFormulario()).not.toContain('Efectivo');
+      expect(c.tabForm()).toBe('financiera');
+      http.expectNone({ method: 'POST', url: URL_CASOS });
+    });
+
+    it('caso siguiente: un negativo en una de las 6 bloquea el guardado', () => {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(1);
+      c.financiero.set({ ...BALANCE_CUADRADO, gastosVentas: '-100' });
+
+      c.guardarCaso();
+
+      expect(c.errorFormulario()).toContain('Gastos de ventas');
+      http.expectNone({ method: 'POST', url: URL_CASOS });
+    });
+
+    it('caso siguiente: con balance descuadrado y negativos en el balance igual guarda (el balance no se manda)', () => {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(1);
+      c.financiero.set({ ...BALANCE_CUADRADO, efectivo: '999999', inventarios: '-5' });
+
+      c.guardarCaso();
+
+      const peticion = http.expectOne({ method: 'POST', url: URL_CASOS });
+      expect(peticion.request.body.financiero.efectivo).toBeUndefined();
+      expect(peticion.request.body.financiero.inventarios).toBeUndefined();
+      peticion.flush(casoSiguiente(5));
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([]);
+    });
+
+    it('caso siguiente: "sin datos" para la vista previa mira solo las 6 (el balance cargado no cuenta)', () => {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.idSimulacion.set(1);
+      c.financiero.update((f) => ({ ...f, efectivo: '200000' }));
+      expect(c.financieroSinDatos()).toBe(true);
+
+      c.financiero.update((f) => ({ ...f, ventasNetas: '1000' }));
+      expect(c.financieroSinDatos()).toBe(false);
+    });
+  });
+
+  describe('botón "Editar" según el estado de la simulación', () => {
+    function botonesEditar(fixture: { nativeElement: unknown }): number {
+      return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.acciones-caso button')).filter(
+        (b) => b.textContent?.trim() === 'Editar',
+      ).length;
+    }
+
+    it.each(['BORRADOR', 'PROGRAMADA'] as const)('aparece con la simulación en %s', (estado) => {
+      const fixture = crearFixture([casoApi(1, 'Caso 1')], [simulacion(1, estado)]);
+      expect(botonesEditar(fixture)).toBe(1);
+    });
+
+    it.each(['EN_CURSO', 'FINALIZADA'] as const)('no aparece con la simulación en %s', (estado) => {
+      const fixture = crearFixture([casoApi(1, 'Caso 1')], [simulacion(1, estado)]);
+      expect(botonesEditar(fixture)).toBe(0);
+      // "Activar" no depende de esto: sigue disponible para el caso en borrador.
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Activar');
+    });
+
+    it('en una lista mixta, solo lo muestra en los casos de simulaciones editables', () => {
+      const enCurso = casoApi(2, 'En curso');
+      enCurso.idSimulacion = 2;
+      const fixture = crearFixture([casoApi(1, 'Programada'), enCurso], [simulacion(1), simulacion(2, 'EN_CURSO')]);
+
+      const filas = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.tabla-casos tbody tr'));
+      expect(filas[0].textContent).toContain('Editar');
+      expect(filas[1].textContent).not.toContain('Editar');
+    });
+
+    it('si la simulación no está en la lista (ej. falló el GET), deja el botón: el backend igual valida', () => {
+      const fixture = crearFixture([casoApi(1, 'Caso 1')], []);
+      expect(botonesEditar(fixture)).toBe(1);
+    });
   });
 
   it('"Activar" llama al backend y refresca la lista', () => {

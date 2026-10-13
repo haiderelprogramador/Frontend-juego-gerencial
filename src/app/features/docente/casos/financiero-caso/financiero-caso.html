@@ -38,7 +38,12 @@
   </div>
 }
 
-@if (!vacio()) {
+@if (soloEstadoResultados()) {
+  <p class="fin-heredado" role="note">
+    El balance se hereda de las decisiones anteriores de cada empresa: en este caso solo se cargan las partidas
+    del Estado de Resultados.
+  </p>
+} @else if (!vacio()) {
   <div class="fin-cuadre" [class.fin-cuadre--ok]="cuadra()" role="status">
     @if (cuadra()) {
       ✓ El balance cuadra: activo total = pasivo total + patrimonio ({{ moneda(totales().activoTotal) }}).
@@ -52,6 +57,7 @@
   </div>
 }
 
+@if (!soloEstadoResultados()) {
 <nav class="subtabs fin-subtabs">
   <button type="button" [class.is-active]="subtab() === 'balance'" (click)="subtab.set('balance')">Balance</button>
   <button type="button" [class.is-active]="subtab() === 'resultados'" (click)="subtab.set('resultados')">
@@ -61,8 +67,9 @@
     Flujo de Efectivo
   </button>
 </nav>
+}
 
-@switch (subtab()) {
+@switch (soloEstadoResultados() ? 'resultados' : subtab()) {
   @case ('balance') {
     <div class="fin-balance">
       <section class="fin-bloque">
@@ -134,6 +141,7 @@
   }
 }
 
+@if (!soloEstadoResultados()) {
 <section class="fin-indicadores">
   <h3 class="fin-bloque__titulo">Indicadores financieros</h3>
   <dl class="fin-indicadores__grid">
@@ -146,3 +154,4 @@
   </dl>
   <p class="field__hint">"—" = no se puede calcular (el denominador es 0).</p>
 </section>
+}

@@ -9,7 +9,7 @@
  * backend real sea, sobre todo, un cambio de tipos — no de nombres.
  */
 
-import { CampoFinanciero, FinancieroEntrada, ImpactoOpcion } from './financiero.model';
+import { CampoFinanciero, EstadoResultadosEntrada, FinancieroEntrada, ImpactoOpcion } from './financiero.model';
 
 export type EstadoCaso = 'borrador' | 'activo';
 
@@ -61,16 +61,36 @@ export interface FinancieroCaso {
 }
 
 /**
- * `financiero` del request: las 19 partidas, todas obligatorias (backend
- * responde 400 "... es obligatorio" si falta o viene `null` alguna).
+ * `financiero` del request del PRIMER caso de una simulación: las 19 partidas,
+ * todas obligatorias (backend responde 400 "... es obligatorio" si falta o
+ * viene `null` alguna) y el balance tiene que cuadrar.
  */
-export type FinancieroCasoRequest = FinancieroEntrada;
+export type FinancieroPrimerCasoRequest = FinancieroEntrada;
+
+/**
+ * `financiero` del request de un caso SIGUIENTE (no el primero de su
+ * simulación): solo las 6 partidas del estado de resultados son obligatorias.
+ * Las 10 de balance y las 3 de flujos son opcionales: el backend las guarda
+ * pero no las usa (el balance de cada empresa se hereda del cierre del caso
+ * anterior). Contrato D2 cerrado con backend (oct-2026).
+ */
+export type FinancieroCasoSiguienteRequest = EstadoResultadosEntrada & Partial<FinancieroEntrada>;
+
+/** Cuál de los dos va depende de `CasoApi.esPrimerCaso`. */
+export type FinancieroCasoRequest = FinancieroPrimerCasoRequest | FinancieroCasoSiguienteRequest;
 
 /**
  * `financiero` tal como lo DEVUELVE el backend: los 4 totales calculados + las
- * 19 partidas. Los casos creados antes del modelo detallado traen las 19 en `null`.
+ * 19 partidas. Toda partida que no se envió vuelve `null` (casos creados antes
+ * del modelo detallado: las 19; casos siguientes: las que el docente omitió),
+ * y en ese caso también `activoTotal`, `pasivoTotal` y `patrimonio` pueden
+ * venir `null`. `utilidadNeta` viene siempre.
  */
-export type FinancieroCasoApi = FinancieroCaso & Record<CampoFinanciero, number | null>;
+export type FinancieroCasoApi = Omit<FinancieroCaso, 'activoTotal' | 'pasivoTotal' | 'patrimonio'> & {
+  activoTotal: number | null;
+  pasivoTotal: number | null;
+  patrimonio: number | null;
+} & Record<CampoFinanciero, number | null>;
 
 /** Campos comunes a request y respuesta de un caso. */
 interface CasoBase {
@@ -112,6 +132,14 @@ export interface CasoRequest extends CasoBase {
 export interface CasoApi extends CasoBase {
   id: number;
   estado: EstadoCaso;
+  /**
+   * `true` si es el primer caso de su simulación (19 partidas obligatorias +
+   * cuadre); `false` en los siguientes (solo las 6 del estado de resultados;
+   * el balance se hereda por empresa). Lo calcula el backend (fecha de inicio
+   * más temprana; empate = el creado antes): usar este campo, NUNCA inferirlo
+   * comparando fechas en el frontend.
+   */
+  esPrimerCaso: boolean;
   financiero: FinancieroCasoApi;
   opciones: OpcionCasoApi[];
 }
@@ -120,8 +148,13 @@ export interface CasoApi extends CasoBase {
  * Caso tal como lo ve el estudiante: mismos campos que `CasoApi` más
  * `partidaIniciada`/`partidaFinalizada`, y las opciones SIN `resultado` (el
  * efecto se revela recién cuando decide).
+ *
+ * `financiero` es el campo compartido VIEJO del caso: sigue llegando mientras
+ * se migra y se retira en una segunda fase. El financiero de la empresa del
+ * estudiante viene aparte, en `CasoActual.financieroEmpresa`. El contrato D2
+ * no dice que este DTO traiga `esPrimerCaso`, así que no se hereda de `CasoApi`.
  */
-export interface CasoEstudiante extends Omit<CasoApi, 'opciones'> {
+export interface CasoEstudiante extends Omit<CasoApi, 'opciones' | 'esPrimerCaso'> {
   partidaIniciada: boolean;
   partidaFinalizada: boolean;
   opciones: OpcionCasoEstudiante[];

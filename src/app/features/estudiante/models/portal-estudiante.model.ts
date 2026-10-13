@@ -3,8 +3,30 @@
  * 28-sep-2026), base `/estudiante`.
  */
 
-import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
-import { ImpactoOpcion } from '../../simulacion/models/financiero.model';
+import { CasoEstudiante, FinancieroCaso } from '../../simulacion/models/caso-api.model';
+import { FinancieroEntrada, ImpactoOpcion } from '../../simulacion/models/financiero.model';
+
+/** De dónde sale el financiero INICIAL de la empresa: cargado por el docente (primer caso) o heredado del caso anterior. */
+export type OrigenFinancieroInicial = 'docente' | 'heredado';
+
+/** De dónde sale el financiero FINAL: la opción que eligió la empresa, o la penalización por no decidir. */
+export type OrigenFinancieroFinal = 'decision' | 'penalizacion';
+
+/**
+ * Estado financiero de UNA empresa en un caso: las 19 partidas + los 4 totales,
+ * SIEMPRE con valor (nunca `null`). Por eso es un tipo distinto del nullable
+ * `FinancieroCasoApi` de los casos siguientes, y no hay que unificarlos.
+ * `efectivo` (y por arrastre otras partidas) puede venir NEGATIVO si la empresa
+ * acumuló pérdidas: mostrarlo en rojo o con alerta, no como un número normal.
+ */
+export type EstadoFinancieroEmpresa<O extends string> = { origen: O } & FinancieroEntrada & FinancieroCaso;
+
+/** `financieroEmpresa` de GET /estudiante/caso-actual (contrato D2, oct-2026). */
+export interface FinancieroEmpresa {
+  inicial: EstadoFinancieroEmpresa<OrigenFinancieroInicial>;
+  /** Misma forma que `inicial` (confirmado con backend), solo cambia `origen`. `null` hasta que el caso cierra. */
+  final: EstadoFinancieroEmpresa<OrigenFinancieroFinal> | null;
+}
 
 /** Decisión tomada por la empresa del estudiante en un caso. */
 export interface Decision {
@@ -29,6 +51,12 @@ export interface CasoActual {
   nombreSimulacion: string;
   idEmpresa: number;
   nombreEmpresa: string;
+  /**
+   * Financiero de la empresa del estudiante en este caso (inicial y final).
+   * Reemplaza a `caso.financiero`, que es el compartido viejo y se retira en
+   * una segunda fase. No quitar el manejo de `caso.financiero` todavía.
+   */
+  financieroEmpresa: FinancieroEmpresa;
   /** Solo el líder puede decidir por la empresa (POST /estudiante/decision). */
   esLider: boolean;
   /** false si, aun siendo líder, no se cumplen las condiciones para decidir

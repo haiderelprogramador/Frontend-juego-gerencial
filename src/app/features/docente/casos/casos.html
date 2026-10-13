@@ -38,7 +38,9 @@
                     Activar
                   </button>
                 }
-                <button type="button" class="btn btn--ghost btn--sm" (click)="editarCaso(c.id)">Editar</button>
+                @if (puedeEditar(c.idSimulacion)) {
+                  <button type="button" class="btn btn--ghost btn--sm" (click)="editarCaso(c.id)">Editar</button>
+                }
               </td>
             </tr>
           }
@@ -231,17 +233,25 @@
           </div>
 
           @if (modoFinanciera() === 'manual') {
-            <app-financiero-caso [(valores)]="financiero" [totalesAnteriores]="totalesAnteriores()" />
+            <app-financiero-caso [(valores)]="financiero" [totalesAnteriores]="totalesAnteriores()"
+              [soloEstadoResultados]="!esPrimerCaso()" />
           } @else {
             <div class="excel-upload">
               <label class="btn btn--secundario">
                 Elegir archivo Excel
                 <input type="file" accept=".xlsx,.xls" hidden (change)="onArchivoFinanciero($event)" />
               </label>
-              <p class="field__hint">
-                Una fila con una columna por partida, con el mismo nombre que en el formulario manual
-                (ej. "Efectivo", "Cuentas por cobrar", "Ventas netas", "Flujo de inversión").
-              </p>
+              @if (esPrimerCaso()) {
+                <p class="field__hint">
+                  Una fila con una columna por partida, con el mismo nombre que en el formulario manual
+                  (ej. "Efectivo", "Cuentas por cobrar", "Ventas netas", "Flujo de inversión").
+                </p>
+              } @else {
+                <p class="field__hint">
+                  Una fila con una columna por partida del Estado de Resultados (ej. "Ventas netas", "Costo de
+                  ventas"). Las de balance y flujo se ignoran: el balance se hereda.
+                </p>
+              }
               @if (errorImportFinanciero(); as msg) {
                 <app-alerta tipo="error" [mensaje]="msg" />
               }
@@ -282,7 +292,7 @@
                       (input)="actualizarOpcionResultado(o.id, $any($event.target).value)"></textarea>
                   </label>
                   <app-impacto-opcion [impacto]="o.impacto" (impactoChange)="actualizarOpcionImpacto(o.id, $event)"
-                    [base]="baseFinanciera()" [baseVacia]="financieroSinDatos()" />
+                    [base]="baseFinanciera()" [baseVacia]="financieroSinDatos()" [soloUtilidad]="!esPrimerCaso()" />
                 </div>
               }
             </div>

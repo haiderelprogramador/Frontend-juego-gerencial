@@ -49,15 +49,23 @@
             Utilidad neta pasa de <strong>{{ moneda(previa().utilidadNetaAntes) }}</strong> a
             <strong>{{ moneda(previa().utilidadNetaDespues) }}</strong>
           </li>
-          <li>
-            Efectivo pasa de <strong>{{ moneda(previa().efectivoAntes) }}</strong> a
-            <strong>{{ moneda(previa().efectivoDespues) }}</strong>
-          </li>
-          <li>
-            Patrimonio pasa de <strong>{{ moneda(previa().patrimonioAntes) }}</strong> a
-            <strong>{{ moneda(previa().patrimonioDespues) }}</strong>
-          </li>
+          @if (!soloUtilidad()) {
+            <li>
+              Efectivo pasa de <strong>{{ moneda(previa().efectivoAntes) }}</strong> a
+              <strong>{{ moneda(previa().efectivoDespues) }}</strong>
+            </li>
+            <li>
+              Patrimonio pasa de <strong>{{ moneda(previa().patrimonioAntes) }}</strong> a
+              <strong>{{ moneda(previa().patrimonioDespues) }}</strong>
+            </li>
+          }
         </ul>
+        @if (soloUtilidad()) {
+          <p class="field__hint">
+            Ilustrativo: cada empresa llega a este caso con su propio balance heredado, así que el efecto real en
+            efectivo y patrimonio es distinto para cada una.
+          </p>
+        }
         <p class="field__hint">Solo vista previa: no se guarda ningún valor calculado.</p>
       </div>
     }

@@ -51,6 +51,31 @@ export const CAMPOS_ADMITEN_NEGATIVO: ReadonlySet<CampoFinanciero> = new Set<Cam
   'flujoFinanciacion',
 ]);
 
+/**
+ * Las 6 partidas del estado de resultados: lo único que el docente manda en
+ * `financiero` de un caso que NO es el primero de su simulación (balance y
+ * flujos los calcula el backend a partir del cierre del caso anterior de cada
+ * empresa). Confirmado con backend (Camilo), oct-2026; endpoint aún no desplegado.
+ */
+export const CAMPOS_ESTADO_RESULTADOS = [
+  'ventasNetas',
+  'costoVentas',
+  'gastosAdministracion',
+  'gastosVentas',
+  'gastosFinancieros',
+  'impuestoRenta',
+] as const satisfies readonly CampoFinanciero[];
+
+export type CampoEstadoResultados = (typeof CAMPOS_ESTADO_RESULTADOS)[number];
+
+/** Las 6 partidas del estado de resultados ya convertidas a número. */
+export type EstadoResultadosEntrada = Record<CampoEstadoResultados, number>;
+
+/** Solo las 6 partidas del estado de resultados (el `financiero` del request de un caso siguiente). */
+export function estadoResultadosDe(e: Record<CampoFinanciero, number>): EstadoResultadosEntrada {
+  return Object.fromEntries(CAMPOS_ESTADO_RESULTADOS.map((c) => [c, e[c]])) as EstadoResultadosEntrada;
+}
+
 /** Las 19 partidas tal como las escribe el docente (texto de formulario). */
 export type FinancieroTexto = Record<CampoFinanciero, string>;
 

@@ -10,6 +10,9 @@ import {
   FinancieroCaso as FinancieroCasoTotales,
 } from '../../simulacion/models/caso-api.model';
 import {
+  CAMPOS_ESTADO_RESULTADOS,
+  CAMPOS_FINANCIEROS,
+  CampoFinanciero,
   ETIQUETAS_FINANCIERO,
   FinancieroTexto,
   ImpactoTexto,
@@ -21,6 +24,7 @@ import {
   financieroEstaVacio,
   financieroVacio,
   driversConPorcentajeInvalido,
+  estadoResultadosDe,
   impactoANumeros,
   impactoDesdeApi,
   impactoVacio,
@@ -128,9 +132,38 @@ export class Casos {
   readonly financiero = signal<FinancieroTexto>(financieroVacio());
   /** Solo para casos creados antes del modelo detallado (partidas en null): sus 4 totales viejos. */
   readonly totalesAnteriores = signal<FinancieroCasoTotales | null>(null);
+  /**
+   * `true`: primer caso de la simulación (las 19 partidas + cuadre, como
+   * siempre). `false`: caso siguiente, cuyo balance se hereda por empresa, así
+   * que solo se cargan las 6 partidas del estado de resultados.
+   * - Al editar: `esPrimerCaso` del backend. Nunca se infiere por fechas.
+   * - Al crear: primero si la simulación elegida todavía no tiene casos.
+   * - Si el backend todavía no manda `esPrimerCaso` (antes del deploy de D2),
+   *   todo caso se trata como primero, igual que antes.
+   */
+  readonly esPrimerCaso = computed(() => {
+    const casos = this.casos();
+    if (casos.some((c) => typeof c.esPrimerCaso !== 'boolean')) {
+      return true;
+    }
+    const idEnEdicion = this.casoEnEdicionId();
+    if (idEnEdicion != null) {
+      return casos.find((c) => c.id === idEnEdicion)?.esPrimerCaso ?? true;
+    }
+    // TODO: confirmar con el cliente qué hacer si el caso nuevo queda con fecha anterior al primero
+    // (el backend respondería 400 pidiendo las 19 partidas, y aquí estarían ocultas).
+    const idSim = this.idSimulacion();
+    return idSim == null || !casos.some((c) => c.idSimulacion === idSim);
+  });
+  /** Las partidas que el docente carga en este caso: las 19, o solo las 6 del estado de resultados. */
+  readonly camposRequeridos = computed<readonly CampoFinanciero[]>(() =>
+    this.esPrimerCaso() ? CAMPOS_FINANCIEROS : CAMPOS_ESTADO_RESULTADOS,
+  );
   /** Partidas del caso en número: base de los totales y de la vista previa de impacto de cada opción. */
   readonly baseFinanciera = computed(() => financieroANumeros(this.financiero()));
-  readonly financieroSinDatos = computed(() => financieroEstaVacio(this.financiero()));
+  readonly financieroSinDatos = computed(() =>
+    this.camposRequeridos().every((c) => this.financiero()[c].trim() === ''),
+  );
   readonly resultadoFinanciero = computed(() => calcularFinanciero(this.baseFinanciera()));
   readonly errorImportFinanciero = signal<string | null>(null);
 
@@ -222,6 +255,16 @@ export class Casos {
     return this.simulaciones().find((s) => s.id === idSimulacion)?.nombre ?? `Simulación #${idSimulacion}`;
   }
 
+  /**
+   * Un caso solo se edita con su simulación en BORRADOR o PROGRAMADA (contrato
+   * D2: en EN_CURSO ya hay decisiones, sin excepciones). Si la simulación no
+   * está en la lista (ej. falló el GET), se deja el botón: el backend igual lo valida.
+   */
+  puedeEditar(idSimulacion: number): boolean {
+    const estado = this.simulaciones().find((s) => s.id === idSimulacion)?.estado;
+    return estado == null || estado === 'BORRADOR' || estado === 'PROGRAMADA';
+  }
+
   nuevoCaso(): void {
     this.casoEnEdicionId.set(null);
     this.resetFormulario();
@@ -280,8 +323,9 @@ export class Casos {
       tipo: this.tipo(),
       mision: this.mision(),
       vision: this.vision(),
-      // Las 19 partidas; los 4 totales los calcula el backend.
-      financiero: this.baseFinanciera(),
+      // Primer caso: las 19 partidas. Siguientes: solo las 6 del estado de
+      // resultados (el balance se hereda). Los totales los calcula el backend.
+      financiero: this.esPrimerCaso() ? this.baseFinanciera() : estadoResultadosDe(this.baseFinanciera()),
       penalizacionMin: this.penalizacionMin(),
       penalizacionMax: this.penalizacionMax(),
       fechaVisualizacion: conSegundos(this.fechaVisualizacion()),
@@ -395,24 +439,28 @@ export class Casos {
   // ---------------------------------------------------------------------------
 
   /**
-   * Mismas reglas que valida el backend (19 partidas obligatorias, signo por
+   * Mismas reglas que valida el backend (partidas obligatorias, signo por
    * partida y 400 "El balance no cuadra"), para no llegar al error sin saber
-   * por qué.
+   * por qué. En un caso siguiente solo cuentan las 6 del estado de resultados
+   * y no hay cuadre (el balance no lo carga el docente).
    */
   private validarFinanciero(): string | null {
     const partidas = this.financiero();
-    const faltan = camposSinCompletar(partidas);
+    const requeridos = new Set(this.camposRequeridos());
+    const faltan = camposSinCompletar(partidas).filter((c) => requeridos.has(c));
     if (faltan.length > 0) {
       const nombres = faltan.map((c) => ETIQUETAS_FINANCIERO[c]);
       const lista = nombres.length > 3 ? `${nombres.slice(0, 3).join(', ')} y ${nombres.length - 3} más` : nombres.join(', ');
-      return `Completá las ${faltan.length === 19 ? '19 partidas' : 'partidas'} de Información Financiera (poné 0 si no aplica). Faltan: ${lista}.`;
+      const todas = faltan.length === requeridos.size;
+      const cuales = !todas ? 'partidas' : this.esPrimerCaso() ? '19 partidas' : '6 partidas del Estado de Resultados';
+      return `Completá las ${cuales} de Información Financiera (poné 0 si no aplica). Faltan: ${lista}.`;
     }
-    const negativos = camposConSignoInvalido(financieroANumeros(partidas));
+    const negativos = camposConSignoInvalido(financieroANumeros(partidas)).filter((c) => requeridos.has(c));
     if (negativos.length > 0) {
       const nombres = negativos.map((c) => ETIQUETAS_FINANCIERO[c]).join(', ');
       return `Estas partidas no pueden ser negativas: ${nombres}.`;
     }
-    if (Math.abs(this.resultadoFinanciero().descuadre) >= 0.005) {
+    if (this.esPrimerCaso() && Math.abs(this.resultadoFinanciero().descuadre) >= 0.005) {
       return 'El balance no cuadra: el activo total tiene que ser igual a pasivo total + patrimonio.';
     }
     return null;
@@ -500,9 +548,12 @@ export class Casos {
     const partidas = financieroDesdeApi(caso.financiero);
     this.financiero.set(partidas);
     // Sin ninguna partida = caso creado antes del modelo detallado.
+    // (Los casos siguientes también pueden traer totales en null: ahí no hay totales viejos que mostrar.)
     const { activoTotal, pasivoTotal, patrimonio, utilidadNeta } = caso.financiero;
     this.totalesAnteriores.set(
-      financieroEstaVacio(partidas) ? { activoTotal, pasivoTotal, patrimonio, utilidadNeta } : null,
+      financieroEstaVacio(partidas) && activoTotal != null && pasivoTotal != null && patrimonio != null
+        ? { activoTotal, pasivoTotal, patrimonio, utilidadNeta }
+        : null,
     );
     this.modoOpciones.set('manual');
     this.opciones.set(

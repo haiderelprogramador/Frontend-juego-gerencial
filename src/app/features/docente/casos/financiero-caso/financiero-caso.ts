@@ -44,6 +44,12 @@ export class FinancieroCaso {
   readonly valores = model.required<Record<CampoFinanciero, string>>();
   /** Totales de un caso creado con el modelo anterior (sin partidas): solo referencia. */
   readonly totalesAnteriores = input<TotalesCasoApi | null>(null);
+  /**
+   * Caso que NO es el primero de su simulación: el balance se hereda por
+   * empresa, así que Balance, Flujo, el cuadre y los indicadores (que dependen
+   * del balance) no se muestran. Solo queda el Estado de Resultados.
+   */
+  readonly soloEstadoResultados = input(false);
 
   readonly subtab = signal<SubtabFinanciero>('balance');
 
