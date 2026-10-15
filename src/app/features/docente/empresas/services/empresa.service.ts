@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { API_CONFIG, apiUrl } from '../../../../core/api/api.config';
+import { HistoriaCasoEmpresa } from '../../../simulacion/models/estado-empresa.model';
 import { Empresa, EmpresaRequest } from '../models/empresa.model';
 
 /**
@@ -41,5 +42,13 @@ export class EmpresaService {
   /** Borra la empresa y sus integrantes en cascada. Solo BORRADOR/PROGRAMADA. */
   eliminar(id: number): Observable<void> {
     return this.http.delete<void>(`${this.baseEmpresas}/${id}`);
+  }
+
+  /**
+   * Estado inicial y final de la empresa en cada caso en que participó,
+   * ordenado por caso (contrato B). Ver `API_CONFIG.disponible.historia`.
+   */
+  historia(idEmpresa: number): Observable<HistoriaCasoEmpresa[]> {
+    return this.http.get<HistoriaCasoEmpresa[]>(`${this.baseEmpresas}/${idEmpresa}/historia`);
   }
 }

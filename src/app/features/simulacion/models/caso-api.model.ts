@@ -140,6 +140,8 @@ export interface CasoApi extends CasoBase {
    * comparando fechas en el frontend.
    */
   esPrimerCaso: boolean;
+  /** Si el docente ya publicó el boletín del caso (D14). Opcional hasta que el backend lo despliegue. */
+  tieneBoletin?: boolean;
   financiero: FinancieroCasoApi;
   opciones: OpcionCasoApi[];
 }

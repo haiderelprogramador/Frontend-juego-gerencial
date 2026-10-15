@@ -20,6 +20,10 @@
   @if (error(); as msg) {
     <app-alerta tipo="error" [mensaje]="msg" />
   }
+  @if (contexto() && !cargando() && esRespaldo()) {
+    <app-alerta tipo="info"
+      mensaje="El caso anterior se cerró y el siguiente todavía no está publicado. Estos son los resultados de tu último caso." />
+  }
 
   @if (cargando()) {
     <p class="t-muted">Cargando…</p>
@@ -108,5 +112,55 @@
         </dl>
       </div>
     </div>
+
+    @if (indicadores().length > 0) {
+      <div class="card indicadores">
+        <header class="estado__head">
+          <h2 class="t-title">Indicadores financieros</h2>
+          <p class="estado__sub">{{ cerrado() ? 'Inicio vs. cierre del caso' : 'Al inicio del caso' }}</p>
+        </header>
+        <table class="comparativo__tabla">
+          <thead>
+            <tr>
+              <th>Indicador</th>
+              <th class="ta-right">{{ cerrado() ? 'Inicio' : 'Valor' }}</th>
+              @if (cerrado()) {
+                <th class="ta-right">Cierre</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (l of indicadores(); track l.etiqueta) {
+              <tr>
+                <td>{{ l.etiqueta }}</td>
+                <td class="num ta-right">{{ indicador(l, l.inicial) }}</td>
+                @if (cerrado()) {
+                  <td class="num ta-right comparativo__final">{{ indicador(l, l.final) }}</td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+        <p class="indicadores__nota">
+          "—" = no se puede calcular (el denominador es 0, o el patrimonio es negativo en el ROE).
+        </p>
+      </div>
+    }
+
+    @if (historiaDisponible()) {
+      <div class="card evolucion">
+        <header class="estado__head">
+          <h2 class="t-title">Evolución de tu empresa</h2>
+          <p class="estado__sub">Utilidad neta, efectivo y patrimonio al cierre de cada caso</p>
+        </header>
+        @if (errorHistoria(); as msg) {
+          <app-alerta tipo="error" [mensaje]="msg" />
+        } @else if (historia(); as h) {
+          <app-evolucion-empresa [historia]="h" />
+        } @else {
+          <p class="t-muted">Cargando…</p>
+        }
+      </div>
+    }
   }
 </section>

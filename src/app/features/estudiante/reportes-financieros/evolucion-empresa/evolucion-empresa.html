@@ -1,0 +1,89 @@
+@if (hayGrafico()) {
+  <ul class="evo__leyenda" aria-hidden="true">
+    @for (s of series; track s.clave) {
+      <li><span class="evo__clave evo__clave--{{ s.slot }}"></span>{{ s.etiqueta }}</li>
+    }
+  </ul>
+
+  <div class="evo__plot" (mouseleave)="activo.set(null)">
+    <svg [attr.viewBox]="'0 0 ' + ancho + ' ' + alto" role="img"
+      aria-label="Utilidad neta, efectivo y patrimonio al cierre de cada caso. El detalle está en la tabla de abajo.">
+      @for (m of marcas(); track m) {
+        <line class="evo__grid" [class.evo__grid--cero]="m === 0" [attr.x1]="margen.izquierda"
+          [attr.x2]="ancho - margen.derecha" [attr.y1]="y(m)" [attr.y2]="y(m)" />
+        <text class="evo__eje" [attr.x]="margen.izquierda - 8" [attr.y]="y(m)" text-anchor="end"
+          dominant-baseline="middle">{{ eje(m) }}</text>
+      }
+      @for (p of puntos(); track p.idCaso; let i = $index) {
+        <text class="evo__eje" [attr.x]="x(i)" [attr.y]="alto - 8" text-anchor="middle">{{ p.caso }}</text>
+      }
+
+      @if (activo() !== null) {
+        <line class="evo__cursor" [attr.x1]="x(activo()!)" [attr.x2]="x(activo()!)" [attr.y1]="margen.arriba"
+          [attr.y2]="alto - margen.abajo" />
+      }
+
+      @for (l of lineas(); track l.clave) {
+        <path class="evo__linea evo__linea--{{ l.slot }}" [attr.d]="l.d" />
+      }
+      @for (s of series; track s.clave) {
+        @for (p of puntos(); track p.idCaso; let i = $index) {
+          <circle class="evo__punto evo__punto--{{ s.slot }}" [attr.cx]="x(i)" [attr.cy]="y(p[s.clave])"
+            [attr.r]="activo() === i ? 5.5 : 4" />
+        }
+      }
+
+      @for (e of etiquetasFinales(); track e.clave) {
+        <text class="evo__etiqueta" [attr.x]="ancho - margen.derecha + 10" [attr.y]="e.y"
+          dominant-baseline="middle">{{ e.etiqueta }}</text>
+      }
+
+      @for (p of puntos(); track p.idCaso; let i = $index) {
+        <rect class="evo__franja" [attr.x]="x(i) - anchoFranja() / 2" [attr.y]="margen.arriba"
+          [attr.width]="anchoFranja()" [attr.height]="alto - margen.arriba - margen.abajo"
+          (mouseenter)="activo.set(i)" />
+      }
+    </svg>
+
+    @if (activo() !== null) {
+      @let p = puntos()[activo()!];
+      <div class="evo__tooltip" [class.evo__tooltip--izq]="tooltipALaIzquierda(activo()!)"
+        [style.left.%]="posicionTooltip(activo()!)">
+        <p class="evo__tooltip-titulo">{{ p.caso }}</p>
+        @for (s of series; track s.clave) {
+          <p class="evo__tooltip-fila">
+            <span class="evo__clave evo__clave--{{ s.slot }}"></span>
+            <span>{{ s.etiqueta }}</span>
+            <strong class="num" [class.evo__neg]="p[s.clave] < 0">{{ moneda(p[s.clave]) }}</strong>
+          </p>
+        }
+      </div>
+    }
+  </div>
+} @else {
+  <p class="evo__aviso">La evolución se dibuja cuando tu empresa tenga al menos dos casos cerrados.</p>
+}
+
+@if (puntos().length > 0) {
+  <table class="evo__tabla">
+    <caption class="sr-only">Cifras al cierre de cada caso</caption>
+    <thead>
+      <tr>
+        <th>Caso</th>
+        @for (s of series; track s.clave) {
+          <th class="ta-right">{{ s.etiqueta }}</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (p of puntos(); track p.idCaso) {
+        <tr>
+          <td>{{ p.caso }}</td>
+          @for (s of series; track s.clave) {
+            <td class="num ta-right" [class.evo__neg]="p[s.clave] < 0">{{ moneda(p[s.clave]) }}</td>
+          }
+        </tr>
+      }
+    </tbody>
+  </table>
+}

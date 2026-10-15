@@ -55,4 +55,9 @@ describe('EmpresaService', () => {
     service.eliminar(1).subscribe();
     http.expectOne({ method: 'DELETE', url: `${URL_EMPRESAS}/1` }).flush(null);
   });
+
+  it('historia() hace GET a /docente/empresas/{id}/historia', () => {
+    service.historia(4).subscribe();
+    http.expectOne({ method: 'GET', url: `${URL_EMPRESAS}/4/historia` }).flush([]);
+  });
 });

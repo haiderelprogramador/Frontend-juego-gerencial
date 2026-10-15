@@ -119,7 +119,12 @@ export interface TotalesFinancieros {
   efectivoFinal: number;
 }
 
-/** Razones financieras. `null` cuando el denominador es 0 (no se puede calcular). */
+/**
+ * Razones financieras, como fracción (0.125 = 12,5 %). `null` cuando el
+ * denominador es 0 (no se puede calcular). El ROE también es `null` con
+ * patrimonio negativo: pérdida ÷ patrimonio negativo daría un ROE positivo
+ * engañoso. Misma regla que el backend (confirmado con Camilo, oct-2026).
+ */
 export interface IndicadoresFinancieros {
   razonCorriente: number | null;
   pruebaAcida: number | null;
@@ -233,7 +238,7 @@ export function calcularFinanciero(e: FinancieroEntrada): ResultadoFinanciero {
       pruebaAcida: razon(activoCorriente - e.inventarios, pasivoCorriente),
       endeudamiento: razon(pasivoTotal, activoTotal),
       margenNeto: razon(utilidadNeta, e.ventasNetas),
-      roe: razon(utilidadNeta, patrimonio),
+      roe: patrimonio < 0 ? null : razon(utilidadNeta, patrimonio),
       roa: razon(utilidadNeta, activoTotal),
     },
     descuadre: activoTotal - (pasivoTotal + patrimonio),

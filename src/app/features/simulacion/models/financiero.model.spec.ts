@@ -81,6 +81,23 @@ describe('financiero.model', () => {
     expect(indicadores.margenNeto).toBeNull();
   });
 
+  it('ROE es null con patrimonio negativo (no un ROE positivo engañoso), igual que el backend', () => {
+    // Pérdida de 1.030.000: patrimonio = 600.000 + 120.000 − 1.030.000 = −310.000.
+    const { totales, indicadores } = calcularFinanciero({ ...CUADRADO, costoVentas: 1860000 });
+    expect(totales.utilidadNeta).toBeLessThan(0);
+    expect(totales.patrimonio).toBeLessThan(0);
+    expect(indicadores.roe).toBeNull();
+    // El resto se sigue calculando.
+    expect(indicadores.roa).toBeCloseTo(totales.utilidadNeta / totales.activoTotal);
+  });
+
+  it('ROE con pérdida y patrimonio positivo sí se calcula (negativo)', () => {
+    const { totales, indicadores } = calcularFinanciero({ ...CUADRADO, costoVentas: 1000000 });
+    expect(totales.utilidadNeta).toBeLessThan(0);
+    expect(totales.patrimonio).toBeGreaterThan(0);
+    expect(indicadores.roe).toBeCloseTo(totales.utilidadNeta / totales.patrimonio);
+  });
+
   it('solo utilidades retenidas y los 3 flujos admiten negativo', () => {
     const conNegativos = {
       ...CUADRADO,

@@ -6,7 +6,7 @@ import { map } from 'rxjs/operators';
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
 import { Boletin } from '../../simulacion/models/boletin.model';
 import { CasoEstudiante, aCasoEstudiante } from '../../simulacion/models/caso-api.model';
-import { CasoActual, Decision, MiEmpresa, MiSimulacion } from '../models/portal-estudiante.model';
+import { CasoActual, Decision, HistoriaCasoEmpresa, MiEmpresa, MiSimulacion } from '../models/portal-estudiante.model';
 
 /**
  * Portal del estudiante — cliente de `/api/estudiante/*` (API Estratego, 57
@@ -66,6 +66,16 @@ export class PortalEstudianteService {
   /** 400 si la empresa no pertenece al estudiante autenticado. */
   miEmpresa(idEmpresa: number): Observable<MiEmpresa> {
     return this.http.get<MiEmpresa>(`${apiUrl(API_CONFIG.endpoints.estudianteEmpresas)}/${idEmpresa}`);
+  }
+
+  /**
+   * Historia financiera de la empresa del estudiante, caso a caso (contrato
+   * B). 400 si `idEmpresa` no es la suya. Ver `API_CONFIG.disponible.historia`.
+   */
+  historiaEmpresa(idEmpresa: number): Observable<HistoriaCasoEmpresa[]> {
+    return this.http.get<HistoriaCasoEmpresa[]>(
+      `${apiUrl(API_CONFIG.endpoints.estudianteEmpresas)}/${idEmpresa}/historia`,
+    );
   }
 
   /** Historial de casos visibles de una simulación (opciones sin `resultado`). */

@@ -70,7 +70,8 @@ export const API_CONFIG = {
      * Empresas (mismo doc — EmpresaService). Rol DOCENTE.
      * GET/PUT/DELETE por id cuelgan de acá; el alta cuelga de
      * `simulacionesDocente/{id}/empresas`. También base de
-     * `/{id}/integrantes` (IntegranteService).
+     * `/{id}/integrantes` (IntegranteService) y de `/{id}/historia`
+     * -> HistoriaCasoEmpresa[] (ver `disponible.historia`).
      */
     empresasDocente: '/docente/empresas',
 
@@ -87,7 +88,10 @@ export const API_CONFIG = {
      * FINALIZADA (400 antes, o si el estudiante no participa).
      */
     estudianteSimulaciones: '/estudiante/simulaciones',
-    /** GET `/{idEmpresa}` -> MiEmpresa (con integrantes[]); 400 si no pertenece. */
+    /**
+     * GET `/{idEmpresa}` -> MiEmpresa (con integrantes[]); 400 si no pertenece.
+     * GET `/{idEmpresa}/historia` -> HistoriaCasoEmpresa[] (ver `disponible.historia`).
+     */
     estudianteEmpresas: '/estudiante/empresas',
     /**
      * GET `/{id}` -> CasoEstudiante; 400 si el caso aún no es visible.
@@ -110,6 +114,12 @@ export const API_CONFIG = {
      * estudiante no depende de esto: muestra `caso-actual.boletin` si viene.
      */
     boletin: false,
+    /**
+     * Historia por empresa (contrato B): GET /docente/empresas/{id}/historia y
+     * GET /estudiante/empresas/{id}/historia. Todavía no está en develop. En
+     * `false`, Reportes financieros no la pide (sin gráfico de evolución).
+     */
+    historia: false,
   },
 } as const;
 

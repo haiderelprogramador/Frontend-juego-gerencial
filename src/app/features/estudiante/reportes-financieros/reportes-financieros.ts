@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 
+import { API_CONFIG } from '../../../core/api/api.config';
 import { Alerta } from '../../../shared/components/alerta/alerta';
 import { Badge } from '../../../shared/components/badge/badge';
 import { Kpi } from '../../../shared/components/kpi/kpi';
@@ -8,10 +9,18 @@ import {
   CAMPOS_ESTADO_RESULTADOS,
   ETIQUETAS_FINANCIERO,
   FinancieroEntrada,
+  IndicadoresFinancieros,
   formatearMoneda,
 } from '../../simulacion/models/financiero.model';
-import { CasoActual, EstadoFinancieroEmpresa, FinancieroEmpresa } from '../models/portal-estudiante.model';
+import {
+  CasoActual,
+  EstadoFinancieroEmpresa,
+  FinancieroEmpresa,
+  HistoriaCasoEmpresa,
+  MiSimulacion,
+} from '../models/portal-estudiante.model';
 import { PortalEstudianteService } from '../services/portal-estudiante.service';
+import { EvolucionEmpresa } from './evolucion-empresa/evolucion-empresa';
 
 /** Una línea del balance: su valor inicial y, si el caso cerró, el final. */
 interface LineaBalance {
@@ -29,6 +38,35 @@ interface Cifra {
   /** Para el pasivo, subir no es buena noticia: se muestra sin color. */
   sinColor?: boolean;
 }
+
+/** Un indicador, inicio vs. cierre. Razón corriente y prueba ácida son razones; el resto, porcentajes. */
+interface LineaIndicador {
+  etiqueta: string;
+  formato: 'razon' | 'porcentaje';
+  inicial: number | null;
+  final: number | null;
+}
+
+const INDICADORES: readonly {
+  clave: keyof IndicadoresFinancieros;
+  etiqueta: string;
+  formato: LineaIndicador['formato'];
+}[] = [
+  { clave: 'razonCorriente', etiqueta: 'Razón corriente', formato: 'razon' },
+  { clave: 'pruebaAcida', etiqueta: 'Prueba ácida', formato: 'razon' },
+  { clave: 'endeudamiento', etiqueta: 'Endeudamiento', formato: 'porcentaje' },
+  { clave: 'margenNeto', etiqueta: 'Margen neto', formato: 'porcentaje' },
+  { clave: 'roe', etiqueta: 'ROE', formato: 'porcentaje' },
+  { clave: 'roa', etiqueta: 'ROA', formato: 'porcentaje' },
+];
+
+/** Mismo formato que los indicadores del formulario de casos (financiero-caso). */
+const formatoRazon = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatoPorcentaje = new Intl.NumberFormat('es-CO', {
+  style: 'percent',
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
 
 interface LineaResultado {
   concepto: string;
@@ -49,13 +87,14 @@ type EstadoFinanciero = EstadoFinancieroEmpresa<string>;
  * `financieroEmpresa` (D2, segunda parte), se usa `caso.financiero`, el campo
  * compartido anterior, solo como estado inicial.
  *
- * Pendiente de backend: la evolución caso a caso (historia por empresa) y los
- * indicadores calculados por el servidor; cuando existan, esta pantalla los
- * muestra sin cambiar su estructura.
+ * Indicadores (contrato A): salen de `financieroEmpresa.*.indicadores`, que
+ * calcula el backend; sin ellos la sección no se muestra. Evolución caso a
+ * caso (contrato B): `GET /estudiante/empresas/{id}/historia`, detrás de
+ * `API_CONFIG.disponible.historia`.
  */
 @Component({
   selector: 'app-reportes-financieros',
-  imports: [Alerta, Badge, Kpi],
+  imports: [Alerta, Badge, Kpi, EvolucionEmpresa],
   templateUrl: './reportes-financieros.html',
   styleUrl: './reportes-financieros.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -67,17 +106,38 @@ export class ReportesFinancieros {
   readonly error = signal<string | null>(null);
   private readonly datos = signal<CasoActual | null>(null);
 
+  /** Historia por empresa (contrato B): hasta que esté en develop no se pide. */
+  readonly historiaDisponible = signal<boolean>(API_CONFIG.disponible.historia);
+  readonly historia = signal<HistoriaCasoEmpresa[] | null>(null);
+  readonly errorHistoria = signal<string | null>(null);
+  /**
+   * Con caso-actual en 204 (hueco entre casos: el anterior cerró y el
+   * siguiente no se publicó) y la historia activa, la pantalla muestra el
+   * último caso de la historia. Esta es la simulación de la que sale.
+   */
+  private readonly simulacionRespaldo = signal<MiSimulacion | null>(null);
+  /** Último caso de la historia, solo cuando se usa como respaldo del 204. */
+  private readonly ultimoDeHistoria = computed<HistoriaCasoEmpresa | null>(() =>
+    this.datos() || !this.simulacionRespaldo() ? null : (this.historia()?.at(-1) ?? null),
+  );
+
   readonly contexto = computed(() => {
     const d = this.datos();
-    return d
-      ? { simulacion: d.nombreSimulacion, empresa: d.nombreEmpresa, caso: d.caso.nombre }
+    if (d) {
+      return { simulacion: d.nombreSimulacion, empresa: d.nombreEmpresa, caso: d.caso.nombre };
+    }
+    const sim = this.simulacionRespaldo();
+    const ultimo = this.ultimoDeHistoria();
+    return sim && ultimo
+      ? { simulacion: sim.nombreSimulacion, empresa: sim.nombreEmpresa, caso: ultimo.nombreCaso }
       : null;
   });
 
   private readonly financiero = computed<FinancieroEmpresa | null>(() => {
     const d = this.datos();
     if (!d) {
-      return null;
+      const ultimo = this.ultimoDeHistoria();
+      return ultimo ? { inicial: ultimo.inicial, final: ultimo.final } : null;
     }
     if (d.financieroEmpresa?.inicial) {
       return d.financieroEmpresa;
@@ -86,6 +146,9 @@ export class ReportesFinancieros {
     const f = d.caso.financiero as unknown as EstadoFinanciero;
     return { inicial: { ...f, origen: 'docente' }, final: null };
   });
+
+  /** true si lo que se ve sale de la historia (caso-actual en 204), no del caso actual. */
+  readonly esRespaldo = computed(() => this.ultimoDeHistoria() !== null);
 
   readonly inicial = computed<EstadoFinanciero | null>(() => this.financiero()?.inicial ?? null);
   readonly final = computed<EstadoFinanciero | null>(() => this.financiero()?.final ?? null);
@@ -201,16 +264,83 @@ export class ReportesFinancieros {
     return faltan ? lineas.filter((l) => !l.total) : lineas;
   });
 
+  /**
+   * Indicadores (contrato A), inicio vs. cierre. Vacío mientras el backend no
+   * mande `indicadores` en `financieroEmpresa` (y siempre con el respaldo de
+   * `caso.financiero`, que no los trae): entonces la sección no se muestra.
+   */
+  readonly indicadores = computed<LineaIndicador[]>(() => {
+    const ini = this.inicial()?.indicadores;
+    if (!ini) {
+      return [];
+    }
+    const fin = this.final()?.indicadores ?? null;
+    return INDICADORES.map((i) => ({
+      etiqueta: i.etiqueta,
+      formato: i.formato,
+      inicial: ini[i.clave] ?? null,
+      final: fin ? (fin[i.clave] ?? null) : null,
+    }));
+  });
+
   constructor() {
     this.portal.casoActual().subscribe({
       next: (datos) => {
         this.datos.set(datos);
-        this.cargando.set(false);
+        if (!this.historiaDisponible()) {
+          this.cargando.set(false);
+        } else if (datos) {
+          this.cargando.set(false);
+          this.cargarHistoria(datos.idEmpresa);
+        } else {
+          this.cargarRespaldoDeHistoria();
+        }
       },
       error: (err: HttpErrorResponse) => {
         this.error.set(err?.error?.message ?? 'No se pudo cargar la información financiera.');
         this.cargando.set(false);
       },
+    });
+  }
+
+  indicador(l: LineaIndicador, valor: number | null): string {
+    if (valor == null) {
+      return '—';
+    }
+    return l.formato === 'razon' ? formatoRazon.format(valor) : formatoPorcentaje.format(valor);
+  }
+
+  private cargarHistoria(idEmpresa: number, alTerminar?: () => void): void {
+    this.portal.historiaEmpresa(idEmpresa).subscribe({
+      next: (h) => {
+        this.historia.set(h);
+        alTerminar?.();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.errorHistoria.set(err?.error?.message ?? 'No se pudo cargar la evolución de tu empresa.');
+        alTerminar?.();
+      },
+    });
+  }
+
+  /**
+   * caso-actual respondió 204: sin caso no hay `idEmpresa`, así que sale de la
+   * simulación más reciente del estudiante. Si tampoco hay simulación o
+   * historia, queda el estado vacío de siempre.
+   */
+  private cargarRespaldoDeHistoria(): void {
+    const terminar = () => this.cargando.set(false);
+    this.portal.misSimulaciones().subscribe({
+      next: (lista) => {
+        const sim = lista[0];
+        if (!sim) {
+          terminar();
+          return;
+        }
+        this.simulacionRespaldo.set(sim);
+        this.cargarHistoria(Number(sim.idEmpresa), terminar);
+      },
+      error: terminar,
     });
   }
 

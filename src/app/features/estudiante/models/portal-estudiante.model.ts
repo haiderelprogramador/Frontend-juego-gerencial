@@ -4,23 +4,21 @@
  */
 
 import { Boletin } from '../../simulacion/models/boletin.model';
-import { CasoEstudiante, FinancieroCaso } from '../../simulacion/models/caso-api.model';
-import { FinancieroEntrada, ImpactoOpcion } from '../../simulacion/models/financiero.model';
+import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
+import {
+  EstadoFinancieroEmpresa,
+  OrigenFinancieroFinal,
+  OrigenFinancieroInicial,
+} from '../../simulacion/models/estado-empresa.model';
+import { ImpactoOpcion } from '../../simulacion/models/financiero.model';
 
-/** De dónde sale el financiero INICIAL de la empresa: cargado por el docente (primer caso) o heredado del caso anterior. */
-export type OrigenFinancieroInicial = 'docente' | 'heredado';
-
-/** De dónde sale el financiero FINAL: la opción que eligió la empresa, o la penalización por no decidir. */
-export type OrigenFinancieroFinal = 'decision' | 'penalizacion';
-
-/**
- * Estado financiero de UNA empresa en un caso: las 19 partidas + los 4 totales,
- * SIEMPRE con valor (nunca `null`). Por eso es un tipo distinto del nullable
- * `FinancieroCasoApi` de los casos siguientes, y no hay que unificarlos.
- * `efectivo` (y por arrastre otras partidas) puede venir NEGATIVO si la empresa
- * acumuló pérdidas: mostrarlo en rojo o con alerta, no como un número normal.
- */
-export type EstadoFinancieroEmpresa<O extends string> = { origen: O } & FinancieroEntrada & FinancieroCaso;
+// El estado por empresa también lo usa el docente (historia, estados-empresas): vive en simulacion/models.
+export type {
+  EstadoFinancieroEmpresa,
+  HistoriaCasoEmpresa,
+  OrigenFinancieroFinal,
+  OrigenFinancieroInicial,
+} from '../../simulacion/models/estado-empresa.model';
 
 /** `financieroEmpresa` de GET /estudiante/caso-actual (contrato D2, oct-2026). */
 export interface FinancieroEmpresa {

@@ -228,3 +228,13 @@
     grid-template-columns: 1fr;
   }
 }
+
+.indicadores,
+.evolucion {
+  padding: 1.25rem;
+}
+.indicadores__nota {
+  margin: 0.75rem 0 0;
+  font-size: 0.74rem;
+  color: var(--bs-muted);
+}

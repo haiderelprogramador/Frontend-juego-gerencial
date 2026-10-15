@@ -80,7 +80,15 @@ function casoActualDto(overrides: Partial<CasoActualDto> = {}): CasoActualDto {
     idEmpresa: 20,
     nombreEmpresa: 'TextilAndes S.A.',
     financieroEmpresa: {
-      inicial: { origen: 'docente', activoTotal: 1, pasivoTotal: 1, patrimonio: 1, utilidadNeta: 1, ...financieroANumeros(financieroVacio()) },
+      inicial: {
+        origen: 'docente',
+        activoTotal: 1,
+        pasivoTotal: 1,
+        patrimonio: 1,
+        utilidadNeta: 1,
+        ...financieroANumeros(financieroVacio()),
+        indicadores: { razonCorriente: null, pruebaAcida: null, endeudamiento: null, margenNeto: null, roe: null, roa: null },
+      },
       final: null,
     },
     esLider: true,

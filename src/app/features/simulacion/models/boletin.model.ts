@@ -14,9 +14,9 @@
 export const NOTA_BOLETIN_MAX = 2000;
 
 /**
- * Rangos del contrato (inclusive), en porcentaje. Fuera de ellos el backend
- * responde 400 con `errores[].campo`. La tasa de cambio solo tiene que ser
- * mayor que 0 (sin tope).
+ * Rangos del contrato, en porcentaje e inclusivos: −100, 0 y 1000 son válidos
+ * (confirmado con backend). Fuera de ellos el backend responde 400 con
+ * `errores[].campo`. La tasa de cambio solo tiene que ser mayor que 0 (sin tope).
  */
 export const RANGO_INFLACION = { min: -100, max: 1000 } as const;
 export const RANGO_TASA_INTERES = { min: 0, max: 1000 } as const;
@@ -39,8 +39,8 @@ export interface BoletinRequest {
 /** Boletín tal como lo devuelve el backend (al docente y al estudiante). */
 export interface Boletin extends Omit<BoletinRequest, 'nota'> {
   idCaso: number;
-  /** El contrato no dice si una nota vacía llega como `null` o no llega: se aceptan las dos. */
-  nota?: string | null;
+  /** Siempre viene: el texto, o `null` si el docente no escribió nota (confirmado con backend). */
+  nota: string | null;
   publicadoEn: string;
   actualizadoEn: string;
 }

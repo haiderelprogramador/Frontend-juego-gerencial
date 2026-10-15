@@ -99,6 +99,11 @@ describe('PortalEstudianteService', () => {
     http.expectOne({ method: 'GET', url: `${URL_SIMULACIONES}/7/casos` }).flush([]);
   });
 
+  it('historiaEmpresa() hace GET a /estudiante/empresas/{id}/historia', () => {
+    service.historiaEmpresa(5).subscribe();
+    http.expectOne({ method: 'GET', url: `${URL_EMPRESAS}/5/historia` }).flush([]);
+  });
+
   it('obtenerCaso() hace GET a /estudiante/casos/{id}', () => {
     service.obtenerCaso(3).subscribe();
     http.expectOne({ method: 'GET', url: `${URL_CASOS}/3` }).flush({});

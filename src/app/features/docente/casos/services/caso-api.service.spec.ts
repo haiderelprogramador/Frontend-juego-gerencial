@@ -88,6 +88,7 @@ describe('CasoApiService', () => {
     const req: BoletinRequest = { inflacion: 5.2, tasaInteres: 9.75, tasaCambio: 4150.5, nota: 'Sube el dólar.' };
     const boletin: Boletin = {
       ...req,
+      nota: req.nota ?? null,
       idCaso: 1,
       publicadoEn: '2026-10-15T09:00:00',
       actualizadoEn: '2026-10-15T09:00:00',
