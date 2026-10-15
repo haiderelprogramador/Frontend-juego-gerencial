@@ -46,6 +46,30 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.4rem;
+  min-height: 1.75rem;
+}
+
+.tabla-casos {
+  &__nombre {
+    font-weight: 600;
+  }
+  &__primero {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: var(--bs-primary-soft);
+    color: var(--bs-primary-strong);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+  }
+  &__fechas {
+    font-size: 0.8rem;
+    color: var(--bs-muted);
+    white-space: nowrap;
+  }
 }
 
 .casos-form {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, isDevMode } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../core/services/auth.service';
@@ -34,9 +34,13 @@ export class AppShell {
   readonly usuario = this.auth.usuarioActual;
   readonly esDocente = computed(() => this.usuario()?.rol === Rol.DOCENTE);
 
-  /** 🎨 mock: el prototipo muestra "Trimestre 3 · 2026" fijo en la barra. */
-  readonly trimestre = signal('Trimestre 3 · 2026');
-  readonly temaOscuro = signal(false);
+  /**
+   * La guía visual (/design-system) es una referencia interna del equipo: se
+   * lista en la navegación solo en desarrollo. La ruta sigue existiendo.
+   */
+  private readonly grupoSistema: GrupoNav[] = isDevMode()
+    ? [{ titulo: 'Sistema', items: [{ ruta: '/design-system', texto: 'Design system', icono: 'sliders' }] }]
+    : [];
 
   readonly grupos = computed<GrupoNav[]>(() => {
     if (this.esDocente()) {
@@ -50,7 +54,7 @@ export class AppShell {
             { ruta: '/clasificacion', texto: 'Clasificación', icono: 'trophy' },
           ],
         },
-        { titulo: 'Sistema', items: [{ ruta: '/design-system', texto: 'Design system', icono: 'sliders' }] },
+        ...this.grupoSistema,
       ];
     }
     return [
@@ -62,13 +66,9 @@ export class AppShell {
           { ruta: '/clasificacion', texto: 'Clasificación', icono: 'trophy' },
         ],
       },
-      { titulo: 'Sistema', items: [{ ruta: '/design-system', texto: 'Design system', icono: 'sliders' }] },
+      ...this.grupoSistema,
     ];
   });
-
-  alternarTema(): void {
-    this.temaOscuro.set(!this.temaOscuro());
-  }
 
   salir(): void {
     this.auth.logout();

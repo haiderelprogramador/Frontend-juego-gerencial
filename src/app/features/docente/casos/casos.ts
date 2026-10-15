@@ -570,4 +570,13 @@ export class Casos {
     this.errorImportOpciones.set(null);
     this.errorFormulario.set(null);
   }
+
+  /** "5 sept." a partir de una fecha ISO; si no se puede interpretar, devuelve el texto tal cual. */
+  fechaCorta(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) {
+      return iso;
+    }
+    return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(d);
+  }
 }

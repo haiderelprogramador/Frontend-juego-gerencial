@@ -133,13 +133,19 @@ export class Clasificacion {
   private cargarSimulaciones(): void {
     if (this.esDocente()) {
       this.simulacionService.listar().subscribe({
-        next: (lista) => this.simulaciones.set(lista.map((s) => ({ id: s.id, nombre: s.nombre, estado: s.estado }))),
+        next: (lista) => {
+          this.simulaciones.set(lista.map((s) => ({ id: s.id, nombre: s.nombre, estado: s.estado })));
+          // Con una sola simulación no tiene sentido pedir que la elijan.
+          if (lista.length === 1) {
+            this.preseleccionar(lista[0].id);
+          }
+        },
         error: (err: HttpErrorResponse) =>
           this.errorSimulaciones.set(err?.error?.message ?? 'No se pudieron cargar las simulaciones.'),
       });
     } else {
       this.portal.misSimulaciones().subscribe({
-        next: (lista) =>
+        next: (lista) => {
           this.simulaciones.set(
             lista.map((s) => ({
               id: Number(s.idSimulacion),
@@ -147,11 +153,29 @@ export class Clasificacion {
               estado: s.estado,
               idEmpresa: Number(s.idEmpresa),
             })),
-          ),
+          );
+          // El backend devuelve la más reciente primero: esa es la que el estudiante quiere ver.
+          if (lista.length > 0) {
+            this.preseleccionar(Number(lista[0].idSimulacion));
+          }
+        },
         error: (err: HttpErrorResponse) =>
           this.errorSimulaciones.set(err?.error?.message ?? 'No se pudieron cargar tus simulaciones.'),
       });
     }
+  }
+
+  /** Elige una simulación por defecto solo si la URL todavía no trae ninguna. */
+  private preseleccionar(id: number): void {
+    if (this.idSimulacion() !== null || !(id > 0)) {
+      return;
+    }
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { simulacion: id },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   private cargar(idSimulacion: number | null): void {

@@ -273,3 +273,19 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 600px) {
+  /* En móvil cada paso se apila: número + texto arriba, enlace debajo. */
+  .paso {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+  .paso__cuerpo {
+    flex: 1 1 calc(100% - 2.5rem);
+  }
+  .paso__enlace {
+    flex: 1 1 100%;
+    padding-left: 2.5rem;
+    text-align: left;
+  }
+}

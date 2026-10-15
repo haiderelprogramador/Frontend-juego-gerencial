@@ -17,14 +17,29 @@
     <div class="card">
       <table class="tabla-casos">
         <thead>
-          <tr><th>Caso</th><th>Simulación</th><th>Tipo</th><th>Estado</th><th></th></tr>
+          <tr>
+            <th>Caso</th>
+            <th>Simulación</th>
+            <th>Tipo</th>
+            <th>Partida</th>
+            <th>Estado</th>
+            <th><span class="sr-only">Acciones</span></th>
+          </tr>
         </thead>
         <tbody>
           @for (c of casos(); track c.id) {
             <tr>
-              <td>{{ c.nombre }}</td>
+              <td>
+                <span class="tabla-casos__nombre">{{ c.nombre }}</span>
+                @if (c.esPrimerCaso) {
+                  <span class="tabla-casos__primero" title="Define el balance inicial de las empresas">Primer caso</span>
+                }
+              </td>
               <td>{{ nombreSimulacion(c.idSimulacion) }}</td>
               <td>{{ c.tipo }}</td>
+              <td class="tabla-casos__fechas">
+                {{ fechaCorta(c.fechaInicioPartida) }} – {{ fechaCorta(c.fechaFinPartida) }}
+              </td>
               <td>
                 @if (c.estado === 'activo') {
                   <app-badge variante="periodo-abierto" [punto]="true">Activo</app-badge>
@@ -32,15 +47,17 @@
                   <app-badge variante="muted">Borrador</app-badge>
                 }
               </td>
-              <td class="ta-right acciones-caso">
-                @if (c.estado !== 'activo') {
-                  <button type="button" class="btn btn--ghost btn--sm" (click)="activarCaso(c.id)">
-                    Activar
-                  </button>
-                }
-                @if (puedeEditar(c.idSimulacion)) {
-                  <button type="button" class="btn btn--ghost btn--sm" (click)="editarCaso(c.id)">Editar</button>
-                }
+              <td class="ta-right">
+                <div class="acciones-caso">
+                  @if (c.estado !== 'activo') {
+                    <button type="button" class="btn btn--ghost btn--sm" (click)="activarCaso(c.id)">
+                      Activar
+                    </button>
+                  }
+                  @if (puedeEditar(c.idSimulacion)) {
+                    <button type="button" class="btn btn--ghost btn--sm" (click)="editarCaso(c.id)">Editar</button>
+                  }
+                </div>
               </td>
             </tr>
           }
@@ -148,9 +165,10 @@
             </div>
 
             <label class="field">
-              <span class="field__label">Nombre de la empresa</span>
+              <span class="field__label">Nombre del caso</span>
               <input type="text" [value]="empresa()" (input)="empresa.set($any($event.target).value)"
-                placeholder="Ej. TextilAndes S.A." />
+                placeholder="Ej. Expansión regional" />
+              <p class="field__hint">Es el título que ven los estudiantes en su portal.</p>
             </label>
             <label class="field">
               <span class="field__label">Tipo</span>
@@ -188,8 +206,7 @@
                 </label>
               </div>
               <p class="field__hint">
-                Rango, no un valor fijo — cada equipo puede recibir un efecto distinto dentro de este rango
-                (docs/02 §6).
+                Es un rango, no un valor fijo: cada empresa puede recibir una penalización distinta dentro de él.
               </p>
             </div>
 

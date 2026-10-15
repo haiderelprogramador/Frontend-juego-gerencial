@@ -1,4 +1,5 @@
-<!-- 🎨 Ayuda de desarrollo — no es parte del diseño -->
+<!-- Ayuda de desarrollo — no se muestra en producción -->
+@if (esDev) {
 <div class="preview-bar">
   <span class="preview-bar__label">
     <strong>Vista previa</strong> — comparación de estados (esta barra no es parte del diseño)
@@ -12,13 +13,14 @@
     </button>
   </div>
 </div>
+}
 
 <section class="panel">
   <header class="panel__head">
     <div>
       <h1 class="t-display">Panel del docente</h1>
       <p class="panel__sub">
-        Administración · Gestión Estratégica II@if (estudiantesCargados() > 0) {
+        Configura la simulación y sigue las decisiones de las empresas@if (estudiantesCargados() > 0) {
           <span> · {{ estudiantesCargados() }} estudiantes</span>
         }
       </p>
@@ -34,7 +36,6 @@
     <button type="button" [class.is-active]="tab() === 'periodos'" (click)="irA('periodos')">Control de periodos</button>
     <button type="button" [class.is-active]="tab() === 'equipos'" (click)="irA('equipos')">Estudiantes y empresas</button>
     <button type="button" [class.is-active]="tab() === 'casos'" (click)="irA('casos')">Casos</button>
-    <button type="button" [class.is-active]="tab() === 'parametros'" (click)="irA('parametros')">Parámetros</button>
   </nav>
 
   @switch (tab()) {
@@ -170,8 +171,7 @@
     }
     @default {
       <div class="card placeholder">
-        <p>Esta sección (Parámetros) todavía no está definida con el cliente.</p>
-        <p class="placeholder__note">🎨 Pendiente de especificación — ver docs/02 y docs/05.</p>
+        <p>Esta sección todavía no está disponible.</p>
       </div>
     }
   }

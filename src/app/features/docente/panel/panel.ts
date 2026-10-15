@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, isDevMode, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Badge } from '../../../shared/components/badge/badge';
@@ -44,6 +44,8 @@ interface PasoConfig {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Panel {
+  /** La barra de vista previa de estados es una ayuda de desarrollo. */
+  readonly esDev = isDevMode();
   readonly tab = signal<TabPanel>('periodos');
   readonly recibiendo = signal(false);
 

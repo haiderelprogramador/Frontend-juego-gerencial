@@ -123,6 +123,19 @@ body {
   font-feature-settings: 'tnum' 1;
 }
 
+/* Solo para lectores de pantalla (encabezados de columnas de acciones, etc.). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* -- Tarjeta genérica -- */
 .card {
   background: var(--bs-surface);
@@ -211,8 +224,19 @@ body {
   display: flex;
   gap: 1.25rem;
   border-bottom: 1px solid var(--bs-border);
+  /* En pantallas angostas las pestañas se desplazan en horizontal en vez de
+     quedar cortadas. */
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 
   button {
+    flex: none;
+    white-space: nowrap;
     padding: 0.55rem 0.1rem;
     border: 0;
     background: transparent;
@@ -252,24 +276,6 @@ body {
     margin: 0;
     font-size: 0.85rem;
     color: var(--bs-muted);
-  }
-  &__google {
-    gap: 0.6rem;
-  }
-  &__divider {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.72rem;
-    color: var(--bs-muted);
-
-    &::before,
-    &::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--bs-border);
-    }
   }
 }
 
@@ -379,6 +385,7 @@ body {
 
 .btn {
   display: inline-flex;
+  text-decoration: none;
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
@@ -447,5 +454,18 @@ body {
 
   &--block {
     width: 100%;
+  }
+}
+
+/* ---- Accesibilidad / movimiento --------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

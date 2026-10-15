@@ -9,12 +9,11 @@ import { Alerta } from '../../../shared/components/alerta/alerta';
 /**
  * Pantalla de inicio de sesión (docs/03 + rediseño 🎨 docs/05).
  *
- * Elementos 🎨 del prototipo que NO están confirmados por el cliente y aquí son
- * solo visuales:
- *  - "Continuar con Google": sin backend OAuth, no hace nada.
- *  - Selector "Ingresar como Estudiante/Docente": cosmético. El rol real lo
- *    determina `AuthService` a partir de las credenciales (docs/03).
- *  - "¿Olvidaste tu contraseña?": aún sin flujo de recuperación.
+ * El rol lo determina `AuthService` a partir de las credenciales (docs/03), por
+ * eso no hay selector de rol. Los elementos del prototipo que no tenían
+ * respaldo en el backend (botón de Google, selector de rol, enlace de
+ * recuperación de contraseña) se retiraron; la recuperación de contraseña
+ * vuelve cuando exista el flujo por correo en el backend.
  */
 @Component({
   selector: 'app-login',
@@ -32,8 +31,6 @@ export class Login {
   readonly enviando = signal(false);
   readonly error = signal<string | null>(null);
   readonly verContrasena = signal(false);
-  /** 🎨 cosmético — no afecta el login real. */
-  readonly rolPreferido = signal<'ESTUDIANTE' | 'DOCENTE'>('ESTUDIANTE');
 
   readonly form = this.fb.group({
     correo: ['', [Validators.required, Validators.email]],

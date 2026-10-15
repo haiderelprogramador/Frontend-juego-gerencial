@@ -2,59 +2,111 @@
   <header class="reportes__head">
     <div>
       <h1 class="t-display">Reportes financieros</h1>
-      <p class="reportes__sub">Resultados de Equipo Cóndor tras el cierre del Trimestre 2.</p>
+      @if (contexto(); as ctx) {
+        <p class="reportes__sub">{{ ctx.empresa }} · {{ ctx.simulacion }} · {{ ctx.caso }}</p>
+      } @else {
+        <p class="reportes__sub">La situación financiera de tu empresa en el caso actual.</p>
+      }
     </div>
-    <app-badge variante="simulacion-activa" [punto]="true">Resultados publicados</app-badge>
+    @if (!cargando() && inicial()) {
+      @if (cerrado()) {
+        <app-badge variante="exito" [punto]="true">Resultados del cierre publicados</app-badge>
+      } @else {
+        <app-badge variante="pendiente" [punto]="true">Caso en curso</app-badge>
+      }
+    }
   </header>
 
-  <div class="reportes__kpis">
-    <app-kpi etiqueta="Ingresos" valor="$1,058,300" variacion="+8.4% vs T2" tendencia="sube" />
-    <app-kpi etiqueta="Utilidad neta" valor="$199,800" variacion="+3.1% vs T2" tendencia="sube" />
-    <app-kpi etiqueta="Margen bruto" valor="18.9%" variacion="-0.7 pp vs T2" tendencia="baja" />
-    <app-kpi etiqueta="Cuota de mercado" valor="14.1%" variacion="+1.2 pp vs T2" tendencia="sube" />
-  </div>
+  @if (error(); as msg) {
+    <app-alerta tipo="error" [mensaje]="msg" />
+  }
 
-  <div class="reportes__grid">
-    <div class="card grafico">
-      <header class="grafico__head">
-        <div>
-          <h2 class="t-title">Ingresos vs. costos</h2>
-          <p class="grafico__sub">Últimos 4 trimestres (miles USD)</p>
-        </div>
-        <div class="grafico__legend">
-          <span><i class="dot dot--ing"></i>Ingresos</span>
-          <span><i class="dot dot--cost"></i>Costos</span>
-        </div>
-      </header>
+  @if (cargando()) {
+    <p class="t-muted">Cargando…</p>
+  } @else if (!inicial()) {
+    <div class="card reportes__vacio">
+      <h2 class="t-title">Todavía no hay información financiera</h2>
+      <p class="t-muted">
+        Cuando el docente active un caso para tu empresa, aquí verás su balance inicial y, al cierre,
+        el resultado de la decisión.
+      </p>
+    </div>
+  } @else {
+    <div class="reportes__kpis">
+      @for (c of cifras(); track c.etiqueta) {
+        <app-kpi [etiqueta]="c.etiqueta" [valor]="moneda(c.final ?? c.inicial)" [variacion]="variacion(c)"
+          [tendencia]="tendencia(c)" />
+      }
+    </div>
 
-      <div class="grafico__plot">
-        @for (p of serie(); track p.etiqueta) {
-          <div class="grafico__col">
-            <div class="grafico__bars">
-              <span class="grafico__bar grafico__bar--ing" [style.height.%]="altura(p.ingresos)"
-                [title]="'Ingresos ' + p.ingresos + 'k'"></span>
-              <span class="grafico__bar grafico__bar--cost" [style.height.%]="altura(p.costos)"
-                [title]="'Costos ' + p.costos + 'k'"></span>
-            </div>
-            <span class="grafico__x">{{ p.etiqueta }}</span>
+    <div class="reportes__grid">
+      <div class="card comparativo">
+        <header class="comparativo__head">
+          <div>
+            <h2 class="t-title">{{ cerrado() ? 'Balance: inicio vs. cierre' : 'Balance de tu empresa' }}</h2>
+            <p class="comparativo__sub">{{ origenLegible() }}</p>
+          </div>
+        </header>
+
+        <table class="comparativo__tabla">
+          <thead>
+            <tr>
+              <th>Cuenta</th>
+              <th class="ta-right">{{ cerrado() ? 'Inicio' : 'Valor' }}</th>
+              @if (cerrado()) {
+                <th class="ta-right">Cierre</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (l of balance(); track l.etiqueta) {
+              <tr [class.comparativo__total]="l.total">
+                <td>{{ l.etiqueta }}</td>
+                <td class="num ta-right">{{ moneda(l.inicial) }}</td>
+                @if (cerrado()) {
+                  <td class="num ta-right comparativo__final">{{ moneda(l.final) }}</td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        @if (cerrado()) {
+          @if (resultadoLegible(); as txt) {
+            <p class="comparativo__nota">{{ txt }}</p>
+          }
+        } @else {
+          <div class="comparativo__pendiente">
+            <span class="comparativo__pendiente-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+              </svg>
+            </span>
+            <p>
+              Cuando el caso cierre, aquí verás cómo cambió el balance de tu empresa con la decisión
+              que tomó.
+            </p>
           </div>
         }
       </div>
-    </div>
 
-    <div class="card estado">
-      <header class="estado__head">
-        <h2 class="t-title">Estado de resultados</h2>
-        <p class="estado__sub">Trimestre 3 · 2026</p>
-      </header>
-      <dl class="estado__list">
-        @for (linea of resultado; track linea.concepto) {
-          <div class="estado__row" [class.estado__row--total]="linea.total">
-            <dt>{{ linea.concepto }}</dt>
-            <dd class="num" [class.estado__neg]="linea.negativo">{{ linea.monto }}</dd>
-          </div>
-        }
-      </dl>
+      <div class="card estado">
+        <header class="estado__head">
+          <h2 class="t-title">Estado de resultados</h2>
+          <p class="estado__sub">{{ cerrado() ? 'Al cierre del caso' : 'Situación de arranque' }}</p>
+        </header>
+        <dl class="estado__list">
+          @for (linea of estadoResultados(); track linea.concepto) {
+            <div class="estado__row" [class.estado__row--total]="linea.total">
+              <dt>{{ linea.concepto }}</dt>
+              <dd class="num" [class.estado__neg]="linea.negativo">
+                {{ linea.negativo && linea.monto != null ? '−' : '' }}{{ moneda(linea.monto) }}
+              </dd>
+            </div>
+          }
+        </dl>
+      </div>
     </div>
-  </div>
+  }
 </section>

@@ -106,6 +106,34 @@ export class CasoActual implements OnDestroy {
 
   /** El caso activo visible para la empresa del estudiante (o null: sin caso, o todavía cargando). */
   readonly caso = computed<CasoEstudiante | null>(() => this.datos()?.caso ?? null);
+  /**
+   * Situación financiera con la que arranca la empresa en este caso. Con D2
+   * viene en `financieroEmpresa.inicial` (propia de la empresa); mientras el
+   * backend no la mande, se usa `caso.financiero` (el campo compartido viejo).
+   */
+  readonly financieroInicial = computed(() => {
+    const d = this.datos();
+    if (!d) {
+      return null;
+    }
+    const propio = d.financieroEmpresa?.inicial;
+    return propio ?? d.caso.financiero;
+  });
+  readonly subtituloFinanciero = computed(() => {
+    const origen = this.datos()?.financieroEmpresa?.inicial?.origen;
+    if (origen === 'heredado') {
+      return 'Heredada de las decisiones anteriores de tu empresa';
+    }
+    if (origen === 'docente') {
+      return 'Balance inicial definido por el docente';
+    }
+    return 'Situación de arranque del caso';
+  });
+  /** Contexto del encabezado: en qué simulación y con qué empresa juega el estudiante. */
+  readonly contexto = computed(() => {
+    const d = this.datos();
+    return d ? { simulacion: d.nombreSimulacion, empresa: d.nombreEmpresa } : null;
+  });
   readonly esLider = computed(() => this.datos()?.esLider ?? false);
   readonly puedeDecidir = computed(() => this.datos()?.puedeDecidir ?? false);
   readonly decisionActual = computed(() => this.datos()?.decision ?? null);

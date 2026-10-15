@@ -3,8 +3,8 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 /**
  * Layout de autenticación a dos columnas (docs/05, 🎨):
- * panel izquierdo oscuro con copy de marketing + stats, panel derecho claro
- * con las tabs "Iniciar sesión" / "Registrarse" y la ruta hija.
+ * panel izquierdo oscuro con el copy y las tres áreas de decisión, panel
+ * derecho claro con las tabs "Iniciar sesión" / "Registrarse" y la ruta hija.
  */
 @Component({
   selector: 'app-auth-layout',
@@ -14,10 +14,10 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AuthLayout {
-  /** 🎨 mock — stats de la columna izquierda del prototipo. */
-  readonly stats = [
-    { valor: '3', etiqueta: 'áreas de decisión' },
-    { valor: '48', etiqueta: 'equipos activos' },
-    { valor: '12', etiqueta: 'trimestres' },
+  /** Las tres áreas de decisión del simulador (mismos colores que los tokens --bs-*). */
+  readonly areas = [
+    { clave: 'comercial', etiqueta: 'Comercial' },
+    { clave: 'produccion', etiqueta: 'Producción' },
+    { clave: 'administrativa', etiqueta: 'Administrativa' },
   ];
 }

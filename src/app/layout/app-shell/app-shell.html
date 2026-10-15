@@ -110,16 +110,9 @@
   <div class="shell__main">
     <header class="topbar">
       <app-badge [variante]="esDocente() ? 'docente' : 'estudiante'" [punto]="true">
-        {{ esDocente() ? 'Docente / Admin' : 'Estudiante' }}
+        {{ esDocente() ? 'Docente' : 'Estudiante' }}
       </app-badge>
-      <app-badge variante="trimestre">{{ trimestre() }}</app-badge>
-      <button type="button" class="topbar__theme" (click)="alternarTema()"
-        [attr.aria-pressed]="temaOscuro()" aria-label="Cambiar tema">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
-        </svg>
-      </button>
+      <span class="topbar__user">{{ usuario()?.nombre }}</span>
     </header>
 
     <main class="shell__content">

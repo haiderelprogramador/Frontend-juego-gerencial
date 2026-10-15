@@ -18,13 +18,13 @@
         compite en la clasificación con tu equipo.
       </p>
 
-      <div class="auth__stats">
-        @for (s of stats; track s.etiqueta) {
-          <div class="auth__stat">
-            <span class="auth__stat-num num">{{ s.valor }}</span>
-            <span class="auth__stat-label">{{ s.etiqueta }}</span>
-          </div>
-        }
+      <div class="auth__areas" aria-label="Áreas de decisión">
+        <span class="auth__areas-label">Tres áreas de decisión</span>
+        <ul class="auth__areas-list">
+          @for (a of areas; track a.clave) {
+            <li class="auth__area auth__area--{{ a.clave }}">{{ a.etiqueta }}</li>
+          }
+        </ul>
       </div>
     </div>
 
