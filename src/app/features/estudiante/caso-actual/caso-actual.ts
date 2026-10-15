@@ -1,5 +1,8 @@
+import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, computed, inject, signal } from '@angular/core';
-import { Subscription, interval } from 'rxjs';
+import { RouterLink } from '@angular/router';
+import { Observable, Subscription, interval, of } from 'rxjs';
+import { catchError, map, shareReplay, switchMap } from 'rxjs/operators';
 
 import { Badge } from '../../../shared/components/badge/badge';
 import { Alerta } from '../../../shared/components/alerta/alerta';
@@ -19,7 +22,7 @@ import { aFechaBogota } from '../../../shared/utils/fecha-bogota';
 type Fase = 'visualizacion' | 'partida' | 'cierre';
 /** Estado visual de la tarjeta "Opciones de decisión" (distinto de `Fase`). */
 type EstadoOpciones = 'bloqueado' | 'seleccion' | 'resultado';
-type ErrorHttp = { message?: string; error?: { message?: string } };
+type ErrorHttp = { status?: number; message?: string; error?: { message?: string } };
 
 const ORDEN_FASES: Fase[] = ['visualizacion', 'partida', 'cierre'];
 
@@ -64,7 +67,7 @@ const ESTADOS_SIMULACION: Record<string, string> = {
 
 @Component({
   selector: 'app-caso-actual',
-  imports: [Badge, Alerta, Kpi, TarjetaSeleccion],
+  imports: [RouterLink, Badge, Alerta, Kpi, TarjetaSeleccion],
   templateUrl: './caso-actual.html',
   styleUrl: './caso-actual.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,6 +75,13 @@ const ESTADOS_SIMULACION: Record<string, string> = {
 export class CasoActual implements OnDestroy {
   private readonly portal = inject(PortalEstudianteService);
   private readonly auth = inject(AuthService);
+  private readonly documento = inject(DOCUMENT);
+
+  /** Se pide una sola vez: la usan el selector y la detección del hueco entre casos. */
+  private readonly misSimulaciones$ = this.portal.misSimulaciones().pipe(
+    catchError(() => of<MiSimulacion[]>([])),
+    shareReplay(1),
+  );
 
   /**
    * Simulaciones del estudiante, para el selector. Red de seguridad: sin
@@ -89,6 +99,14 @@ export class CasoActual implements OnDestroy {
   readonly error = signal<string | null>(null);
   readonly enviando = signal(false);
   private readonly datos = signal<CasoActualDto | null>(null);
+  /** Aviso cuando la decisión no se registró porque el docente cerró el caso mientras tanto. */
+  readonly avisoCierre = signal<string | null>(null);
+  /**
+   * 204 en una simulación que YA tuvo casos visibles: el docente cerró el
+   * anterior y el siguiente todavía no se publica. Distinto de "todavía no
+   * hay ningún caso".
+   */
+  readonly entreCasos = signal(false);
 
   /** El caso activo visible para la empresa del estudiante (o null: sin caso, o todavía cargando). */
   readonly caso = computed<CasoEstudiante | null>(() => this.datos()?.caso ?? null);
@@ -199,17 +217,38 @@ export class CasoActual implements OnDestroy {
 
   constructor() {
     this.cargar(this.leerSimulacionRecordada());
-    this.portal.misSimulaciones().subscribe({
-      next: (lista) => this.simulaciones.set(lista),
-      // Sin la lista no hay selector; el resto de la pantalla funciona igual.
-      error: () => this.simulaciones.set([]),
-    });
+    // Sin la lista no hay selector (catchError -> []); el resto de la pantalla funciona igual.
+    this.misSimulaciones$.subscribe((lista) => this.simulaciones.set(lista));
+    this.documento.addEventListener('visibilitychange', this.alVolverVisible);
   }
 
   elegirSimulacion(id: number): void {
+    this.avisoCierre.set(null);
     this.recordarSimulacion(id);
     this.cargar(id);
   }
+
+  /**
+   * Al volver a la pestaña se recarga en silencio (sin "Cargando…"): mientras
+   * estaba oculta, el docente pudo cerrar el caso o activar el siguiente.
+   */
+  private readonly alVolverVisible = (): void => {
+    if (this.documento.visibilityState !== 'visible' || this.cargando() || this.enviando()) {
+      return;
+    }
+    const idSimulacion = this.datos()?.idSimulacion ?? this.idSolicitada();
+    const idCasoAntes = this.caso()?.id;
+    this.portal.casoActual(idSimulacion).subscribe({
+      next: (dto) => {
+        if (dto?.caso.id !== idCasoAntes) {
+          this.eleccion.set('');
+        }
+        this.mostrar(dto, idSimulacion);
+      },
+      // Un fallo al refrescar no borra lo que ya se veía.
+      error: () => undefined,
+    });
+  };
 
   readonly porcentaje = formatearPorcentajeBoletin;
   readonly tasaCambio = formatearTasaCambio;
@@ -235,6 +274,7 @@ export class CasoActual implements OnDestroy {
     // (confirmado en vivo, 02-oct-2026: tras decidir, salta a otra simulación
     // del estudiante con caso pendiente) y el resultado no se vería nunca.
     const idSimulacion = this.datos()?.idSimulacion;
+    this.avisoCierre.set(null);
     this.portal.decidir(c.id, idOpcion).subscribe({
       next: () => {
         this.enviando.set(false);
@@ -243,7 +283,24 @@ export class CasoActual implements OnDestroy {
       },
       error: (err: ErrorHttp) => {
         this.enviando.set(false);
-        this.error.set(mensaje(err, 'No se pudo registrar la decisión.'));
+        if (err?.status !== 400) {
+          this.error.set(mensaje(err, 'No se pudo registrar la decisión.'));
+          return;
+        }
+        // Lo más probable: el docente cerró el caso (activó el siguiente o
+        // finalizó la simulación) mientras el estudiante elegía. Se recarga la
+        // misma simulación para no dejar la pantalla en el caso viejo. Si al
+        // recargar el caso sigue abierto, el 400 era por otra cosa: se muestra.
+        const motivo = mensaje(err, 'No se pudo registrar la decisión.');
+        this.eleccion.set('');
+        this.cargar(idSimulacion, (dto) => {
+          const sigueAbierto = dto?.caso.id === c.id && calcularFase(dto.caso, Date.now()) === 'partida';
+          if (sigueAbierto) {
+            this.error.set(motivo);
+          } else {
+            this.avisoCierre.set('El docente cerró este caso antes de que se registrara la decisión.');
+          }
+        });
       },
     });
   }
@@ -254,16 +311,19 @@ export class CasoActual implements OnDestroy {
 
   ngOnDestroy(): void {
     this.relojSub.unsubscribe();
+    this.documento.removeEventListener('visibilitychange', this.alVolverVisible);
   }
 
-  private cargar(idSimulacion?: number): void {
+  /** `alCargar` corre después de mostrar la respuesta (sirve para decidir qué aviso dar). */
+  private cargar(idSimulacion?: number, alCargar?: (dto: CasoActualDto | null) => void): void {
     this.cargando.set(true);
     this.error.set(null);
     this.idSolicitada.set(idSimulacion);
     this.portal.casoActual(idSimulacion).subscribe({
       next: (dto) => {
-        this.datos.set(dto);
+        this.mostrar(dto, idSimulacion);
         this.cargando.set(false);
+        alCargar?.(dto);
       },
       error: (err: ErrorHttp) => {
         // La simulación recordada ya no es válida (ej. el estudiante salió de
@@ -277,6 +337,34 @@ export class CasoActual implements OnDestroy {
         this.error.set(mensaje(err, 'No se pudo cargar el caso actual.'));
       },
     });
+  }
+
+  /** Muestra la respuesta de caso-actual; con 204, averigua si es el hueco entre dos casos. */
+  private mostrar(dto: CasoActualDto | null, idSimulacion: number | undefined): void {
+    this.datos.set(dto);
+    this.entreCasos.set(false);
+    if (dto) {
+      return;
+    }
+    this.simulacionYaTuvoCasos(idSimulacion).subscribe((tuvo) => {
+      // Si mientras tanto llegó un caso, ya no aplica.
+      if (!this.datos()) {
+        this.entreCasos.set(tuvo);
+      }
+    });
+  }
+
+  /** Sin `idSimulacion` (eligió el backend) se mira la más reciente del estudiante. */
+  private simulacionYaTuvoCasos(idSimulacion: number | undefined): Observable<boolean> {
+    const id$ =
+      idSimulacion !== undefined
+        ? of(idSimulacion)
+        : this.misSimulaciones$.pipe(map((lista) => lista[0]?.idSimulacion));
+    return id$.pipe(
+      switchMap((id) => (id === undefined ? of([]) : this.portal.historialCasos(id))),
+      map((casos) => casos.length > 0),
+      catchError(() => of(false)),
+    );
   }
 
   private claveSimulacion(): string | null {

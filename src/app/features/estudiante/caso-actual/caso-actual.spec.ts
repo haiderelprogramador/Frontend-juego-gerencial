@@ -7,6 +7,7 @@ import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
 import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
 import { financieroANumeros, financieroVacio } from '../../simulacion/models/financiero.model';
 import { signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { CasoActual as CasoActualDto, Decision, MiSimulacion } from '../models/portal-estudiante.model';
 import { aFechaBogota, calcularFase, CasoActual, formatearCuenta } from './caso-actual';
@@ -157,7 +158,7 @@ describe('CasoActual', () => {
     vi.setSystemTime(AHORA);
     await TestBed.configureTestingModule({
       imports: [CasoActual],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });
@@ -357,11 +358,112 @@ describe('CasoActual', () => {
     http
       .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '40')
       .flush(null, { status: 204, statusText: 'No Content' });
+    // Simulación sin casos visibles todavía: no es el hueco entre dos casos.
+    http.expectOne({ method: 'GET', url: `${URL_SIMULACIONES}/40/casos` }).flush([]);
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
     expect(host.textContent).toContain('No hay un caso activo todavía');
     expect(host.querySelector<HTMLSelectElement>('.selector-simulacion select')!.value).toBe('40');
+  });
+
+  describe('caso cerrado por el docente mientras el estudiante miraba', () => {
+    it('si decidir da 400 y al recargar el caso ya cerró, avisa y muestra la información nueva', () => {
+      const fixture = crearFixture(casoActualDto({ caso: casoEstudiante(-UNA_HORA_MS, UNA_HORA_MS) }));
+      const cmp = fixture.componentInstance;
+      cmp.eleccion.set('1');
+      cmp.confirmarDecision();
+      http
+        .expectOne({ method: 'POST', url: URL_DECISION })
+        .flush({ message: 'El caso no está activo' }, { status: 400, statusText: 'Bad Request' });
+
+      // Recarga la MISMA simulación: el backend ya pasó al caso siguiente.
+      const siguiente = { ...casoEstudiante(-UNA_HORA_MS, UNA_HORA_MS), id: 13, nombre: 'Crisis de proveedores' };
+      http
+        .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '23')
+        .flush(casoActualDto({ caso: siguiente }));
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.textContent).toContain('El docente cerró este caso antes de que se registrara la decisión.');
+      expect(cmp.caso()?.id).toBe(13);
+      expect(cmp.error()).toBeNull();
+      expect(cmp.eleccion()).toBe('');
+    });
+
+    it('si decidir da 400 pero el caso sigue abierto, muestra el error del backend (no el aviso de cierre)', () => {
+      const fixture = crearFixture(casoActualDto({ caso: casoEstudiante(-UNA_HORA_MS, UNA_HORA_MS) }));
+      const cmp = fixture.componentInstance;
+      cmp.eleccion.set('1');
+      cmp.confirmarDecision();
+      http
+        .expectOne({ method: 'POST', url: URL_DECISION })
+        .flush({ message: 'Solo el líder puede decidir' }, { status: 400, statusText: 'Bad Request' });
+      http
+        .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '23')
+        .flush(casoActualDto({ caso: casoEstudiante(-UNA_HORA_MS, UNA_HORA_MS) }));
+
+      expect(cmp.error()).toBe('Solo el líder puede decidir');
+      expect(cmp.avisoCierre()).toBeNull();
+    });
+
+    it('un error que no es 400 no recarga: solo lo muestra', () => {
+      const fixture = crearFixture(casoActualDto({ caso: casoEstudiante(-UNA_HORA_MS, UNA_HORA_MS) }));
+      const cmp = fixture.componentInstance;
+      cmp.eleccion.set('1');
+      cmp.confirmarDecision();
+      http
+        .expectOne({ method: 'POST', url: URL_DECISION })
+        .flush({ message: 'Error interno' }, { status: 500, statusText: 'Server Error' });
+      http.expectNone((r) => r.url === URL_CASO_ACTUAL);
+      expect(cmp.error()).toBe('Error interno');
+    });
+
+    it('al volver a la pestaña recarga en silencio la misma simulación', () => {
+      const fixture = crearFixture(casoActualDto({ caso: casoEstudiante(-UNA_HORA_MS, UNA_HORA_MS) }));
+      const cmp = fixture.componentInstance;
+      cmp.eleccion.set('2');
+      const visibilidad = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(cmp.cargando()).toBe(false);
+      const siguiente = { ...casoEstudiante(-UNA_HORA_MS, UNA_HORA_MS), id: 13 };
+      http
+        .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '23')
+        .flush(casoActualDto({ caso: siguiente }));
+
+      expect(cmp.caso()?.id).toBe(13);
+      // Caso distinto: la selección del caso viejo no aplica.
+      expect(cmp.eleccion()).toBe('');
+      visibilidad.mockRestore();
+    });
+
+    it('con la pestaña oculta no recarga, y al destruir deja de escuchar', () => {
+      const fixture = crearFixture(casoActualDto());
+      const visibilidad = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+      http.expectNone((r) => r.url === URL_CASO_ACTUAL);
+
+      visibilidad.mockReturnValue('visible');
+      fixture.destroy();
+      document.dispatchEvent(new Event('visibilitychange'));
+      http.expectNone((r) => r.url === URL_CASO_ACTUAL);
+      visibilidad.mockRestore();
+    });
+
+    it('204 en una simulación que ya tuvo casos: explica el hueco entre casos y apunta a Reportes', () => {
+      const fixture = TestBed.createComponent(CasoActual);
+      http.expectOne({ method: 'GET', url: URL_CASO_ACTUAL }).flush(null, { status: 204, statusText: 'No Content' });
+      http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([miSimulacion(23, 'EN_CURSO')]);
+      // Sin simulación elegida, mira la más reciente del estudiante.
+      http.expectOne({ method: 'GET', url: `${URL_SIMULACIONES}/23/casos` }).flush([casoEstudiante(-2 * UNA_HORA_MS, -UNA_HORA_MS)]);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.textContent).toContain('El caso anterior se cerró. El siguiente todavía no está publicado');
+      expect(host.querySelector('a[href="/estudiante/reportes-financieros"]')).toBeTruthy();
+      expect(host.textContent).not.toContain('No hay un caso activo todavía');
+    });
   });
 
   it('pasa de "visualizacion" a "partida" solo, sin recargar, cuando el reloj cruza fechaInicioPartida', () => {

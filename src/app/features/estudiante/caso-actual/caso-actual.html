@@ -14,6 +14,9 @@
 @if (error(); as msg) {
   <app-alerta tipo="error" [mensaje]="msg" />
 }
+@if (avisoCierre(); as msg) {
+  <app-alerta tipo="info" [mensaje]="msg" />
+}
 
 @if (cargando()) {
   <p class="t-muted">Cargando…</p>
@@ -215,6 +218,11 @@
       </div>
     </div>
   </section>
+} @else if (entreCasos()) {
+  <p class="t-muted">
+    El caso anterior se cerró. El siguiente todavía no está publicado; tus resultados aparecerán en
+    <a routerLink="/estudiante/reportes-financieros">Reportes financieros</a>.
+  </p>
 } @else {
   <p class="t-muted">No hay un caso activo todavía. Cuando el docente active uno, aparecerá aquí.</p>
 }
