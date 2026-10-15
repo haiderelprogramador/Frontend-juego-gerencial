@@ -64,6 +64,23 @@ describe.runIf(!API_CONFIG.demoMode && API_CONFIG.disponible.listarEstudiantes)(
     return fixture;
   }
 
+  it('"+ Nueva simulación" la crea en BORRADOR y no llama a /programar', () => {
+    const cmp = montar().componentInstance;
+    cmp.abrirNuevaSimulacion();
+    cmp.nuevaSimNombre.set('Gerencia 2027-1');
+    cmp.nuevaSimInicio.set('2099-02-01T08:00');
+    cmp.crearSimulacion();
+
+    http
+      .expectOne({ method: 'POST', url: SIMS })
+      .flush({ id: 5, idUsuarioCoordinador: 9, nombre: 'Gerencia 2027-1', fechaInicio: '', fechaFin: '', estado: 'BORRADOR' });
+    // Programarla al crearla la haría arrancar sola en su fecha de inicio sin estar armada.
+    http.expectNone({ method: 'POST', url: `${SIMS}/5/programar` });
+
+    expect(cmp.creandoSimulacion()).toBe(false);
+    expect(cmp.simulaciones().find((s) => s.id === 5)?.estado).toBe('BORRADOR');
+  });
+
   it('carga las empresas e integrantes de la simulación de la URL', () => {
     const cmp = montar().componentInstance;
     expect(cmp.empresas().map((e) => e.codigoEmpresa)).toEqual(['EMP-001', 'EMP-002']);

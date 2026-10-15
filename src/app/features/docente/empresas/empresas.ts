@@ -190,7 +190,11 @@ export class Empresas {
     this.creandoSimulacion.set(true);
   }
 
-  /** Crea y programa (BORRADOR -> PROGRAMADA) de una vez, igual que en Casos. */
+  /**
+   * Crea la simulación en BORRADOR, igual que en Casos. No la programa: con el
+   * arranque automático, arrancaría sola en su fecha de inicio aunque no esté
+   * armada. Se programa desde el panel (paso 4).
+   */
   crearSimulacion(): void {
     if (this.guardandoSimulacion()) {
       return;
@@ -221,12 +225,7 @@ export class Empresas {
     this.errorNuevaSimulacion.set(null);
     this.guardandoSimulacion.set(true);
     this.simulacionService.crear(req).subscribe({
-      next: (creada) =>
-        this.simulacionService.programar(creada.id).subscribe({
-          next: (programada) => this.simulacionCreada(programada),
-          // Quedó en BORRADOR: igual sirve para armar empresas.
-          error: () => this.simulacionCreada(creada),
-        }),
+      next: (creada) => this.simulacionCreada(creada),
       error: (err: ErrorHttp) => {
         this.guardandoSimulacion.set(false);
         this.errorNuevaSimulacion.set(mensaje(err, 'No se pudo crear la simulación.'));

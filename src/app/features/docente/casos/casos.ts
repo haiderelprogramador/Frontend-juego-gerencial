@@ -209,9 +209,10 @@ export class Casos {
   }
 
   /**
-   * Crea la simulación y la programa de una vez (BORRADOR -> PROGRAMADA): no
-   * hay otra pantalla que llame a `/programar`, y sin eso nunca se podría
-   * iniciar. Al terminar la deja seleccionada en el formulario del caso.
+   * Crea la simulación en BORRADOR y la deja seleccionada en el formulario
+   * del caso. NO la programa: con el arranque automático, una simulación
+   * PROGRAMADA pasa sola a EN_CURSO en su fecha de inicio, aunque el docente
+   * no haya terminado de armarla. Se programa desde el panel (paso 4).
    */
   crearSimulacion(): void {
     if (this.guardandoSimulacion()) {
@@ -241,18 +242,7 @@ export class Casos {
     this.errorNuevaSimulacion.set(null);
     this.guardandoSimulacion.set(true);
     this.simulacionService.crear(req).subscribe({
-      next: (creada) =>
-        this.simulacionService.programar(creada.id).subscribe({
-          next: (programada) => this.simulacionCreada(programada),
-          error: (err: ErrorHttp) => {
-            // Quedó creada en BORRADOR: igual sirve para cargarle casos.
-            this.simulacionCreada(creada);
-            this.errorFormulario.set(
-              mensaje(err, 'La simulación se creó, pero no se pudo programar.') +
-                ' Quedó en borrador.',
-            );
-          },
-        }),
+      next: (creada) => this.simulacionCreada(creada),
       error: (err: ErrorHttp) => {
         this.guardandoSimulacion.set(false);
         this.errorNuevaSimulacion.set(mensaje(err, 'No se pudo crear la simulación.'));

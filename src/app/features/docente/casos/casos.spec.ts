@@ -603,7 +603,6 @@ describe('Casos', () => {
       c.nuevaSimInicio.set('2026-10-05T08:00');
       c.crearSimulacion();
       http.expectOne({ method: 'POST', url: URL_SIMULACIONES }).flush(simulacion(7, 'BORRADOR'));
-      http.expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/7/programar` }).flush(simulacion(7));
 
       expect(c.idSimulacion()).toBe(7);
       expect(c.esPrimerCaso()).toBe(true);
@@ -873,7 +872,7 @@ describe('Casos', () => {
     });
   });
 
-  it('"+ Nueva simulación" crea, programa y deja seleccionada la simulación nueva', () => {
+  it('"+ Nueva simulación" crea la simulación en BORRADOR (sin programarla) y la deja seleccionada', () => {
     const fixture = crearFixture();
     const c = fixture.componentInstance;
     c.nuevoCaso();
@@ -892,14 +891,14 @@ describe('Casos', () => {
       fechaFin: new Date('2026-12-05T18:00').toISOString(),
     });
     alta.flush({ ...simulacion(7, 'BORRADOR'), nombre: 'Gerencia 2026-2' });
-    http
-      .expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/7/programar` })
-      .flush({ ...simulacion(7, 'PROGRAMADA'), nombre: 'Gerencia 2026-2' });
+    // Con el arranque automático, programarla acá la haría arrancar sola sin estar armada.
+    http.expectNone({ method: 'POST', url: `${URL_SIMULACIONES}/7/programar` });
     fixture.detectChanges();
 
     expect(c.creandoSimulacion()).toBe(false);
     expect(c.idSimulacion()).toBe(7);
     expect(c.simulacionesDisponibles().map((s) => s.id)).toContain(7);
+    expect(c.simulaciones().find((s) => s.id === 7)?.estado).toBe('BORRADOR');
     const select = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('.selector-sim select')!;
     expect(select.value).toBe('7');
   });
@@ -915,27 +914,6 @@ describe('Casos', () => {
 
     expect(c.errorNuevaSimulacion()).toBeTruthy();
     http.expectNone({ method: 'POST', url: URL_SIMULACIONES });
-  });
-
-  it('si /programar falla, la simulación queda en borrador pero igual seleccionada', () => {
-    const fixture = crearFixture();
-    const c = fixture.componentInstance;
-    c.nuevoCaso();
-    c.abrirNuevaSimulacion();
-    c.nuevaSimNombre.set('X');
-    c.nuevaSimInicio.set('2026-10-05T08:00');
-
-    c.crearSimulacion();
-
-    const alta = http.expectOne({ method: 'POST', url: URL_SIMULACIONES });
-    expect(alta.request.body.fechaFin).toBeUndefined();
-    alta.flush(simulacion(8, 'BORRADOR'));
-    http
-      .expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/8/programar` })
-      .flush({ message: 'Error' }, { status: 400, statusText: 'Bad Request' });
-
-    expect(c.idSimulacion()).toBe(8);
-    expect(c.errorFormulario()).toContain('borrador');
   });
 
   it('un error al listar simulaciones se muestra en vez de dejar el selector vacío en silencio', () => {
