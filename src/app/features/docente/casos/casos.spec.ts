@@ -4,7 +4,9 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import * as XLSX from 'xlsx';
 
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
-import { CasoApi } from '../../simulacion/models/caso-api.model';
+import { afterEach, vi } from 'vitest';
+
+import { CasoApi, DecisionEmpresa } from '../../simulacion/models/caso-api.model';
 import { CAMPOS_FINANCIEROS, CampoFinanciero, FinancieroTexto } from '../../simulacion/models/financiero.model';
 import { Simulacion } from '../simulaciones/models/simulacion.model';
 import { Casos } from './casos';
@@ -767,19 +769,108 @@ describe('Casos', () => {
     });
   });
 
-  it('"Activar" llama al backend y refresca la lista', () => {
-    const fixture = crearFixture([casoApi(1, 'A', 'activo'), casoApi(2, 'B', 'borrador')]);
+  describe('"Activar" (cierra el caso activo de la misma simulación)', () => {
+    afterEach(() => vi.restoreAllMocks());
 
-    fixture.componentInstance.activarCaso(2);
+    function fila(idEmpresa: number, decidio: boolean): DecisionEmpresa {
+      return {
+        idEmpresa,
+        codigoEmpresa: `EMP-${idEmpresa}`,
+        nombreEmpresa: `Empresa ${idEmpresa}`,
+        decidio,
+        idOpcion: null,
+        opcion: null,
+        resultado: null,
+        decididaPor: null,
+        fechaDecision: null,
+      };
+    }
 
-    http.expectOne({ method: 'POST', url: `${URL_CASOS}/2/activar` }).flush(casoApi(2, 'B', 'activo'));
-    http
-      .expectOne({ method: 'GET', url: URL_CASOS })
-      .flush([casoApi(1, 'A', 'borrador'), casoApi(2, 'B', 'activo')]);
+    function activarYRefrescar() {
+      http.expectOne({ method: 'POST', url: `${URL_CASOS}/2/activar` }).flush(casoApi(2, 'B', 'activo'));
+      http
+        .expectOne({ method: 'GET', url: URL_CASOS })
+        .flush([casoApi(1, 'A', 'borrador'), casoApi(2, 'B', 'activo')]);
+    }
 
-    const activos = fixture.componentInstance.casos().filter((c) => c.estado === 'activo');
-    expect(activos).toHaveLength(1);
-    expect(activos[0].id).toBe(2);
+    it('avisa cuántas empresas no decidieron y, si se confirma, activa y refresca la lista', () => {
+      const fixture = crearFixture([casoApi(1, 'A', 'activo'), casoApi(2, 'B', 'borrador')]);
+      const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      fixture.componentInstance.activarCaso(2);
+      http
+        .expectOne({ method: 'GET', url: `${URL_CASOS}/1/decisiones` })
+        .flush([fila(1, true), fila(2, false), fila(3, false)]);
+
+      expect(confirmar).toHaveBeenCalledWith(
+        'Activar «B» cierra «A» ahora mismo. 2 empresas todavía no han decidido y recibirán la penalización.',
+      );
+      activarYRefrescar();
+      const activos = fixture.componentInstance.casos().filter((c) => c.estado === 'activo');
+      expect(activos.map((c) => c.id)).toEqual([2]);
+      expect(fixture.componentInstance.activandoId()).toBeNull();
+    });
+
+    it('si todas decidieron basta con una confirmación simple', () => {
+      const fixture = crearFixture([casoApi(1, 'A', 'activo'), casoApi(2, 'B', 'borrador')]);
+      const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      fixture.componentInstance.activarCaso(2);
+      http.expectOne({ method: 'GET', url: `${URL_CASOS}/1/decisiones` }).flush([fila(1, true), fila(2, true)]);
+
+      expect(confirmar.mock.calls[0][0]).toBe('Activar «B» cierra «A» ahora mismo. Todas las empresas ya decidieron. ¿Continuar?');
+      activarYRefrescar();
+    });
+
+    it('si el docente cancela, no activa nada', () => {
+      const fixture = crearFixture([casoApi(1, 'A', 'activo'), casoApi(2, 'B', 'borrador')]);
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+      fixture.componentInstance.activarCaso(2);
+      http.expectOne({ method: 'GET', url: `${URL_CASOS}/1/decisiones` }).flush([fila(1, false)]);
+
+      http.expectNone({ method: 'POST', url: `${URL_CASOS}/2/activar` });
+      expect(fixture.componentInstance.activandoId()).toBeNull();
+    });
+
+    it('sin otro caso activo en esa simulación activa directo, sin preguntar', () => {
+      const otraSim = { ...casoApi(1, 'A', 'activo'), idSimulacion: 2 };
+      const fixture = crearFixture([otraSim, casoApi(2, 'B', 'borrador')]);
+      const confirmar = vi.spyOn(window, 'confirm');
+
+      fixture.componentInstance.activarCaso(2);
+
+      expect(confirmar).not.toHaveBeenCalled();
+      http.expectNone((r) => r.url.endsWith('/decisiones'));
+      http.expectOne({ method: 'POST', url: `${URL_CASOS}/2/activar` }).flush(casoApi(2, 'B', 'activo'));
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([otraSim, casoApi(2, 'B', 'activo')]);
+    });
+
+    it('si no se pueden consultar las decisiones, igual advierte la penalización', () => {
+      const fixture = crearFixture([casoApi(1, 'A', 'activo'), casoApi(2, 'B', 'borrador')]);
+      const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+      fixture.componentInstance.activarCaso(2);
+      http
+        .expectOne({ method: 'GET', url: `${URL_CASOS}/1/decisiones` })
+        .flush(null, { status: 500, statusText: 'Server Error' });
+
+      expect(confirmar.mock.calls[0][0]).toContain('No se pudo consultar cuántas empresas faltan');
+      expect(confirmar.mock.calls[0][0]).toContain('recibirán la penalización');
+    });
+
+    it('si la fecha de fin del caso activo ya pasó (ya está cerrado), no cuenta pendientes', () => {
+      const yaCerrado = { ...casoApi(1, 'A', 'activo'), fechaFinPartida: '2020-01-01T00:00:00' };
+      const fixture = crearFixture([yaCerrado, casoApi(2, 'B', 'borrador')]);
+      const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      fixture.componentInstance.activarCaso(2);
+
+      http.expectNone((r) => r.url.endsWith('/decisiones'));
+      expect(confirmar).toHaveBeenCalledWith('¿Activar «B»?');
+      http.expectOne({ method: 'POST', url: `${URL_CASOS}/2/activar` }).flush(casoApi(2, 'B', 'activo'));
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([casoApi(2, 'B', 'activo')]);
+    });
   });
 
   it('"+ Nueva simulación" crea, programa y deja seleccionada la simulación nueva', () => {

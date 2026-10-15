@@ -14,6 +14,7 @@ import { describirImpacto, formatearMoneda } from '../../simulacion/models/finan
 import { AuthService } from '../../../core/services/auth.service';
 import { CasoActual as CasoActualDto, MiSimulacion } from '../models/portal-estudiante.model';
 import { PortalEstudianteService } from '../services/portal-estudiante.service';
+import { aFechaBogota } from '../../../shared/utils/fecha-bogota';
 
 type Fase = 'visualizacion' | 'partida' | 'cierre';
 /** Estado visual de la tarjeta "Opciones de decisión" (distinto de `Fase`). */
@@ -25,24 +26,8 @@ const ORDEN_FASES: Fase[] = ['visualizacion', 'partida', 'cierre'];
 /** Cada cuánto se recalculan fase y cuenta regresiva contra el reloj (ms). */
 const INTERVALO_RELOJ_MS = 5000;
 
-/**
- * El backend manda `fechaVisualizacion`/`fechaInicioPartida`/`fechaFinPartida`
- * ya en hora de Colombia pero SIN sufijo de zona (ej. "2026-09-29T14:00:00").
- * `new Date(...)`/`Date.parse(...)` interpretarían eso como hora LOCAL DEL
- * NAVEGADOR, no de Bogotá — si alguien abre la app desde otro huso horario,
- * la comparación contra "ahora" queda corrida. Colombia no tiene horario de
- * verano, así que el offset es siempre fijo: -05:00.
- */
-const OFFSET_BOGOTA = '-05:00';
-const TIENE_ZONA_HORARIA = /[Zz]$|[+-]\d{2}:?\d{2}$/;
-
-/** Parsea una fecha del backend como hora de Bogotá si no trae ya su propia zona. */
-export function aFechaBogota(fecha: string | undefined): number {
-  if (!fecha) {
-    return NaN;
-  }
-  return Date.parse(TIENE_ZONA_HORARIA.test(fecha) ? fecha : `${fecha}${OFFSET_BOGOTA}`);
-}
+// Vive en shared/utils porque Casos (docente) también la usa; se reexporta aquí por compatibilidad.
+export { aFechaBogota } from '../../../shared/utils/fecha-bogota';
 
 function mensaje(err: ErrorHttp, porDefecto: string): string {
   return err?.error?.message ?? err?.message ?? porDefecto;
@@ -149,7 +134,7 @@ export class CasoActual implements OnDestroy {
     this.ahora.set(Date.now()),
   );
 
-  /** Se calcula solo contra las fechas del caso — no hay forma de forzarla a mano. */
+  /** Se calcula contra las fechas del caso y `partidaFinalizada` — no hay forma de forzarla a mano. */
   readonly fase = computed<Fase>(() => {
     const c = this.caso();
     return c ? calcularFase(c, this.ahora()) : 'visualizacion';
@@ -336,8 +321,15 @@ export class CasoActual implements OnDestroy {
  * Fase de un caso según la hora actual: antes de `fechaInicioPartida` está en
  * "visualizacion", entre inicio y `fechaFinPartida` está en "partida", después
  * en "cierre". Si una fecha no es válida, se ignora esa frontera en vez de romper.
+ *
+ * `partidaFinalizada` manda sobre las fechas: el backend también cierra el
+ * caso antes de tiempo (el docente activó otro caso o finalizó la
+ * simulación), y entonces es "cierre" aunque `fechaFinPartida` no haya llegado.
  */
 export function calcularFase(caso: CasoEstudiante, ahoraMs: number): Fase {
+  if (caso.partidaFinalizada) {
+    return 'cierre';
+  }
   const inicioMs = aFechaBogota(caso.fechaInicioPartida);
   const finMs = aFechaBogota(caso.fechaFinPartida);
   if (Number.isFinite(inicioMs) && ahoraMs < inicioMs) {

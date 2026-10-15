@@ -122,6 +122,16 @@ describe('calcularFase (pura)', () => {
     expect(calcularFase(caso, aFechaBogota('2026-09-29T15:00:00'))).toBe('cierre');
   });
 
+  it('partidaFinalizada en true -> cierre, aunque la fecha de fin no haya llegado (cierre anticipado)', () => {
+    const cerrado = { ...caso, partidaFinalizada: true } as CasoEstudiante;
+    expect(calcularFase(cerrado, aFechaBogota('2026-09-29T12:00:00'))).toBe('cierre');
+  });
+
+  it('partidaFinalizada en false no adelanta el cierre: entre inicio y fin sigue en partida', () => {
+    const abierto = { ...caso, partidaFinalizada: false } as CasoEstudiante;
+    expect(calcularFase(abierto, aFechaBogota('2026-09-29T12:00:00'))).toBe('partida');
+  });
+
   it('con fechas inválidas/vacías no rompe (cae en partida)', () => {
     expect(
       calcularFase({ fechaInicioPartida: '', fechaFinPartida: '' } as CasoEstudiante, Date.now()),
@@ -260,6 +270,16 @@ describe('CasoActual', () => {
     const host = fixture.nativeElement as HTMLElement;
     expect(host.textContent).toContain('Solo el líder de tu empresa puede decidir');
     expect(host.querySelector('.cuenta-regresiva')).toBeFalsy();
+  });
+
+  it('cierre anticipado (partidaFinalizada antes de la fecha de fin): un integrante ve el cierre, no el bloqueo por no ser líder', () => {
+    const caso = { ...casoEstudiante(-UNA_HORA_MS, UNA_HORA_MS), partidaFinalizada: true };
+    const fixture = crearFixture(casoActualDto({ caso, esLider: false, puedeDecidir: false, decision: null }));
+    expect(fixture.componentInstance.fase()).toBe('cierre');
+    expect(fixture.componentInstance.estadoOpciones()).toBe('resultado');
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).not.toContain('Solo el líder de tu empresa puede decidir');
+    expect(host.textContent).toContain('se aplicó la penalización');
   });
 
   it('en fase "cierre" sin decisión, muestra el aviso de penalización por defecto (no inventa un resultado)', () => {

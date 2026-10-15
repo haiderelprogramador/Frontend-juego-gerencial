@@ -50,8 +50,9 @@
               <td class="ta-right">
                 <div class="acciones-caso">
                   @if (c.estado !== 'activo') {
-                    <button type="button" class="btn btn--ghost btn--sm" (click)="activarCaso(c.id)">
-                      Activar
+                    <button type="button" class="btn btn--ghost btn--sm" [disabled]="activandoId() !== null"
+                      (click)="activarCaso(c.id)">
+                      {{ activandoId() === c.id ? 'Activando…' : 'Activar' }}
                     </button>
                   }
                   @if (puedeEditar(c.idSimulacion)) {

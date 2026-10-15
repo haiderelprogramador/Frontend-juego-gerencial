@@ -34,6 +34,7 @@ import { BoletinCaso } from './boletin-caso/boletin-caso';
 import { FinancieroCaso } from './financiero-caso/financiero-caso';
 import { ImpactoFinancieroOpcion } from './impacto-opcion/impacto-opcion';
 import { CasoApiService } from './services/caso-api.service';
+import { CierreCasoService } from './services/cierre-caso.service';
 import { Simulacion, SimulacionRequest } from '../simulaciones/models/simulacion.model';
 import { SimulacionService } from '../simulaciones/services/simulacion.service';
 
@@ -86,12 +87,15 @@ function conSegundos(valor: string): string {
 export class Casos {
   private readonly excelCaso = inject(ExcelCasoService);
   private readonly casoApi = inject(CasoApiService);
+  private readonly cierreCaso = inject(CierreCasoService);
   private readonly simulacionService = inject(SimulacionService);
 
   readonly casos = signal<CasoApi[]>([]);
   readonly simulaciones = signal<Simulacion[]>([]);
   readonly cargando = signal(true);
   readonly guardando = signal(false);
+  /** Caso que se está activando (confirmación + POST), para no disparar dos veces. */
+  readonly activandoId = signal<number | null>(null);
   /** Error de la lista (carga inicial o activar), separado del error del formulario. */
   readonly error = signal<string | null>(null);
   readonly errorFormulario = signal<string | null>(null);
@@ -294,12 +298,36 @@ export class Casos {
     this.tabForm.set('general');
   }
 
-  /** Marca el caso como activo — el que verán los estudiantes en "Caso actual". */
+  /**
+   * Marca el caso como activo — el que verán los estudiantes en "Caso actual".
+   * Si su simulación ya tiene otro caso activo, el backend lo cierra en ese
+   * momento y penaliza a las empresas que no decidieron: antes se pide
+   * confirmación diciendo cuántas son.
+   */
   activarCaso(id: number): void {
+    const caso = this.casos().find((c) => c.id === id);
+    if (!caso || this.activandoId() !== null) {
+      return;
+    }
+    const abierto =
+      this.casos().find((c) => c.idSimulacion === caso.idSimulacion && c.estado === 'activo' && c.id !== id) ?? null;
     this.error.set(null);
-    this.casoApi.activar(id).subscribe({
-      next: () => this.cargarCasos(),
-      error: (err: ErrorHttp) => this.error.set(mensaje(err, 'No se pudo activar el caso.')),
+    this.activandoId.set(id);
+    this.cierreCaso.confirmar(`Activar «${caso.nombre}»`, abierto).subscribe((confirmado) => {
+      if (!confirmado) {
+        this.activandoId.set(null);
+        return;
+      }
+      this.casoApi.activar(id).subscribe({
+        next: () => {
+          this.activandoId.set(null);
+          this.cargarCasos();
+        },
+        error: (err: ErrorHttp) => {
+          this.activandoId.set(null);
+          this.error.set(mensaje(err, 'No se pudo activar el caso.'));
+        },
+      });
     });
   }
 
