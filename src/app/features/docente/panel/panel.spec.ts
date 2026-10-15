@@ -2,11 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
+import { vi } from 'vitest';
 
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
 import { CasoApi, DecisionEmpresa } from '../../simulacion/models/caso-api.model';
 import { Simulacion } from '../simulaciones/models/simulacion.model';
-import { Panel } from './panel';
+import { Panel, mensajeProgramar } from './panel';
 
 const URL_CASOS = apiUrl(API_CONFIG.endpoints.casos);
 const URL_SIMULACIONES = apiUrl(API_CONFIG.endpoints.simulacionesDocente);
@@ -63,8 +64,8 @@ describe('Panel', () => {
     expect(fixture.componentInstance.configuracionCompleta()).toBe(false);
     expect(host.querySelector('.checklist')).toBeTruthy();
     expect(host.textContent).toContain('Sin simulación activa');
-    // el paso 4 queda bloqueado hasta completar 1-3
-    expect(fixture.componentInstance.pasos()[3].bloqueado).toBe(true);
+    // El paso 4 (Programar) es real: no depende de los pasos 1-3, que siguen siendo mock.
+    expect(fixture.componentInstance.pasos()[3].bloqueado).toBe(false);
   });
 
   it('con configuración completa muestra el bloque de simulación activa', () => {
@@ -158,6 +159,182 @@ describe('Panel', () => {
       fixture.detectChanges();
       expect(fixture.componentInstance.entregas()).toHaveLength(1);
       expect(fixture.componentInstance.casoEntregas()?.simulacion).toBe('Simulación #10');
+    });
+  });
+
+  describe('Programar simulación (paso 4)', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    function botonProgramar(host: HTMLElement): HTMLButtonElement | undefined {
+      return [...host.querySelectorAll<HTMLButtonElement>('.paso button')].find((b) =>
+        b.textContent?.includes('Programar'),
+      );
+    }
+
+    it('sin simulaciones en BORRADOR lo dice en el paso 4', () => {
+      const fixture = crearFixture([], [simulacion(10, 'PROGRAMADA')]);
+      const host = fixture.nativeElement as HTMLElement;
+      expect(botonProgramar(host)).toBeUndefined();
+      expect(host.textContent).toContain('No hay simulaciones en borrador');
+    });
+
+    it('confirma que arranca sola y que después no se puede cambiar; si se acepta, programa y refresca', () => {
+      const fixture = crearFixture([], [simulacion(11, 'BORRADOR'), simulacion(10, 'EN_CURSO')]);
+      const host = fixture.nativeElement as HTMLElement;
+      const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      expect(botonProgramar(host)?.textContent).toContain('Programar «Simulación 11»');
+
+      botonProgramar(host)!.click();
+      const texto = confirmar.mock.calls[0][0] as string;
+      expect(texto).toContain('«Simulación 11»');
+      expect(texto).toContain('arranca sola');
+      expect(texto).toContain('ya no se pueden cambiar sus empresas ni sus casos');
+
+      http.expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/11/programar` }).flush(simulacion(11, 'PROGRAMADA'));
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([]);
+      http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([simulacion(11, 'PROGRAMADA')]);
+      fixture.detectChanges();
+
+      expect(host.textContent).toContain('quedó programada');
+      expect(host.textContent).toContain('No hay simulaciones en borrador');
+    });
+
+    it('si el docente cancela no programa', () => {
+      const fixture = crearFixture([], [simulacion(11, 'BORRADOR')]);
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      fixture.componentInstance.programarSimulacion();
+      http.expectNone({ method: 'POST', url: `${URL_SIMULACIONES}/11/programar` });
+    });
+
+    it('si el backend dice que no está lista, muestra el mensaje y cada motivo', () => {
+      const fixture = crearFixture([], [simulacion(11, 'BORRADOR')]);
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      fixture.componentInstance.programarSimulacion();
+      http.expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/11/programar` }).flush(
+        {
+          message: 'La simulación no está lista para programarse',
+          errores: [
+            { campo: 'empresas', mensaje: 'La simulación no tiene empresas' },
+            { campo: 'casos', mensaje: 'La simulación no tiene casos' },
+          ],
+        },
+        { status: 400, statusText: 'Bad Request' },
+      );
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.querySelector('.programar-error')?.textContent).toContain('no está lista para programarse');
+      const motivos = [...host.querySelectorAll('.programar-error__lista li')].map((li) => li.textContent);
+      expect(motivos).toEqual(['La simulación no tiene empresas', 'La simulación no tiene casos']);
+      expect(fixture.componentInstance.programando()).toBe(false);
+    });
+
+    it('con varias en BORRADOR deja elegir cuál programar', () => {
+      const fixture = crearFixture([], [simulacion(11, 'BORRADOR'), simulacion(12, 'BORRADOR')]);
+      const host = fixture.nativeElement as HTMLElement;
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      const select = host.querySelector<HTMLSelectElement>('.paso__programar select')!;
+      expect(select.options).toHaveLength(2);
+
+      select.value = '12';
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      botonProgramar(host)!.click();
+      http.expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/12/programar` }).flush(simulacion(12, 'PROGRAMADA'));
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([]);
+      http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([simulacion(11, 'BORRADOR')]);
+    });
+
+    it('mensajeProgramar sin fecha válida dice "en su fecha de inicio"', () => {
+      expect(mensajeProgramar(simulacion(1, 'BORRADOR'))).toContain('arranca sola en su fecha de inicio');
+    });
+  });
+
+  describe('Finalizar simulación', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    /** Panel con el caso 5 activo en la simulación 10, y sus entregas ya cargadas. */
+    function panelCon(estado: Simulacion['estado'], filas = [fila(1, 'TextilAndes', true), fila(2, 'Grupo Norte', false)]) {
+      const fixture = crearFixture([caso(5, 10, 'activo', 'Expansión regional')], [simulacion(10, estado)]);
+      http.expectOne({ method: 'GET', url: `${URL_CASOS}/5/decisiones` }).flush(filas);
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    function botonFinalizar(host: HTMLElement): HTMLButtonElement | undefined {
+      return [...host.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
+        b.textContent?.includes('Finalizar simulación'),
+      );
+    }
+
+    it('el botón falso "Cerrar periodo y calcular" ya no está', () => {
+      const fixture = panelCon('EN_CURSO');
+      fixture.componentInstance.aplicarPreview(true);
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Cerrar periodo y calcular');
+    });
+
+    it('solo aparece con la simulación EN_CURSO (en los dos estados del panel)', () => {
+      const enCurso = panelCon('EN_CURSO');
+      const host = enCurso.nativeElement as HTMLElement;
+      expect(botonFinalizar(host)).toBeTruthy();
+      enCurso.componentInstance.aplicarPreview(true);
+      enCurso.detectChanges();
+      expect(botonFinalizar(host)).toBeTruthy();
+      enCurso.destroy();
+
+      for (const estado of ['PROGRAMADA', 'FINALIZADA'] as const) {
+        const f = panelCon(estado);
+        expect(botonFinalizar(f.nativeElement as HTMLElement)).toBeUndefined();
+        f.destroy();
+      }
+    });
+
+    it('confirma cuántas empresas serán penalizadas, finaliza y refresca el panel', () => {
+      const fixture = panelCon('EN_CURSO');
+      const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      botonFinalizar(fixture.nativeElement as HTMLElement)!.click();
+      http
+        .expectOne({ method: 'GET', url: `${URL_CASOS}/5/decisiones` })
+        .flush([fila(1, 'TextilAndes', true), fila(2, 'Grupo Norte', false), fila(3, 'Agro Sur', false)]);
+      expect(confirmar).toHaveBeenCalledWith(
+        'Finalizar «Simulación 10» cierra «Expansión regional» ahora mismo. 2 empresas todavía no han decidido y recibirán la penalización.',
+      );
+
+      http.expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/10/finalizar` }).flush(simulacion(10, 'FINALIZADA'));
+      // Refresco: casos, simulaciones y las entregas del caso.
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([caso(5, 10, 'activo', 'Expansión regional')]);
+      http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([simulacion(10, 'FINALIZADA')]);
+      http.expectOne({ method: 'GET', url: `${URL_CASOS}/5/decisiones` }).flush([]);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.textContent).toContain('quedó finalizada');
+      expect(botonFinalizar(host)).toBeUndefined();
+      expect(fixture.componentInstance.finalizando()).toBe(false);
+    });
+
+    it('si el docente cancela no finaliza', () => {
+      const fixture = panelCon('EN_CURSO');
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      fixture.componentInstance.finalizarSimulacion();
+      http.expectOne({ method: 'GET', url: `${URL_CASOS}/5/decisiones` }).flush([fila(1, 'TextilAndes', false)]);
+      http.expectNone({ method: 'POST', url: `${URL_SIMULACIONES}/10/finalizar` });
+      expect(fixture.componentInstance.finalizando()).toBe(false);
+    });
+
+    it('muestra el error del backend si finalizar falla', () => {
+      const fixture = panelCon('EN_CURSO');
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      fixture.componentInstance.finalizarSimulacion();
+      http.expectOne({ method: 'GET', url: `${URL_CASOS}/5/decisiones` }).flush([]);
+      http
+        .expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/10/finalizar` })
+        .flush({ message: 'La simulación no está en curso' }, { status: 400, statusText: 'Bad Request' });
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('La simulación no está en curso');
+      expect(botonFinalizar(fixture.nativeElement as HTMLElement)).toBeTruthy();
     });
   });
 

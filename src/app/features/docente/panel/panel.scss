@@ -325,3 +325,22 @@
     text-align: left;
   }
 }
+
+/* Paso 4 real: selector (si hay varias en borrador) + botón "Programar". */
+.paso__programar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+
+  select {
+    max-width: 12rem;
+  }
+}
+.programar-error__lista {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.8rem;
+  color: var(--bs-danger);
+}

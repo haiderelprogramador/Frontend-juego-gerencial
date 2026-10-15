@@ -38,6 +38,22 @@
     <button type="button" [class.is-active]="tab() === 'casos'" (click)="irA('casos')">Casos</button>
   </nav>
 
+  <!-- "Finalizar simulación" (backend real): la simulación del caso de "Entregas por empresa", solo EN_CURSO. -->
+  <ng-template #botonFinalizar>
+    @if (puedeFinalizar()) {
+      <button type="button" class="btn btn--peligro" [disabled]="finalizando()" (click)="finalizarSimulacion()">
+        {{ finalizando() ? 'Finalizando…' : 'Finalizar simulación' }}
+      </button>
+    }
+  </ng-template>
+
+  @if (errorFinalizar(); as msg) {
+    <app-alerta tipo="error" [mensaje]="msg" />
+  }
+  @if (avisoFinalizar(); as msg) {
+    <app-alerta tipo="exito" [mensaje]="msg" />
+  }
+
   @switch (tab()) {
     @case ('periodos') {
       <div class="periodos">
@@ -69,9 +85,7 @@
             </div>
 
             <div class="periodos__actions">
-              <button type="button" class="btn btn--primario">
-                Cerrar periodo y calcular <span aria-hidden="true">→</span>
-              </button>
+              <ng-container [ngTemplateOutlet]="botonFinalizar" />
               <button type="button" class="btn btn--secundario">Enviar recordatorio</button>
             </div>
           } @else {
@@ -95,7 +109,27 @@
                     <span class="paso__titulo">{{ paso.titulo }}</span>
                     <span class="paso__desc">{{ paso.descripcion }}</span>
                   </span>
-                  @if (paso.bloqueado) {
+                  @if (paso.n === 4) {
+                    <!-- Paso real: programa una simulación en BORRADOR. -->
+                    @if (borradores().length === 0) {
+                      <span class="paso__enlace paso__enlace--off">No hay simulaciones en borrador</span>
+                    } @else {
+                      <span class="paso__programar">
+                        @if (borradores().length > 1) {
+                          <select aria-label="Simulación a programar"
+                            (change)="idSimulacionProgramar.set(+$any($event.target).value)">
+                            @for (s of borradores(); track s.id) {
+                              <option [value]="s.id" [selected]="s.id === simulacionProgramar()?.id">{{ s.nombre }}</option>
+                            }
+                          </select>
+                        }
+                        <button type="button" class="paso__enlace" [disabled]="programando()"
+                          (click)="programarSimulacion()">
+                          {{ programando() ? 'Programando…' : 'Programar «' + simulacionProgramar()?.nombre + '» →' }}
+                        </button>
+                      </span>
+                    }
+                  } @else if (paso.bloqueado) {
                     <span class="paso__enlace paso__enlace--off">{{ paso.enlaceTexto }}</span>
                   } @else if (paso.ruta) {
                     <a class="paso__enlace" [routerLink]="paso.ruta">{{ paso.enlaceTexto }} →</a>
@@ -107,6 +141,22 @@
                 </li>
               }
             </ol>
+
+            @if (errorProgramar(); as e) {
+              <div class="programar-error">
+                <app-alerta tipo="error" [mensaje]="e.mensaje" />
+                @if (e.detalle.length > 0) {
+                  <ul class="programar-error__lista">
+                    @for (d of e.detalle; track $index) {
+                      <li>{{ d }}</li>
+                    }
+                  </ul>
+                }
+              </div>
+            }
+            @if (avisoProgramar(); as msg) {
+              <app-alerta tipo="exito" [mensaje]="msg" />
+            }
 
             <div class="periodos__actions">
               @if (primerPasoPendiente(); as paso) {
@@ -120,6 +170,8 @@
                   </button>
                 }
               }
+              <!-- Este estado (mock) es el que se ve en producción: sin esto el botón real no aparecería. -->
+              <ng-container [ngTemplateOutlet]="botonFinalizar" />
             </div>
           }
         </div>
