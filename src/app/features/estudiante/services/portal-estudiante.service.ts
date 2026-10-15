@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
+import { Boletin } from '../../simulacion/models/boletin.model';
 import { CasoEstudiante, aCasoEstudiante } from '../../simulacion/models/caso-api.model';
 import { CasoActual, Decision, MiEmpresa, MiSimulacion } from '../models/portal-estudiante.model';
 
@@ -79,5 +80,12 @@ export class PortalEstudianteService {
     return this.http
       .get<CasoEstudiante>(`${apiUrl(API_CONFIG.endpoints.estudianteCasos)}/${id}`)
       .pipe(map(aCasoEstudiante));
+  }
+
+  /** Boletín de un caso visible (D14); `null` si responde 204 (el docente no lo publicó). */
+  boletin(idCaso: number): Observable<Boletin | null> {
+    return this.http
+      .get<Boletin>(`${apiUrl(API_CONFIG.endpoints.estudianteCasos)}/${idCaso}/boletin`, { observe: 'response' })
+      .pipe(map((res) => res.body ?? null));
   }
 }

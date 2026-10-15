@@ -112,6 +112,30 @@
             </div>
           }
         </div>
+
+        @if (boletin(); as b) {
+          <div class="card boletin">
+            <h2 class="t-title">Boletín del período</h2>
+            <p class="financiero__sub">Factores de entorno publicados por el docente</p>
+            <div class="financiero__grid">
+              <div class="financiero__item">
+                <span class="financiero__label">Inflación</span>
+                <span class="financiero__val num">{{ porcentaje(b.inflacion) }}</span>
+              </div>
+              <div class="financiero__item">
+                <span class="financiero__label">Tasa de interés</span>
+                <span class="financiero__val num">{{ porcentaje(b.tasaInteres) }}</span>
+              </div>
+              <div class="financiero__item">
+                <span class="financiero__label">Tasa de cambio</span>
+                <span class="financiero__val num">{{ tasaCambio(b.tasaCambio) }}</span>
+              </div>
+            </div>
+            @if (b.nota) {
+              <p class="boletin__nota">{{ b.nota }}</p>
+            }
+          </div>
+        }
       </div>
 
       <div class="caso__col">

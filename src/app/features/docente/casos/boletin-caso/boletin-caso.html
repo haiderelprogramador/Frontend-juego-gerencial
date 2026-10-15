@@ -1,0 +1,110 @@
+<div class="boletin">
+  <div class="boletin__head">
+    <button type="button" class="btn btn--ghost btn--sm" (click)="volver.emit()">← Volver</button>
+    <div>
+      <h2 class="t-title">Boletín del caso</h2>
+      @if (nombreCaso()) {
+        <p class="boletin__caso">{{ nombreCaso() }}</p>
+      }
+    </div>
+  </div>
+
+  <p class="t-muted">
+    Los factores de entorno que verán las empresas en su portal mientras trabajan este caso. Es informativo:
+    no cambia el cálculo financiero.
+  </p>
+
+  @if (soloLectura()) {
+    <app-alerta tipo="info" mensaje="La simulación terminó: el boletín ya no se puede publicar, editar ni eliminar." />
+  }
+  @if (error(); as msg) {
+    <app-alerta tipo="error" [mensaje]="msg" />
+  }
+  @if (aviso(); as msg) {
+    <app-alerta tipo="exito" [mensaje]="msg" />
+  }
+
+  @if (cargando()) {
+    <p class="t-muted">Cargando boletín…</p>
+  } @else {
+    <div class="card boletin__body">
+      @if (boletin(); as b) {
+        <p class="boletin__estado">
+          Publicado el {{ fecha(b.publicadoEn) }}
+          @if (b.actualizadoEn && b.actualizadoEn !== b.publicadoEn) {
+            · actualizado el {{ fecha(b.actualizadoEn) }}
+          }
+        </p>
+      } @else {
+        <p class="boletin__estado">
+          {{ soloLectura() ? 'Este caso no tuvo boletín.' : 'Este caso todavía no tiene boletín.' }}
+        </p>
+      }
+
+      <div class="boletin__campos">
+        <label class="field">
+          <span class="field__label">Inflación (%)</span>
+          <input type="number" step="0.01" inputmode="decimal" name="inflacion"
+            [min]="rangoInflacion.min" [max]="rangoInflacion.max" [value]="inflacion()"
+            [disabled]="soloLectura()" [class.is-invalid]="erroresCampo().inflacion"
+            (input)="editar('inflacion', $any($event.target).value)" placeholder="Ej. 5,2" />
+          @if (erroresCampo().inflacion; as msg) {
+            <span class="field__error">{{ msg }}</span>
+          } @else if (!soloLectura()) {
+            <span class="field__hint">Entre {{ rangoInflacion.min }} y {{ rangoInflacion.max }}.</span>
+          }
+        </label>
+        <label class="field">
+          <span class="field__label">Tasa de interés (%)</span>
+          <input type="number" step="0.01" inputmode="decimal" name="tasaInteres"
+            [min]="rangoTasaInteres.min" [max]="rangoTasaInteres.max" [value]="tasaInteres()"
+            [disabled]="soloLectura()" [class.is-invalid]="erroresCampo().tasaInteres"
+            (input)="editar('tasaInteres', $any($event.target).value)" placeholder="Ej. 9,75" />
+          @if (erroresCampo().tasaInteres; as msg) {
+            <span class="field__error">{{ msg }}</span>
+          } @else if (!soloLectura()) {
+            <span class="field__hint">Entre {{ rangoTasaInteres.min }} y {{ rangoTasaInteres.max }}.</span>
+          }
+        </label>
+        <label class="field">
+          <span class="field__label">Tasa de cambio (COP por USD)</span>
+          <input type="number" step="0.01" min="0" inputmode="decimal" name="tasaCambio" [value]="tasaCambio()"
+            [disabled]="soloLectura()" [class.is-invalid]="erroresCampo().tasaCambio"
+            (input)="editar('tasaCambio', $any($event.target).value)" placeholder="Ej. 4150" />
+          @if (erroresCampo().tasaCambio; as msg) {
+            <span class="field__error">{{ msg }}</span>
+          } @else if (!soloLectura()) {
+            <span class="field__hint">Mayor que 0.</span>
+          }
+        </label>
+      </div>
+
+      <label class="field">
+        <span class="field__label">Nota (opcional)</span>
+        <textarea rows="4" name="nota" [attr.maxlength]="notaMax" [value]="nota()"
+          [disabled]="soloLectura()" [class.is-invalid]="erroresCampo().nota"
+          (input)="editar('nota', $any($event.target).value)"
+          placeholder="Contexto para las empresas: qué está pasando en el entorno este período."></textarea>
+        @if (erroresCampo().nota; as msg) {
+          <span class="field__error">{{ msg }}</span>
+        }
+        @if (!soloLectura()) {
+          <p class="field__hint boletin__contador">{{ caracteresNota() }} / {{ notaMax }}</p>
+        }
+      </label>
+
+      @if (!soloLectura()) {
+        <div class="boletin__acciones">
+          @if (boletin()) {
+            <button type="button" class="btn btn--peligro btn--sm" [disabled]="guardando()" (click)="eliminar()">
+              Eliminar boletín
+            </button>
+          }
+          <button type="button" class="btn btn--primario" [disabled]="guardando()" (click)="publicar()">
+            {{ guardando() ? 'Guardando…' : boletin() ? 'Actualizar boletín' : 'Publicar boletín' }}
+          </button>
+        </div>
+      }
+    </div>
+  }
+</div>

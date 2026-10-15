@@ -65,6 +65,7 @@ function casoActual(overrides: Partial<CasoActual> = {}): CasoActual {
     puedeDecidir: true,
     caso,
     decision: null,
+    boletin: null,
     ...overrides,
   };
 }

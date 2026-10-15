@@ -1,8 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { API_CONFIG, apiUrl } from '../../../../core/api/api.config';
+import { Boletin, BoletinRequest } from '../../../simulacion/models/boletin.model';
 import { CasoApi, CasoRequest, DecisionEmpresa } from '../../../simulacion/models/caso-api.model';
 
 /**
@@ -66,5 +68,21 @@ export class CasoApiService {
 
   eliminar(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/${id}`);
+  }
+
+  /** Boletín del caso (D14); `null` si responde 204 (todavía no se publicó). */
+  obtenerBoletin(idCaso: number): Observable<Boletin | null> {
+    return this.http
+      .get<Boletin>(`${this.base}/${idCaso}/boletin`, { observe: 'response' })
+      .pipe(map((res) => res.body ?? null));
+  }
+
+  /** Publica el boletín del caso, o reemplaza el que había. */
+  publicarBoletin(idCaso: number, req: BoletinRequest): Observable<Boletin> {
+    return this.http.put<Boletin>(`${this.base}/${idCaso}/boletin`, req);
+  }
+
+  eliminarBoletin(idCaso: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${idCaso}/boletin`);
   }
 }

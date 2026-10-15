@@ -103,4 +103,25 @@ describe('PortalEstudianteService', () => {
     service.obtenerCaso(3).subscribe();
     http.expectOne({ method: 'GET', url: `${URL_CASOS}/3` }).flush({});
   });
+
+  it('boletin() hace GET a /estudiante/casos/{id}/boletin', async () => {
+    const promesa = firstValueFrom(service.boletin(3));
+    const boletin = {
+      idCaso: 3,
+      inflacion: 5.2,
+      tasaInteres: 9.75,
+      tasaCambio: 4150,
+      nota: null,
+      publicadoEn: '2026-10-15T09:00:00',
+      actualizadoEn: '2026-10-15T09:00:00',
+    };
+    http.expectOne({ method: 'GET', url: `${URL_CASOS}/3/boletin` }).flush(boletin);
+    expect(await promesa).toEqual(boletin);
+  });
+
+  it('boletin() devuelve null en un 204 (el docente no publicó)', async () => {
+    const promesa = firstValueFrom(service.boletin(3));
+    http.expectOne({ method: 'GET', url: `${URL_CASOS}/3/boletin` }).flush(null, { status: 204, statusText: 'No Content' });
+    expect(await promesa).toBeNull();
+  });
 });

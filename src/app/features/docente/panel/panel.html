@@ -55,8 +55,8 @@
 
             <div class="periodos__stats">
               <div class="mini">
-                <span class="mini__label">Equipos que enviaron</span>
-                <span class="mini__val num">{{ entregasEnviadas() }} / {{ equiposFormados() }}</span>
+                <span class="mini__label">Empresas que decidieron</span>
+                <span class="mini__val num">{{ entregasEnviadas() }} / {{ entregas().length }}</span>
               </div>
               <div class="mini">
                 <span class="mini__label">Cierre programado</span>
@@ -125,21 +125,29 @@
         </div>
 
         <aside class="card entregas">
-          <h3 class="entregas__title">Entregas por equipo</h3>
-          @if (configuracionCompleta()) {
-            <ul class="entregas__list">
-              @for (e of entregas(); track e.equipo) {
-                <li class="entregas__item">
-                  <span>{{ e.equipo }}</span>
-                  @if (e.enviado) {
-                    <app-badge variante="periodo-abierto">✓ Enviado</app-badge>
-                  } @else {
-                    <app-badge variante="pendiente">Pendiente</app-badge>
-                  }
-                </li>
+          <div class="entregas__head">
+            <h3 class="entregas__title">Entregas por empresa</h3>
+            @if (!cargandoEntregas() && entregas().length > 0) {
+              <span class="entregas__conteo num">{{ entregasEnviadas() }} / {{ entregas().length }}</span>
+            }
+          </div>
+
+          @if (casosActivos().length > 1) {
+            <select class="entregas__selector" aria-label="Caso"
+              (change)="elegirCasoEntregas(+$any($event.target).value)">
+              @for (c of casosActivos(); track c.id) {
+                <option [value]="c.id" [selected]="c.id === idCasoEntregas()">{{ c.simulacion }} · {{ c.nombre }}</option>
               }
-            </ul>
-          } @else {
+            </select>
+          } @else if (casoEntregas(); as c) {
+            <p class="entregas__caso">{{ c.simulacion }} · {{ c.nombre }}</p>
+          }
+
+          @if (errorEntregas(); as msg) {
+            <app-alerta tipo="error" [mensaje]="msg" />
+          } @else if (cargandoEntregas()) {
+            <p class="entregas__cargando">Cargando entregas…</p>
+          } @else if (!casoEntregas()) {
             <div class="entregas__vacio">
               <span class="entregas__vacio-icono" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
@@ -149,12 +157,37 @@
                 </svg>
               </span>
               <p class="entregas__vacio-texto">
-                Aún no hay equipos formados. Cuando existan, verás aquí el estado de entrega de cada uno.
+                No hay un caso activo. Cuando actives uno, verás aquí qué empresas ya decidieron.
               </p>
-              <button type="button" class="btn btn--secundario" (click)="irA('equipos')">
-                Ir a Estudiantes y empresas
-              </button>
+              <button type="button" class="btn btn--secundario" (click)="irA('casos')">Ir a Casos</button>
             </div>
+          } @else if (entregas().length === 0) {
+            <div class="entregas__vacio">
+              <p class="entregas__vacio-texto">
+                Esta simulación todavía no tiene empresas. Cuando las armes, verás aquí el estado de cada una.
+              </p>
+              <a class="btn btn--secundario" routerLink="/docente/empresas">Ir a Empresas</a>
+            </div>
+          } @else {
+            <ul class="entregas__list">
+              @for (e of entregas(); track e.idEmpresa) {
+                <li class="entregas__item">
+                  <span class="entregas__empresa">
+                    <span>{{ e.nombreEmpresa }}</span>
+                    @if (e.decidio && (e.decididaPor || e.fechaDecision)) {
+                      <span class="entregas__detalle">
+                        {{ e.decididaPor }}@if (e.decididaPor && e.fechaDecision) { · }{{ fechaEntrega(e.fechaDecision) }}
+                      </span>
+                    }
+                  </span>
+                  @if (e.decidio) {
+                    <app-badge variante="periodo-abierto">✓ Decidió</app-badge>
+                  } @else {
+                    <app-badge variante="pendiente">Pendiente</app-badge>
+                  }
+                </li>
+              }
+            </ul>
           }
         </aside>
       </div>

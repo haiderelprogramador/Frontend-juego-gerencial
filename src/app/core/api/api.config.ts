@@ -51,7 +51,10 @@ export const API_CONFIG = {
     /**
      * Casos (API Estratego, 57 endpoints, doc 28-sep-2026 — CasoApiService):
      *  GET / POST -> CasoRequest ; GET/PUT/DELETE `/{id}` ; POST `/{id}/activar`
-     *  GET `/{id}/decisiones` -> DecisionEmpresa[]. Rol DOCENTE.
+     *  GET `/{id}/decisiones` -> DecisionEmpresa[] (una fila por empresa de la
+     *  simulación, con `decidio`). Rol DOCENTE.
+     *  Boletín (D14): PUT `/{id}/boletin` -> BoletinRequest ; GET -> Boletin o
+     *  204 ; DELETE. Ver `disponible.boletin`.
      */
     casos: '/docente/casos',
 
@@ -86,7 +89,10 @@ export const API_CONFIG = {
     estudianteSimulaciones: '/estudiante/simulaciones',
     /** GET `/{idEmpresa}` -> MiEmpresa (con integrantes[]); 400 si no pertenece. */
     estudianteEmpresas: '/estudiante/empresas',
-    /** GET `/{id}` -> CasoEstudiante; 400 si el caso aún no es visible. */
+    /**
+     * GET `/{id}` -> CasoEstudiante; 400 si el caso aún no es visible.
+     * GET `/{id}/boletin` -> Boletin o 204 (D14, ver `disponible.boletin`).
+     */
     estudianteCasos: '/estudiante/casos',
   },
 
@@ -98,6 +104,12 @@ export const API_CONFIG = {
   disponible: {
     /** GET /docente/estudiantes — confirmado funcionando (53/53 endpoints probados, 29-sep-2026). */
     listarEstudiantes: true,
+    /**
+     * Boletín del caso (D14): los endpoints todavía no están en develop. En
+     * `false`, el docente no ve el botón "Boletín" en Casos. El portal del
+     * estudiante no depende de esto: muestra `caso-actual.boletin` si viene.
+     */
+    boletin: false,
   },
 } as const;
 

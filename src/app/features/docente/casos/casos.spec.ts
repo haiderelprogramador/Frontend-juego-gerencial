@@ -120,6 +120,58 @@ describe('Casos', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('.tabla-casos')).toBeTruthy();
   });
 
+  it('sin los endpoints del boletín (disponible.boletin = false) no muestra el botón "Boletín"', () => {
+    const fixture = crearFixture();
+    const botones = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.acciones-caso button'));
+    expect(botones.some((b) => b.textContent?.trim() === 'Boletín')).toBe(false);
+  });
+
+  it('con el boletín disponible, "Boletín" abre la vista del boletín de ese caso', () => {
+    const fixture = crearFixture();
+    fixture.componentInstance.boletinDisponible.set(true);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const boton = Array.from(host.querySelectorAll<HTMLButtonElement>('.acciones-caso button')).find(
+      (b) => b.textContent?.trim() === 'Boletín',
+    );
+    expect(boton).toBeTruthy();
+
+    boton!.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.vista()).toBe('boletin');
+    expect(host.querySelector('app-boletin-caso')).toBeTruthy();
+    http
+      .expectOne({ method: 'GET', url: `${URL_CASOS}/1/boletin` })
+      .flush(null, { status: 204, statusText: 'No Content' });
+
+    fixture.componentInstance.volverALista();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.vista()).toBe('lista');
+    expect(fixture.componentInstance.casoBoletin()).toBeNull();
+  });
+
+  it('con la simulación FINALIZADA, "Boletín" abre el boletín de solo lectura', () => {
+    const fixture = crearFixture([casoApi(1, 'TextilAndes S.A.', 'activo')], [simulacion(1, 'FINALIZADA')]);
+    fixture.componentInstance.boletinDisponible.set(true);
+    fixture.componentInstance.abrirBoletin(1);
+    fixture.detectChanges();
+    http.expectOne({ method: 'GET', url: `${URL_CASOS}/1/boletin` }).flush({
+      idCaso: 1,
+      inflacion: 5.2,
+      tasaInteres: 9.75,
+      tasaCambio: 4150,
+      nota: null,
+      publicadoEn: '2026-10-01T08:00:00',
+      actualizadoEn: '2026-10-01T08:00:00',
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.textContent).toContain('La simulación terminó');
+    expect(host.textContent).not.toContain('Actualizar boletín');
+    expect(host.textContent).not.toContain('Eliminar boletín');
+  });
+
   it('"+ Nuevo caso" abre el formulario en la pestaña Info General', () => {
     const fixture = crearFixture();
     fixture.componentInstance.nuevoCaso();

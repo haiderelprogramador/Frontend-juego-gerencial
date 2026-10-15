@@ -1,0 +1,53 @@
+.boletin {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    h2 {
+      margin: 0;
+    }
+  }
+  &__caso {
+    margin: 0.1rem 0 0;
+    font-size: 0.85rem;
+    color: var(--bs-muted);
+  }
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.4rem;
+  }
+  &__estado {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--bs-muted);
+  }
+  &__campos {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+  .is-invalid {
+    border-color: var(--bs-danger);
+  }
+  &__contador {
+    text-align: right;
+  }
+  &__acciones {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.6rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .boletin__campos {
+    grid-template-columns: 1fr;
+  }
+}

@@ -86,6 +86,7 @@ function casoActualDto(overrides: Partial<CasoActualDto> = {}): CasoActualDto {
     puedeDecidir: true,
     caso: casoEstudiante(UNA_HORA_MS, 2 * UNA_HORA_MS),
     decision: null,
+    boletin: null,
     ...overrides,
   };
 }
@@ -169,6 +170,41 @@ describe('CasoActual', () => {
     const fixture = crearFixture(null);
     const host = fixture.nativeElement as HTMLElement;
     expect(host.textContent).toContain('No hay un caso activo todavía');
+  });
+
+  it('muestra el boletín del período cuando caso-actual lo trae', () => {
+    const fixture = crearFixture(
+      casoActualDto({
+        boletin: {
+          idCaso: 12,
+          inflacion: 5.2,
+          tasaInteres: 9.75,
+          tasaCambio: 4150,
+          nota: 'El dólar viene subiendo.',
+          publicadoEn: '2026-09-29T08:00:00',
+          actualizadoEn: '2026-09-29T08:00:00',
+        },
+      }),
+    );
+    const card = (fixture.nativeElement as HTMLElement).querySelector('.boletin');
+    expect(card).toBeTruthy();
+    const texto = card!.textContent!.replace(/\s+/g, ' ');
+    expect(texto).toContain('Boletín del período');
+    expect(texto).toContain('5,2 %');
+    expect(texto).toContain('9,75 %');
+    expect(texto).toContain('4.150 COP/USD');
+    expect(texto).toContain('El dólar viene subiendo.');
+  });
+
+  it('sin boletín (null, o sin el campo mientras el backend no lo mande) no muestra la tarjeta', () => {
+    const fixture = crearFixture(casoActualDto({ boletin: null }));
+    expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
+    fixture.destroy();
+
+    const sinCampo = casoActualDto();
+    delete (sinCampo as Partial<CasoActualDto>).boletin;
+    const otro = crearFixture(sinCampo);
+    expect((otro.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
   });
 
   it('en visualización, arranca bloqueado con cuenta regresiva y sin selector manual de fase', () => {

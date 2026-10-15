@@ -119,9 +119,45 @@
   padding: 1.25rem;
   height: fit-content;
 
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.9rem;
+  }
   &__title {
-    margin: 0 0 0.9rem;
+    margin: 0;
     font-size: 0.95rem;
+  }
+  &__conteo {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--bs-muted);
+  }
+  &__caso {
+    margin: -0.4rem 0 0.9rem;
+    font-size: 0.78rem;
+    color: var(--bs-muted);
+  }
+  &__cargando {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--bs-muted);
+  }
+  &__selector {
+    width: 100%;
+    margin: -0.4rem 0 0.9rem;
+  }
+  &__empresa {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+  &__detalle {
+    font-size: 0.72rem;
+    color: var(--bs-muted);
   }
   &__list {
     list-style: none;

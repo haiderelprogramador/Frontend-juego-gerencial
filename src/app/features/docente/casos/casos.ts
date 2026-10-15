@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 
+import { API_CONFIG } from '../../../core/api/api.config';
 import { Badge } from '../../../shared/components/badge/badge';
 import { Alerta } from '../../../shared/components/alerta/alerta';
 import { ExcelCasoService } from './services/excel-caso.service';
@@ -29,13 +30,14 @@ import {
   impactoDesdeApi,
   impactoVacio,
 } from '../../simulacion/models/financiero.model';
+import { BoletinCaso } from './boletin-caso/boletin-caso';
 import { FinancieroCaso } from './financiero-caso/financiero-caso';
 import { ImpactoFinancieroOpcion } from './impacto-opcion/impacto-opcion';
 import { CasoApiService } from './services/caso-api.service';
 import { Simulacion, SimulacionRequest } from '../simulaciones/models/simulacion.model';
 import { SimulacionService } from '../simulaciones/services/simulacion.service';
 
-type VistaCasos = 'lista' | 'formulario';
+type VistaCasos = 'lista' | 'formulario' | 'boletin';
 type TabFormulario = 'general' | 'financiera' | 'opciones';
 type ModoDatos = 'manual' | 'excel';
 type ErrorHttp = { message?: string; error?: { message?: string } };
@@ -75,7 +77,7 @@ function conSegundos(valor: string): string {
  */
 @Component({
   selector: 'app-casos',
-  imports: [Badge, Alerta, FinancieroCaso, ImpactoFinancieroOpcion],
+  imports: [Badge, Alerta, BoletinCaso, FinancieroCaso, ImpactoFinancieroOpcion],
   templateUrl: './casos.html',
   styleUrl: './casos.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -110,6 +112,10 @@ export class Casos {
   );
 
   readonly vista = signal<VistaCasos>('lista');
+  /** Hasta que los endpoints del boletín (D14) estén en develop, el botón no se muestra. */
+  readonly boletinDisponible = signal<boolean>(API_CONFIG.disponible.boletin);
+  /** Caso cuyo boletín se está editando (vista 'boletin'). */
+  readonly casoBoletin = signal<CasoApi | null>(null);
   readonly tabForm = signal<TabFormulario>('general');
   /** `null` = creando un caso nuevo; con valor = editando ese caso existente. */
   readonly casoEnEdicionId = signal<number | null>(null);
@@ -265,6 +271,11 @@ export class Casos {
     return estado == null || estado === 'BORRADOR' || estado === 'PROGRAMADA';
   }
 
+  /** Con la simulación FINALIZADA el backend no deja editar el boletín: se abre de solo lectura. */
+  simulacionFinalizada(idSimulacion: number): boolean {
+    return this.simulaciones().find((s) => s.id === idSimulacion)?.estado === 'FINALIZADA';
+  }
+
   nuevoCaso(): void {
     this.casoEnEdicionId.set(null);
     this.resetFormulario();
@@ -362,6 +373,16 @@ export class Casos {
 
   volverALista(): void {
     this.vista.set('lista');
+    this.casoBoletin.set(null);
+  }
+
+  abrirBoletin(id: number): void {
+    const caso = this.casos().find((c) => c.id === id);
+    if (!caso) {
+      return;
+    }
+    this.casoBoletin.set(caso);
+    this.vista.set('boletin');
   }
 
   agregarOpcion(): void {

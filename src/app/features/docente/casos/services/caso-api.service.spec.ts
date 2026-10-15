@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { API_CONFIG, apiUrl } from '../../../../core/api/api.config';
+import { Boletin, BoletinRequest } from '../../../simulacion/models/boletin.model';
 import { CasoRequest } from '../../../simulacion/models/caso-api.model';
 import { financieroANumeros, financieroVacio } from '../../../simulacion/models/financiero.model';
 import { CasoApiService } from './caso-api.service';
@@ -81,5 +82,41 @@ describe('CasoApiService', () => {
   it('eliminar() hace DELETE al caso', () => {
     service.eliminar(1).subscribe();
     http.expectOne({ method: 'DELETE', url: `${URL}/1` }).flush(null);
+  });
+
+  describe('boletín (D14)', () => {
+    const req: BoletinRequest = { inflacion: 5.2, tasaInteres: 9.75, tasaCambio: 4150.5, nota: 'Sube el dólar.' };
+    const boletin: Boletin = {
+      ...req,
+      idCaso: 1,
+      publicadoEn: '2026-10-15T09:00:00',
+      actualizadoEn: '2026-10-15T09:00:00',
+    };
+
+    it('obtenerBoletin() hace GET a /boletin y devuelve el boletín', () => {
+      let recibido: Boletin | null | undefined;
+      service.obtenerBoletin(1).subscribe((b) => (recibido = b));
+      http.expectOne({ method: 'GET', url: `${URL}/1/boletin` }).flush(boletin);
+      expect(recibido).toEqual(boletin);
+    });
+
+    it('obtenerBoletin() devuelve null en un 204 (sin boletín)', () => {
+      let recibido: Boletin | null | undefined;
+      service.obtenerBoletin(1).subscribe((b) => (recibido = b));
+      http.expectOne({ method: 'GET', url: `${URL}/1/boletin` }).flush(null, { status: 204, statusText: 'No Content' });
+      expect(recibido).toBeNull();
+    });
+
+    it('publicarBoletin() hace PUT a /boletin con el cuerpo tal cual', () => {
+      service.publicarBoletin(1, req).subscribe();
+      const peticion = http.expectOne({ method: 'PUT', url: `${URL}/1/boletin` });
+      expect(peticion.request.body).toEqual(req);
+      peticion.flush(boletin);
+    });
+
+    it('eliminarBoletin() hace DELETE a /boletin', () => {
+      service.eliminarBoletin(1).subscribe();
+      http.expectOne({ method: 'DELETE', url: `${URL}/1/boletin` }).flush(null);
+    });
   });
 });

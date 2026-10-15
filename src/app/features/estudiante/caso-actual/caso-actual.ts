@@ -8,6 +8,7 @@ import {
   OpcionSeleccion,
   TarjetaSeleccion,
 } from '../../../shared/components/tarjeta-seleccion/tarjeta-seleccion';
+import { formatearPorcentajeBoletin, formatearTasaCambio } from '../../simulacion/models/boletin.model';
 import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
 import { describirImpacto, formatearMoneda } from '../../simulacion/models/financiero.model';
 import { AuthService } from '../../../core/services/auth.service';
@@ -134,6 +135,8 @@ export class CasoActual implements OnDestroy {
     const d = this.datos();
     return d ? { simulacion: d.nombreSimulacion, empresa: d.nombreEmpresa } : null;
   });
+  /** Boletín del docente para este caso (D14); `undefined` (backend sin D14) se trata como `null`. */
+  readonly boletin = computed(() => this.datos()?.boletin ?? null);
   readonly esLider = computed(() => this.datos()?.esLider ?? false);
   readonly puedeDecidir = computed(() => this.datos()?.puedeDecidir ?? false);
   readonly decisionActual = computed(() => this.datos()?.decision ?? null);
@@ -222,6 +225,9 @@ export class CasoActual implements OnDestroy {
     this.recordarSimulacion(id);
     this.cargar(id);
   }
+
+  readonly porcentaje = formatearPorcentajeBoletin;
+  readonly tasaCambio = formatearTasaCambio;
 
   /** Total financiero con formato de moneda; un 0 se muestra como $0, solo `null` es "—". */
   moneda(valor: number | null | undefined): string {

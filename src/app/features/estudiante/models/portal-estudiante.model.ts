@@ -3,6 +3,7 @@
  * 28-sep-2026), base `/estudiante`.
  */
 
+import { Boletin } from '../../simulacion/models/boletin.model';
 import { CasoEstudiante, FinancieroCaso } from '../../simulacion/models/caso-api.model';
 import { FinancieroEntrada, ImpactoOpcion } from '../../simulacion/models/financiero.model';
 
@@ -64,6 +65,12 @@ export interface CasoActual {
   puedeDecidir: boolean;
   caso: CasoEstudiante;
   decision: Decision | null;
+  /**
+   * Boletín del caso (D14): factores de entorno publicados por el docente.
+   * `null` si no publicó ninguno. Hasta que el backend lo mande puede no
+   * venir: la UI trata `undefined` igual que `null`.
+   */
+  boletin: Boletin | null;
 }
 
 /** Una simulación en la que participa el estudiante (para GET /estudiante/simulaciones). */

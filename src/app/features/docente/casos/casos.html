@@ -57,6 +57,9 @@
                   @if (puedeEditar(c.idSimulacion)) {
                     <button type="button" class="btn btn--ghost btn--sm" (click)="editarCaso(c.id)">Editar</button>
                   }
+                  @if (boletinDisponible()) {
+                    <button type="button" class="btn btn--ghost btn--sm" (click)="abrirBoletin(c.id)">Boletín</button>
+                  }
                 </div>
               </td>
             </tr>
@@ -66,6 +69,13 @@
     </div>
     }
   </div>
+}
+
+@if (vista() === 'boletin') {
+  @if (casoBoletin(); as c) {
+    <app-boletin-caso [idCaso]="c.id" [nombreCaso]="c.nombre" [soloLectura]="simulacionFinalizada(c.idSimulacion)"
+      (volver)="volverALista()" />
+  }
 }
 
 @if (vista() === 'formulario') {
