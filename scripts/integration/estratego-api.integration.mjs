@@ -4,9 +4,11 @@
  * el túnel ngrok configurado en `src/app/core/api/api.config.ts`.
  *
  * Estrategia para no ensuciar la base de desarrollo:
- *  - Reusa la cuenta docente y los dos estudiantes de prueba ya guardados en
- *    `.env.test` (gitignored, ver `.env.test.example`) en vez de crear
- *    cuentas nuevas cada corrida.
+ *  - Usa SOLO la cuenta docente y los dos estudiantes de prueba guardados en
+ *    `.env.test` (gitignored, ver `.env.test.example`). Nunca da de alta
+ *    cuentas: desde el 19-oct-2026 el backend manda correos reales al crear
+ *    un estudiante, y uno con correo inventado rebota y daña la reputación
+ *    de la cuenta que envía. Si faltan credenciales, se detiene.
  *  - Reusa una simulación PROGRAMADA que ya haya quedado de una corrida
  *    anterior (`TEST_ID_SIMULACION`, con su empresa y caso ya armados) para
  *    probar el flujo completo iniciar→decidir, en vez de crear una nueva.
@@ -22,7 +24,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import * as XLSX from 'xlsx';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ENV_FILE = join(__dirname, '..', '..', '.env.test');
@@ -128,32 +129,6 @@ function bogotaISO(offsetMs = 0) {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: construye un .xlsx de 1 fila en memoria para carga masiva
-// ---------------------------------------------------------------------------
-
-function excelDeUnEstudiante({ correo, nombre, numeroIdentificacion, edad, genero }) {
-  const hoja = XLSX.utils.json_to_sheet([
-    { correo, nombre, 'numero de identificacion': numeroIdentificacion, edad, genero },
-  ]);
-  const libro = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(libro, hoja, 'Hoja1');
-  const buffer = XLSX.write(libro, { type: 'buffer', bookType: 'xlsx' });
-  return new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
-}
-
-async function crearEstudiante(tokenDocente, datos) {
-  const form = new FormData();
-  form.append('archivo', excelDeUnEstudiante(datos), 'estudiante.xlsx');
-  const res = await pedir('POST', '/docente/estudiantes/carga-masiva', { token: tokenDocente, form });
-  assert(res.ok, `carga-masiva de estudiante falló: ${res.status} ${JSON.stringify(res.data)}`);
-  const creado = res.data.creados?.[0];
-  assert(creado, `carga-masiva no creó al estudiante: ${JSON.stringify(res.data)}`);
-  return creado; // { id, correo, contrasenaGenerada, ... }
-}
-
-// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -161,71 +136,43 @@ async function main() {
   console.log(`Backend: ${BASE_URL}\n`);
   const ahora = Date.now();
 
-  // --- Cuenta de prueba: DOCENTE (registro solo si no hay una guardada) -----
-  let docenteCorreo = env.TEST_DOCENTE_CORREO;
-  let docentePass = env.TEST_DOCENTE_PASSWORD;
-  let tokenDocente;
+  // --- Cuentas de prueba: SIEMPRE las de .env.test, nunca se crean -----------
+  // Desde el 19-oct-2026 el backend manda correos reales al crear cuentas: un
+  // correo inventado rebota. Si hacen falta cuentas nuevas, pedir correos reales.
+  const faltan = [
+    'TEST_DOCENTE_CORREO', 'TEST_DOCENTE_PASSWORD',
+    'TEST_ESTUDIANTE_LIDER_CORREO', 'TEST_ESTUDIANTE_LIDER_PASSWORD', 'TEST_ESTUDIANTE_LIDER_ID',
+    'TEST_ESTUDIANTE_RASO_CORREO', 'TEST_ESTUDIANTE_RASO_PASSWORD', 'TEST_ESTUDIANTE_RASO_ID',
+  ].filter((k) => !env[k]);
+  assert(
+    faltan.length === 0,
+    `faltan credenciales de prueba en .env.test (${faltan.join(', ')}). Este script no crea cuentas: ` +
+      'completa .env.test con cuentas que ya existan (ver .env.test.example).',
+  );
 
-  if (docenteCorreo && docentePass) {
-    const login = await pedir('POST', '/auth/login', { body: { correo: docenteCorreo, contrasena: docentePass } });
-    assert(login.ok, `login de docente de prueba existente falló: ${login.status}`);
-    tokenDocente = login.data.token;
-    reportar('POST /auth/login (docente)', true, `200 — reusando cuenta ${docenteCorreo}`);
-  } else {
-    docenteCorreo = `integracion.docente.${SUFIJO}@estratego-test.local`;
-    docentePass = `Test${SUFIJO}!Aa1`;
-    const registro = await pedir('POST', '/auth/registro-docente', {
-      body: {
-        nombre: 'Docente Integración',
-        correo: docenteCorreo,
-        numeroIdentificacion: `TESTDOC${SUFIJO}`.slice(0, 15),
-        contrasena: docentePass,
-      },
-    });
-    assert(registro.ok, `registro de docente falló: ${registro.status} ${JSON.stringify(registro.data)}`);
-    tokenDocente = registro.data.token;
-    reportar('POST /auth/registro-docente', true, `201 — cuenta nueva ${docenteCorreo}`);
-  }
+  const docenteCorreo = env.TEST_DOCENTE_CORREO;
+  const docentePass = env.TEST_DOCENTE_PASSWORD;
+  const login = await pedir('POST', '/auth/login', { body: { correo: docenteCorreo, contrasena: docentePass } });
+  assert(login.ok, `login de docente de prueba existente falló: ${login.status}`);
+  const tokenDocente = login.data.token;
+  reportar('POST /auth/login (docente)', true, `200 — cuenta de prueba ${docenteCorreo}`);
 
   const sesionDocente = await pedir('GET', '/auth/sesion', { token: tokenDocente });
   reportar('GET /auth/sesion', true, ok(sesionDocente) || `200 — ${sesionDocente.data?.usuario?.correo}`);
 
-  // --- Estudiantes de prueba (líder + un integrante raso), reusados si ya existen --
-  let estudianteLider = env.TEST_ESTUDIANTE_LIDER_CORREO
-    ? {
-        correo: env.TEST_ESTUDIANTE_LIDER_CORREO,
-        contrasenaGenerada: env.TEST_ESTUDIANTE_LIDER_PASSWORD,
-        id: env.TEST_ESTUDIANTE_LIDER_ID,
-      }
-    : null;
-  if (!estudianteLider) {
-    estudianteLider = await crearEstudiante(tokenDocente, {
-      correo: `integracion.lider.${SUFIJO}@estratego-test.local`,
-      nombre: 'Estudiante Lider Integración',
-      numeroIdentificacion: `9${SUFIJO}`.slice(0, 15),
-      edad: '20',
-      genero: 'F',
-    });
-  }
-  reportar('POST /docente/estudiantes/carga-masiva (líder)', true, `estudiante ${estudianteLider.correo} (id ${estudianteLider.id})`);
-
-  let estudianteRaso = env.TEST_ESTUDIANTE_RASO_CORREO
-    ? {
-        correo: env.TEST_ESTUDIANTE_RASO_CORREO,
-        contrasenaGenerada: env.TEST_ESTUDIANTE_RASO_PASSWORD,
-        id: env.TEST_ESTUDIANTE_RASO_ID,
-      }
-    : null;
-  if (!estudianteRaso) {
-    estudianteRaso = await crearEstudiante(tokenDocente, {
-      correo: `integracion.raso.${SUFIJO}@estratego-test.local`,
-      nombre: 'Estudiante Raso Integración',
-      numeroIdentificacion: `8${SUFIJO}`.slice(0, 15),
-      edad: '21',
-      genero: 'M',
-    });
-  }
-  reportar('POST /docente/estudiantes/carga-masiva (raso)', true, `estudiante ${estudianteRaso.correo} (id ${estudianteRaso.id})`);
+  // --- Estudiantes de prueba (líder + un integrante raso), siempre los de .env.test --
+  const estudianteLider = {
+    correo: env.TEST_ESTUDIANTE_LIDER_CORREO,
+    contrasenaGenerada: env.TEST_ESTUDIANTE_LIDER_PASSWORD,
+    id: env.TEST_ESTUDIANTE_LIDER_ID,
+  };
+  const estudianteRaso = {
+    correo: env.TEST_ESTUDIANTE_RASO_CORREO,
+    contrasenaGenerada: env.TEST_ESTUDIANTE_RASO_PASSWORD,
+    id: env.TEST_ESTUDIANTE_RASO_ID,
+  };
+  reportar('Estudiante líder (de .env.test, sin alta)', true, `${estudianteLider.correo} (id ${estudianteLider.id})`);
+  reportar('Estudiante raso (de .env.test, sin alta)', true, `${estudianteRaso.correo} (id ${estudianteRaso.id})`);
 
   // =============================================================================
   // FASE A — reusa una simulación PROGRAMADA de una corrida anterior (con su
