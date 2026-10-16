@@ -62,7 +62,7 @@ export const API_CONFIG = {
      * Simulaciones (contrato 57 endpoints — SimulacionService). Rol DOCENTE.
      * También base de las rutas anidadas `/{id}/casos` y `/{id}/empresas`.
      *  GET/POST -> SimulacionRequest ; GET/PUT/DELETE `/{id}` ;
-     *  POST `/{id}/programar|iniciar|finalizar` ; GET `/{id}/clasificacion`
+     *  POST `/{id}/programar|desprogramar|iniciar|finalizar` ; GET `/{id}/clasificacion`
      *  -> Clasificacion (cualquier estado; ClasificacionService).
      */
     simulacionesDocente: '/docente/simulaciones',

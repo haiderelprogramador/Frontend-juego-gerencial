@@ -21,10 +21,18 @@ type ErrorHttp = {
   error?: { message?: string; errores?: { campo?: string; mensaje?: string }[] };
 };
 
+/** Un motivo por el que la simulación no está lista; `campo` dice dónde se corrige. */
+interface MotivoProgramar {
+  mensaje: string;
+  /** "casos" -> pestaña Casos; "empresas" -> pantalla Empresas; otro -> sin enlace. */
+  campo: string | null;
+}
+
 /** Error de /programar: el mensaje general y, si vienen, los motivos por los que la simulación no está lista. */
 interface ErrorProgramar {
+  idSimulacion: number;
   mensaje: string;
-  detalle: string[];
+  detalle: MotivoProgramar[];
 }
 
 /** Un caso activo con su simulación, para el selector de "Entregas por empresa" y "Finalizar simulación". */
@@ -54,13 +62,9 @@ function mensaje(err: ErrorHttp, porDefecto: string): string {
   return err?.error?.message ?? err?.message ?? porDefecto;
 }
 
-const formatoFechaLarga = new Intl.DateTimeFormat('es-CO', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-});
+/** "5 de octubre de 2026" y "08:00" por separado: en es-CO, Intl junto daría "… a las 08:00 a. m.". */
+const formatoDiaLargo = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+const formatoHora24 = new Intl.DateTimeFormat('es-CO', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
 const formatoFecha = new Intl.DateTimeFormat('es-CO', {
   day: 'numeric',
@@ -203,6 +207,12 @@ export class Panel {
   readonly errorProgramar = signal<ErrorProgramar | null>(null);
   readonly avisoProgramar = signal<string | null>(null);
 
+  // -- Desprogramar (backend real, paso 4): PROGRAMADA -> BORRADOR, para que no arranque sola --
+  readonly programadas = computed(() => this.simulaciones().filter((s) => s.estado === 'PROGRAMADA'));
+  readonly desprogramandoId = signal<number | null>(null);
+  /** El 400 del backend se muestra tal cual (no está PROGRAMADA, o ya tiene decisiones). */
+  readonly errorDesprogramar = signal<string | null>(null);
+
   // -- Finalizar simulación (backend real) --
   /** Solo con la simulación del caso de "Entregas" EN_CURSO (el backend responde 400 en otro estado). */
   readonly puedeFinalizar = computed(() => this.casoEntregas()?.estadoSimulacion === 'EN_CURSO');
@@ -282,11 +292,44 @@ export class Panel {
       error: (err: ErrorHttp) => {
         this.programando.set(false);
         this.errorProgramar.set({
+          idSimulacion: sim.id,
           mensaje: mensaje(err, 'No se pudo programar la simulación.'),
-          detalle: (err?.error?.errores ?? []).map((e) => e.mensaje ?? '').filter((m) => m !== ''),
+          detalle: (err?.error?.errores ?? [])
+            .filter((e) => !!e.mensaje)
+            .map((e) => ({ mensaje: e.mensaje!, campo: e.campo ?? null })),
         });
       },
     });
+  }
+
+  /**
+   * PROGRAMADA -> BORRADOR, para que no arranque sola en su fecha de inicio.
+   * No hace falta para corregir algo: en PROGRAMADA se pueden editar casos y
+   * empresas. Si el backend responde 400, su mensaje se muestra tal cual.
+   */
+  desprogramarSimulacion(sim: Simulacion): void {
+    if (this.desprogramandoId() !== null || !window.confirm(mensajeDesprogramar(sim))) {
+      return;
+    }
+    this.errorDesprogramar.set(null);
+    this.avisoProgramar.set(null);
+    this.desprogramandoId.set(sim.id);
+    this.simulacionService.desprogramar(sim.id).subscribe({
+      next: () => {
+        this.desprogramandoId.set(null);
+        this.avisoProgramar.set(`«${sim.nombre}» volvió a borrador: no va a arrancar sola.`);
+        this.cargarCasosActivos();
+      },
+      error: (err: ErrorHttp) => {
+        this.desprogramandoId.set(null);
+        this.errorDesprogramar.set(mensaje(err, 'No se pudo desprogramar la simulación.'));
+      },
+    });
+  }
+
+  /** "arranca el 5 de octubre de 2026, 08:00" (o "arranca en su fecha de inicio" si no se puede leer). */
+  arranque(sim: Simulacion): string {
+    return `arranca ${cuandoArranca(sim)}`;
   }
 
   fechaEntrega(iso: string | null): string {
@@ -399,12 +442,26 @@ export class Panel {
   }
 }
 
+/** "el 5 de octubre de 2026, 08:00", o "en su fecha de inicio" si la fecha no se puede leer. */
+function cuandoArranca(sim: Simulacion): string {
+  const inicio = new Date(sim.fechaInicio);
+  return Number.isNaN(inicio.getTime())
+    ? 'en su fecha de inicio'
+    : `el ${formatoDiaLargo.format(inicio)}, ${formatoHora24.format(inicio)}`;
+}
+
 /** Texto de la confirmación de "Programar": que arranca sola y que después ya no se puede cambiar. */
 export function mensajeProgramar(sim: Simulacion): string {
-  const inicio = new Date(sim.fechaInicio);
-  const cuando = Number.isNaN(inicio.getTime()) ? 'en su fecha de inicio' : `el ${formatoFechaLarga.format(inicio)}`;
   return (
-    `¿Programar «${sim.nombre}»? La simulación arranca sola ${cuando} y, ` +
+    `¿Programar «${sim.nombre}»? La simulación arranca sola ${cuandoArranca(sim)} y, ` +
     'desde ese momento, ya no se pueden cambiar sus empresas ni sus casos.'
+  );
+}
+
+/** Texto de la confirmación de "Desprogramar": vuelve a borrador y no arranca sola. */
+export function mensajeDesprogramar(sim: Simulacion): string {
+  return (
+    `¿Desprogramar «${sim.nombre}»? Vuelve a borrador y no va a arrancar sola ${cuandoArranca(sim)}. ` +
+    'No hace falta para corregir algo: mientras está programada todavía se pueden editar sus casos y empresas.'
   );
 }

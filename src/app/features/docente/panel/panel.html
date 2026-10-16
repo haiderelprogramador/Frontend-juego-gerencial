@@ -108,6 +108,22 @@
                   <span class="paso__cuerpo">
                     <span class="paso__titulo">{{ paso.titulo }}</span>
                     <span class="paso__desc">{{ paso.descripcion }}</span>
+                    @if (paso.n === 4 && programadas().length > 0) {
+                      <!-- Las ya programadas: se pueden desprogramar para que no arranquen solas. -->
+                      <span class="programadas">
+                        @for (s of programadas(); track s.id) {
+                          <span class="programadas__item">
+                            <span class="programadas__texto">
+                              <strong>{{ s.nombre }}</strong> · Programada · {{ arranque(s) }}
+                            </span>
+                            <button type="button" class="btn btn--ghost btn--sm" [disabled]="desprogramandoId() !== null"
+                              (click)="desprogramarSimulacion(s)">
+                              {{ desprogramandoId() === s.id ? 'Desprogramando…' : 'Desprogramar' }}
+                            </button>
+                          </span>
+                        }
+                      </span>
+                    }
                   </span>
                   @if (paso.n === 4) {
                     <!-- Paso real: programa una simulación en BORRADOR. -->
@@ -148,11 +164,22 @@
                 @if (e.detalle.length > 0) {
                   <ul class="programar-error__lista">
                     @for (d of e.detalle; track $index) {
-                      <li>{{ d }}</li>
+                      <li>
+                        {{ d.mensaje }}
+                        @if (d.campo === 'casos') {
+                          <button type="button" class="programar-error__enlace" (click)="irA('casos')">Ir a Casos →</button>
+                        } @else if (d.campo === 'empresas') {
+                          <a class="programar-error__enlace" routerLink="/docente/empresas"
+                            [queryParams]="{ simulacion: e.idSimulacion }">Ir a Empresas →</a>
+                        }
+                      </li>
                     }
                   </ul>
                 }
               </div>
+            }
+            @if (errorDesprogramar(); as msg) {
+              <app-alerta tipo="error" [mensaje]="msg" />
             }
             @if (avisoProgramar(); as msg) {
               <app-alerta tipo="exito" [mensaje]="msg" />

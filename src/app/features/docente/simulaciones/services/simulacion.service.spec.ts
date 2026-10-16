@@ -52,9 +52,11 @@ describe('SimulacionService', () => {
 
   it('las transiciones de estado postean sin cuerpo a su ruta', () => {
     service.programar(1).subscribe();
+    service.desprogramar(1).subscribe();
     service.iniciar(1).subscribe();
     service.finalizar(1).subscribe();
     http.expectOne({ method: 'POST', url: `${URL}/1/programar` }).flush({});
+    http.expectOne({ method: 'POST', url: `${URL}/1/desprogramar` }).flush({});
     http.expectOne({ method: 'POST', url: `${URL}/1/iniciar` }).flush({});
     http.expectOne({ method: 'POST', url: `${URL}/1/finalizar` }).flush({});
   });

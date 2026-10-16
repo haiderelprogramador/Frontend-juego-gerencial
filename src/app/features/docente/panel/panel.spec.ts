@@ -7,7 +7,7 @@ import { vi } from 'vitest';
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
 import { CasoApi, DecisionEmpresa } from '../../simulacion/models/caso-api.model';
 import { Simulacion } from '../simulaciones/models/simulacion.model';
-import { Panel, mensajeProgramar } from './panel';
+import { Panel, mensajeDesprogramar, mensajeProgramar } from './panel';
 
 const URL_CASOS = apiUrl(API_CONFIG.endpoints.casos);
 const URL_SIMULACIONES = apiUrl(API_CONFIG.endpoints.simulacionesDocente);
@@ -206,7 +206,7 @@ describe('Panel', () => {
       http.expectNone({ method: 'POST', url: `${URL_SIMULACIONES}/11/programar` });
     });
 
-    it('si el backend dice que no está lista, muestra el mensaje y cada motivo', () => {
+    it('si el backend dice que no está lista, muestra cada motivo con su enlace (Casos o Empresas)', () => {
       const fixture = crearFixture([], [simulacion(11, 'BORRADOR')]);
       vi.spyOn(window, 'confirm').mockReturnValue(true);
       fixture.componentInstance.programarSimulacion();
@@ -214,8 +214,10 @@ describe('Panel', () => {
         {
           message: 'La simulación no está lista para programarse',
           errores: [
-            { campo: 'empresas', mensaje: 'La simulación no tiene empresas' },
             { campo: 'casos', mensaje: 'La simulación no tiene casos' },
+            { campo: 'casos', mensaje: 'El primer caso («Expansión») no tiene un balance inicial completo que cuadre' },
+            { campo: 'empresas', mensaje: 'Ninguna empresa tiene integrantes' },
+            { campo: 'empresas', mensaje: 'Estas empresas no tienen líder: EMP-002 (Grupo Norte)' },
           ],
         },
         { status: 400, statusText: 'Bad Request' },
@@ -224,9 +226,34 @@ describe('Panel', () => {
       const host = fixture.nativeElement as HTMLElement;
 
       expect(host.querySelector('.programar-error')?.textContent).toContain('no está lista para programarse');
-      const motivos = [...host.querySelectorAll('.programar-error__lista li')].map((li) => li.textContent);
-      expect(motivos).toEqual(['La simulación no tiene empresas', 'La simulación no tiene casos']);
+      const motivos = [...host.querySelectorAll('.programar-error__lista li')];
+      expect(motivos).toHaveLength(4);
+      expect(motivos[1].textContent).toContain('El primer caso («Expansión») no tiene un balance inicial completo');
+      // Casos -> botón que abre la pestaña; Empresas -> enlace a la pantalla con la simulación.
+      expect(motivos[0].querySelector('button')?.textContent).toContain('Ir a Casos');
+      expect(motivos[3].querySelector('a')?.getAttribute('href')).toBe('/docente/empresas?simulacion=11');
+      expect(motivos[3].textContent).toContain('EMP-002 (Grupo Norte)');
       expect(fixture.componentInstance.programando()).toBe(false);
+
+      motivos[0].querySelector('button')!.click();
+      expect(fixture.componentInstance.tab()).toBe('casos');
+      // Casos carga su propia lista al montarse.
+      fixture.detectChanges();
+      http.match(URL_CASOS).forEach((r) => r.flush([]));
+      http.match(URL_SIMULACIONES).forEach((r) => r.flush([]));
+    });
+
+    it('un motivo con otro campo (o sin campo) se muestra sin enlace', () => {
+      const fixture = crearFixture([], [simulacion(11, 'BORRADOR')]);
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      fixture.componentInstance.programarSimulacion();
+      http
+        .expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/11/programar` })
+        .flush({ message: 'No está lista', errores: [{ mensaje: 'Otro motivo' }] }, { status: 400, statusText: 'Bad Request' });
+      fixture.detectChanges();
+      const li = (fixture.nativeElement as HTMLElement).querySelector('.programar-error__lista li')!;
+      expect(li.textContent?.trim()).toBe('Otro motivo');
+      expect(li.querySelector('a, button')).toBeNull();
     });
 
     it('con varias en BORRADOR deja elegir cuál programar', () => {
@@ -245,8 +272,92 @@ describe('Panel', () => {
       http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([simulacion(11, 'BORRADOR')]);
     });
 
+    it('mensajeProgramar con fecha la escribe "5 de octubre de 2026, 08:00" (24 h)', () => {
+      const sim = { ...simulacion(1, 'BORRADOR'), fechaInicio: '2026-10-05T08:00:00' };
+      expect(mensajeProgramar(sim)).toContain('arranca sola el 5 de octubre de 2026, 08:00 y');
+    });
+
     it('mensajeProgramar sin fecha válida dice "en su fecha de inicio"', () => {
       expect(mensajeProgramar(simulacion(1, 'BORRADOR'))).toContain('arranca sola en su fecha de inicio');
+    });
+  });
+
+  describe('Desprogramar (paso 4)', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const programada = { ...simulacion(12, 'PROGRAMADA'), fechaInicio: '2026-10-05T08:00:00' };
+
+    function botonDesprogramar(host: HTMLElement): HTMLButtonElement | undefined {
+      return [...host.querySelectorAll<HTMLButtonElement>('.programadas button')].find((b) =>
+        b.textContent?.includes('Desprogramar'),
+      );
+    }
+
+    it('lista las simulaciones PROGRAMADAS con cuándo arrancan (y no las de otros estados)', () => {
+      const fixture = crearFixture([], [programada, simulacion(11, 'BORRADOR'), simulacion(10, 'EN_CURSO')]);
+      const host = fixture.nativeElement as HTMLElement;
+      const items = host.querySelectorAll('.programadas__item');
+      expect(items).toHaveLength(1);
+      expect(items[0].textContent!.replace(/\s+/g, ' ')).toContain(
+        'Simulación 12 · Programada · arranca el 5 de octubre de 2026, 08:00',
+      );
+      expect(botonDesprogramar(host)).toBeTruthy();
+      // Programar sigue ofreciendo la de BORRADOR.
+      expect(host.textContent).toContain('Programar «Simulación 11»');
+    });
+
+    it('sin PROGRAMADAS no muestra la lista', () => {
+      const fixture = crearFixture([], [simulacion(11, 'BORRADOR')]);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.programadas')).toBeNull();
+    });
+
+    it('confirma (no arranca sola; no hace falta para corregir), desprograma y refresca', () => {
+      const fixture = crearFixture([], [programada]);
+      const host = fixture.nativeElement as HTMLElement;
+      const confirmar = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      botonDesprogramar(host)!.click();
+      const texto = confirmar.mock.calls[0][0] as string;
+      expect(texto).toContain('¿Desprogramar «Simulación 12»?');
+      expect(texto).toContain('no va a arrancar sola el 5 de octubre de 2026, 08:00');
+      expect(texto).toContain('todavía se pueden editar sus casos y empresas');
+
+      http.expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/12/desprogramar` }).flush({ ...programada, estado: 'BORRADOR' });
+      http.expectOne({ method: 'GET', url: URL_CASOS }).flush([]);
+      http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([{ ...programada, estado: 'BORRADOR' }]);
+      fixture.detectChanges();
+
+      expect(host.textContent).toContain('volvió a borrador');
+      expect(host.querySelector('.programadas')).toBeNull();
+      expect(host.textContent).toContain('Programar «Simulación 12»');
+    });
+
+    it('si el docente cancela no desprograma', () => {
+      const fixture = crearFixture([], [programada]);
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
+      fixture.componentInstance.desprogramarSimulacion(programada);
+      http.expectNone({ method: 'POST', url: `${URL_SIMULACIONES}/12/desprogramar` });
+    });
+
+    it.each([
+      'Solo se puede desprogramar una simulación PROGRAMADA',
+      'La simulación ya tiene decisiones de empresas; no se puede desprogramar',
+    ])('un 400 muestra el mensaje del backend tal cual: %s', (msg) => {
+      const fixture = crearFixture([], [programada]);
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      fixture.componentInstance.desprogramarSimulacion(programada);
+      http
+        .expectOne({ method: 'POST', url: `${URL_SIMULACIONES}/12/desprogramar` })
+        .flush({ message: msg }, { status: 400, statusText: 'Bad Request' });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.errorDesprogramar()).toBe(msg);
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain(msg);
+      expect(fixture.componentInstance.desprogramandoId()).toBeNull();
+    });
+
+    it('mensajeDesprogramar sin fecha válida dice "en su fecha de inicio"', () => {
+      expect(mensajeDesprogramar(simulacion(1, 'PROGRAMADA'))).toContain('no va a arrancar sola en su fecha de inicio');
     });
   });
 

@@ -343,4 +343,43 @@
   padding-left: 1.2rem;
   font-size: 0.8rem;
   color: var(--bs-danger);
+
+  li + li {
+    margin-top: 0.25rem;
+  }
+}
+.programar-error__enlace {
+  margin-left: 0.4rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--bs-primary);
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* Paso 4: simulaciones ya programadas, con "Desprogramar". */
+.programadas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  &__texto {
+    font-size: 0.78rem;
+    color: var(--bs-muted);
+  }
 }

@@ -10,11 +10,12 @@ import { Simulacion, SimulacionRequest } from '../models/simulacion.model';
  * Estratego, 56 endpoints). Rol DOCENTE.
  *
  * Transiciones de estado: `BORRADOR -> (programar) -> PROGRAMADA ->
- * (iniciar) -> EN_CURSO -> (finalizar) -> FINALIZADA`. `iniciar` solo
- * funciona si ya pasó `fechaInicio` (es una acción manual del docente, no
- * automática por tiempo — confirmado en vivo el 29-sep-2026). `actualizar`
- * y `eliminar` solo aplican en BORRADOR/PROGRAMADA (`eliminar` solo en
- * BORRADOR).
+ * (iniciar) -> EN_CURSO -> (finalizar) -> FINALIZADA`, y `desprogramar`
+ * (PROGRAMADA -> BORRADOR). El backend las automatiza (oct-2026): PROGRAMADA
+ * arranca sola en `fechaInicio` (si no está lista, arranca un minuto después
+ * de que el docente la corrija) y EN_CURSO termina al final del día de
+ * `fechaFin`. `iniciar` es idempotente. `actualizar` y `eliminar` solo
+ * aplican en BORRADOR/PROGRAMADA (`eliminar` solo en BORRADOR).
  *
  * Solo backend real (sin rama demo), igual que `CasoApiService`.
  */
@@ -43,6 +44,16 @@ export class SimulacionService {
   /** BORRADOR -> PROGRAMADA. */
   programar(id: number): Observable<Simulacion> {
     return this.http.post<Simulacion>(`${this.base}/${id}/programar`, {});
+  }
+
+  /**
+   * PROGRAMADA -> BORRADOR: la forma de frenar el arranque automático. 400
+   * "Solo se puede desprogramar una simulación PROGRAMADA" o "La simulación
+   * ya tiene decisiones de empresas; no se puede desprogramar". No hace falta
+   * para corregir: en PROGRAMADA todavía se pueden editar casos y empresas.
+   */
+  desprogramar(id: number): Observable<Simulacion> {
+    return this.http.post<Simulacion>(`${this.base}/${id}/desprogramar`, {});
   }
 
   /** PROGRAMADA -> EN_CURSO. 400 si `fechaInicio` todavía no llegó. */
