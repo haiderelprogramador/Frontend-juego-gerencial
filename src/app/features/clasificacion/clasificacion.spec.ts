@@ -50,7 +50,7 @@ function respuesta(cambios: Partial<ClasificacionDto> = {}): ClasificacionDto {
 async function configurar(rol: Rol) {
   new DemoDb().guardarSesion({
     token: 't',
-    usuario: { id: '99', nombre: 'X', correo: 'x@uni.edu', numeroIdentificacion: '1', rol },
+    usuario: { id: '99', nombre: 'X', correo: 'x@uni.test', numeroIdentificacion: '1', rol },
   });
   await TestBed.configureTestingModule({
     imports: [Clasificacion],

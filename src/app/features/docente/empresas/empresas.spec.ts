@@ -24,7 +24,7 @@ function integrante(idEmpresa: number, idUsuario: number, esLider = false): Inte
     idEmpresa,
     idUsuario,
     nombre: `Estudiante ${idUsuario}`,
-    correo: `e${idUsuario}@uni.edu`,
+    correo: `e${idUsuario}@uni.test`,
     numeroIdentificacion: String(idUsuario),
     departamento: 'GERENCIA_GENERAL',
     esLider,

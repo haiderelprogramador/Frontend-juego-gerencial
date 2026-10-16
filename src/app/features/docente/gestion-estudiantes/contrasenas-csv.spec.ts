@@ -7,7 +7,7 @@ function est(id: string, nombre: string, contrasenaGenerada: string): Estudiante
   return {
     id,
     nombre,
-    correo: `${id}@uni.edu`,
+    correo: `${id}@uni.test`,
     numeroIdentificacion: `10${id}`,
     edad: '',
     genero: '',
@@ -26,14 +26,14 @@ describe('contrasenas-csv', () => {
     expect(csv.startsWith('﻿')).toBe(true);
     expect(csv.slice(1).split('\r\n')).toEqual([
       'nombre;correo;identificacion;contrasena',
-      'Ana Pérez;1@uni.edu;101;Usu-001-101!',
-      'Luis;2@uni.edu;102;Usu-002-102!',
+      'Ana Pérez;1@uni.test;101;Usu-001-101!',
+      'Luis;2@uni.test;102;Usu-002-102!',
       '',
     ]);
   });
 
   it('pone entre comillas los campos con ";", comillas o saltos de línea', () => {
     const csv = csvContrasenas([est('1', 'Gómez; Luis', 'a"b')]);
-    expect(csv.slice(1).split('\r\n')[1]).toBe('"Gómez; Luis";1@uni.edu;101;"a""b"');
+    expect(csv.slice(1).split('\r\n')[1]).toBe('"Gómez; Luis";1@uni.test;101;"a""b"');
   });
 });

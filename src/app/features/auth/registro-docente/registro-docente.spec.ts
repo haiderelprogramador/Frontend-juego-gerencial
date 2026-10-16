@@ -22,7 +22,7 @@ describe('RegistroDocente', () => {
     const fixture = TestBed.createComponent(RegistroDocente);
     fixture.componentInstance.form.setValue({
       nombre: 'Ana Docente',
-      correo: 'ana@uni.edu',
+      correo: 'ana@uni.test',
       numeroIdentificacion: '1094567890',
       contrasena: 'claveSegura1!',
     });
@@ -34,7 +34,7 @@ describe('RegistroDocente', () => {
     const cmp = fixture.componentInstance;
     cmp.form.setValue({
       nombre: 'Ana Docente',
-      correo: 'ana@uni.edu',
+      correo: 'ana@uni.test',
       numeroIdentificacion: '1094567890',
       contrasena: 'claveSegura1!',
     });

@@ -90,7 +90,7 @@ describe('GestionEstudiantes', () => {
     const fixture = TestBed.createComponent(GestionEstudiantes);
     const archivo = archivoDesdeFilas([
       {
-        Correo: 'ana@uni.edu',
+        Correo: 'ana@uni.test',
         Nombre: 'Ana Pérez',
         'Número de identificación': '1094567890',
         Edad: '20',
@@ -112,7 +112,7 @@ describe('GestionEstudiantes', () => {
     abrirCurso(fixture);
     const archivo = archivoDesdeFilas([
       {
-        Correo: 'nueva.prueba@uni.edu',
+        Correo: 'nueva.prueba@uni.test',
         Nombre: 'Estudiante Prueba',
         'Número de identificación': '1000000001',
         Edad: '21',
@@ -131,7 +131,7 @@ describe('GestionEstudiantes', () => {
         {
           id: 77,
           nombre: 'Estudiante Prueba',
-          correo: 'nueva.prueba@uni.edu',
+          correo: 'nueva.prueba@uni.test',
           numeroIdentificacion: '1000000001',
           edad: 21,
           genero: 'M',
@@ -148,7 +148,7 @@ describe('GestionEstudiantes', () => {
     if (API_CONFIG.disponible.listarEstudiantes) {
       http
         .expectOne(apiUrl(API_CONFIG.endpoints.estudiantes))
-        .flush([{ id: 77, nombre: 'Estudiante Prueba', correo: 'nueva.prueba@uni.edu' }]);
+        .flush([{ id: 77, nombre: 'Estudiante Prueba', correo: 'nueva.prueba@uni.test' }]);
     }
     expect(fixture.componentInstance.estudiantesCargados().map((e) => e.id)).toContain('77');
   });
@@ -179,7 +179,7 @@ describe('GestionEstudiantes', () => {
     });
 
     const estudiante = (id: number, contrasenaGenerada: string | null) => ({
-      id, nombre: `Estudiante ${id}`, correo: `e${id}@uni.edu`, numeroIdentificacion: `10${id}`, edad: null, genero: null, contrasenaGenerada,
+      id, nombre: `Estudiante ${id}`, correo: `e${id}@uni.test`, numeroIdentificacion: `10${id}`, edad: null, genero: null, contrasenaGenerada,
     });
 
     /** Sube un Excel de una fila y responde la carga con `respuesta`. */
@@ -188,7 +188,7 @@ describe('GestionEstudiantes', () => {
       abrirCurso(fixture);
       await fixture.componentInstance.onArchivo(
         eventoConArchivo(
-          archivoDesdeFilas([{ Correo: 'a@uni.edu', Nombre: 'A', 'Número de identificación': '1', Edad: '20', Género: 'F' }]),
+          archivoDesdeFilas([{ Correo: 'a@uni.test', Nombre: 'A', 'Número de identificación': '1', Edad: '20', Género: 'F' }]),
         ),
       );
       fixture.componentInstance.confirmar();
@@ -202,7 +202,7 @@ describe('GestionEstudiantes', () => {
       const fixture = await cargar({
         creados: [estudiante(1, 'Usu-001-101!'), estudiante(2, 'Usu-002-102!')],
         vinculados: [estudiante(3, null)],
-        errores: [{ fila: 4, correo: 'x@uni.edu', mensaje: 'El correo ya está registrado' }],
+        errores: [{ fila: 4, correo: 'x@uni.test', mensaje: 'El correo ya está registrado' }],
       });
       const host = fixture.nativeElement as HTMLElement;
       const resumen = host.querySelector('.resultado-carga')!.textContent!;
@@ -213,13 +213,13 @@ describe('GestionEstudiantes', () => {
         [...tr.querySelectorAll('td')].map((td) => td.textContent!.trim()),
       );
       expect(filas).toEqual([
-        ['Estudiante 1', 'e1@uni.edu', 'Usu-001-101!'],
-        ['Estudiante 2', 'e2@uni.edu', 'Usu-002-102!'],
+        ['Estudiante 1', 'e1@uni.test', 'Usu-001-101!'],
+        ['Estudiante 2', 'e2@uni.test', 'Usu-002-102!'],
       ]);
       expect(resumen).not.toContain('se enviaron al correo');
       // Los vinculados no tienen contraseña nueva: su texto no cambia.
       expect(resumen).toContain('1 estudiante(s) ya tenían cuenta y se agregaron a tu lista.');
-      expect(resumen).toContain('Fila 4 · x@uni.edu: El correo ya está registrado');
+      expect(resumen).toContain('Fila 4 · x@uni.test: El correo ya está registrado');
     });
 
     it('"Descargar CSV" baja nombre, correo, identificación y contraseña con descargarArchivo', async () => {
@@ -235,14 +235,14 @@ describe('GestionEstudiantes', () => {
       const texto = await blobs[0].text();
       expect(texto.replace('\uFEFF', '').split('\r\n').slice(0, 2)).toEqual([
         'nombre;correo;identificacion;contrasena',
-        'Estudiante 1;e1@uni.edu;101;Usu-001-101!',
+        'Estudiante 1;e1@uni.test;101;Usu-001-101!',
       ]);
     });
 
     it('sin el campo contrasenaGenerada (así responde el backend con el correo activo): avisa y no rompe', async () => {
       // Desde que el backend activa el correo, el campo directamente no viene (no llega en null).
       const sinCampo = (id: number) => ({
-        id, nombre: `Estudiante ${id}`, correo: `e${id}@uni.edu`, numeroIdentificacion: `10${id}`, edad: null, genero: null,
+        id, nombre: `Estudiante ${id}`, correo: `e${id}@uni.test`, numeroIdentificacion: `10${id}`, edad: null, genero: null,
       });
       const fixture = await cargar({ creados: [sinCampo(1), sinCampo(2)], vinculados: [sinCampo(3)], errores: [] });
       const host = fixture.nativeElement as HTMLElement;
@@ -278,12 +278,12 @@ describe('GestionEstudiantes', () => {
 
     function llenar(cmp: GestionEstudiantes) {
       cmp.manualNombre.set('Ana Pérez');
-      cmp.manualCorreo.set('ana@uni.edu');
+      cmp.manualCorreo.set('ana@uni.test');
       cmp.manualId.set('1094');
     }
 
     function alta(id: number, contrasenaGenerada: string | null) {
-      return { id, nombre: 'Ana Pérez', correo: 'ana@uni.edu', numeroIdentificacion: '1094', edad: null, genero: null, contrasenaGenerada };
+      return { id, nombre: 'Ana Pérez', correo: 'ana@uni.test', numeroIdentificacion: '1094', edad: null, genero: null, contrasenaGenerada };
     }
 
     it('201 con contraseña (correo apagado): la muestra con "Copiar", limpia el formulario y refresca la lista', async () => {
@@ -390,7 +390,7 @@ describe('GestionEstudiantes', () => {
       fixture.detectChanges();
 
       expect((fixture.nativeElement as HTMLElement).textContent).toContain('El correo ya pertenece a otro usuario con otra identificación');
-      expect(cmp.manualCorreo()).toBe('ana@uni.edu');
+      expect(cmp.manualCorreo()).toBe('ana@uni.test');
       expect(cmp.agregandoManual()).toBe(false);
       http.expectNone({ method: 'GET', url: URL_ESTUDIANTES });
     });

@@ -31,7 +31,7 @@ describe('sesionVencidaInterceptor', () => {
   beforeEach(async () => {
     new DemoDb().guardarSesion({
       token: TOKEN,
-      usuario: { id: '49', nombre: 'Docente', correo: 'd@uni.edu', numeroIdentificacion: '1', rol: Rol.DOCENTE },
+      usuario: { id: '49', nombre: 'Docente', correo: 'd@uni.test', numeroIdentificacion: '1', rol: Rol.DOCENTE },
     });
     TestBed.configureTestingModule({
       providers: [

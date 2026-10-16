@@ -136,14 +136,14 @@ export class EstudianteService {
     }
 
     const nombres = [
-      ['Ana Torres', 'ana.torres@demo.com', '10000001'],
-      ['Bruno Castro', 'bruno.castro@demo.com', '10000002'],
-      ['Camila Rojas', 'camila.rojas@demo.com', '10000003'],
-      ['Diego Mendoza', 'diego.mendoza@demo.com', '10000004'],
-      ['Elena Vargas', 'elena.vargas@demo.com', '10000005'],
-      ['Felipe Navarro', 'felipe.navarro@demo.com', '10000006'],
-      ['Gabriela Silva', 'gabriela.silva@demo.com', '10000007'],
-      ['Hugo Paredes', 'hugo.paredes@demo.com', '10000008'],
+      ['Ana Torres', 'ana.torres@demo.test', '10000001'],
+      ['Bruno Castro', 'bruno.castro@demo.test', '10000002'],
+      ['Camila Rojas', 'camila.rojas@demo.test', '10000003'],
+      ['Diego Mendoza', 'diego.mendoza@demo.test', '10000004'],
+      ['Elena Vargas', 'elena.vargas@demo.test', '10000005'],
+      ['Felipe Navarro', 'felipe.navarro@demo.test', '10000006'],
+      ['Gabriela Silva', 'gabriela.silva@demo.test', '10000007'],
+      ['Hugo Paredes', 'hugo.paredes@demo.test', '10000008'],
     ];
 
     return this.cargaMasiva(

@@ -19,7 +19,7 @@ describe('MiCuenta', () => {
     // Sesión iniciada ANTES de crear AuthService (la lee al construirse).
     new DemoDb().guardarSesion({
       token: TOKEN,
-      usuario: { id: '7', nombre: 'Ana', correo: 'ana@uni.edu', numeroIdentificacion: '123456', rol: Rol.DOCENTE },
+      usuario: { id: '7', nombre: 'Ana', correo: 'ana@uni.test', numeroIdentificacion: '123456', rol: Rol.DOCENTE },
     });
     await TestBed.configureTestingModule({
       imports: [MiCuenta],
