@@ -123,7 +123,7 @@ describe('SimulacionService', () => {
       await expect(promesa).rejects.toThrow('Tu sesión venció. Vuelve a iniciar sesión para descargar el archivo.');
     });
 
-    it('un 403 (sin permiso o sesión vencida: el backend no distingue) da un mensaje que cubre los dos casos', async () => {
+    it('un 403 (con sesión pero sin permiso) dice que no tiene permiso, aunque el backend mande otro texto', async () => {
       const promesa = firstValueFrom(service.exportar(7));
       http
         .expectOne(`${URL}/7/exportar`)
@@ -131,9 +131,7 @@ describe('SimulacionService', () => {
           status: 403,
           statusText: 'Forbidden',
         });
-      await expect(promesa).rejects.toThrow(
-        'No tienes permiso para descargar este archivo o tu sesión venció. Vuelve a iniciar sesión e inténtalo de nuevo.',
-      );
+      await expect(promesa).rejects.toThrow('No tienes permiso para descargar este archivo.');
     });
 
     it('si el cuerpo del error no es JSON (o no trae message), da un mensaje genérico', async () => {

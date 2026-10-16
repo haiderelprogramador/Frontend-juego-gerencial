@@ -15,15 +15,14 @@ export interface ArchivoDescargado {
 const MENSAJE_EXPORTAR = 'No se pudo descargar el Excel de la simulación.';
 
 /**
- * 401 y 403 los responde Spring Security, con el cuerpo vacío o con un texto
- * técnico: se reemplazan siempre por un mensaje para el docente. Hoy el
- * backend responde 403 también sin sesión o con el token vencido (probado en
- * vivo, 16-oct-2026), así que el del 403 cubre los dos casos. El del 401 queda
- * para cuando el backend lo devuelva (ya se le pidió).
+ * 401 y 403 se reemplazan siempre por un mensaje para el docente. El 401
+ * (sin token, o token inválido o vencido) además lo maneja
+ * `sesionVencidaInterceptor`, que manda al login; el 403 es "con sesión pero
+ * sin permiso" (los dos confirmados en JSON contra develop, 16-oct-2026).
  */
 const MENSAJES_EXPORTAR_POR_STATUS: Readonly<Record<number, string>> = {
   401: 'Tu sesión venció. Vuelve a iniciar sesión para descargar el archivo.',
-  403: 'No tienes permiso para descargar este archivo o tu sesión venció. Vuelve a iniciar sesión e inténtalo de nuevo.',
+  403: 'No tienes permiso para descargar este archivo.',
 };
 
 /**
