@@ -127,6 +127,19 @@
       @if (avisoManual(); as msg) {
         <app-alerta tipo="exito" [mensaje]="msg" />
       }
+      @if (contrasenaManual(); as contrasena) {
+        <!-- Con el correo del backend apagado, es la única vez que se ve la contraseña. -->
+        <div class="contrasena-manual">
+          <span>Contraseña: <code>{{ contrasena }}</code></span>
+          <button type="button" class="btn btn--ghost btn--sm" (click)="copiarContrasena()">
+            {{ copiada() ? 'Copiada' : 'Copiar' }}
+          </button>
+          <span class="contrasena-manual__nota">Cópiala ahora: no se vuelve a mostrar.</span>
+        </div>
+        @if (errorCopiar(); as msg) {
+          <app-alerta tipo="error" [mensaje]="msg" />
+        }
+      }
     </section>
 
     <section class="card panel-block uploader">
@@ -148,10 +161,42 @@
     }
 
     @if (estado() === 'resultado' && resultado(); as res) {
-      <!-- Resumen de la carga (sin contraseñas: al estudiante le llegan por correo, docs/08). -->
+      <!--
+        Resumen de la carga. Las contraseñas solo se muestran si el backend las
+        devolvió (hoy, con el correo apagado); cuando las mande por correo
+        vendrán vacías y se avisa eso en su lugar.
+      -->
       <div class="resultado-carga">
         @if (res.creados.length > 0) {
           <app-alerta tipo="exito" [mensaje]="res.creados.length + ' estudiante(s) creados.'" />
+          @if (creadosConContrasena().length > 0) {
+            <app-alerta tipo="info" mensaje="Copia o descarga estas contraseñas ahora: no se vuelven a mostrar." />
+            <div class="tabla-scroll">
+              <table class="tabla contrasenas">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Correo</th>
+                    <th>Contraseña</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (e of creadosConContrasena(); track e.id) {
+                    <tr>
+                      <td>{{ e.nombre }}</td>
+                      <td>{{ e.correo }}</td>
+                      <td><code>{{ e.contrasenaGenerada }}</code></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div class="acciones">
+              <button type="button" class="btn btn--secondary" (click)="descargarContrasenas()">Descargar CSV</button>
+            </div>
+          } @else {
+            <p class="gestion__hint">Las contraseñas se enviaron al correo de cada estudiante.</p>
+          }
         }
         @if (res.vinculados.length > 0) {
           <app-alerta tipo="info"

@@ -350,3 +350,18 @@
     color: var(--bs-danger);
   }
 }
+
+/* Contraseña del alta manual (solo cuando el backend la devuelve). */
+.contrasena-manual {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+
+  &__nota {
+    font-size: 0.78rem;
+    color: var(--bs-muted);
+  }
+}

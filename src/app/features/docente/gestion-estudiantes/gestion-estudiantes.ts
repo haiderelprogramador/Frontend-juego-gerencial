@@ -4,6 +4,8 @@ import { RouterLink } from '@angular/router';
 import { Curso } from '../../../core/models/curso.model';
 import { CursoService } from '../../../core/services/curso.service';
 import { Alerta } from '../../../shared/components/alerta/alerta';
+import { descargarArchivo } from '../../../shared/utils/descarga';
+import { conContrasena, csvContrasenas } from './contrasenas-csv';
 import {
   CargaMasivaRequest,
   CargaMasivaResponse,
@@ -72,6 +74,20 @@ export class GestionEstudiantes {
   readonly agregandoManual = signal(false);
   readonly avisoManual = signal<string | null>(null);
   readonly errorManual = signal<string | null>(null);
+  /**
+   * Contraseña del alta manual, si el backend la devolvió (201 con el correo
+   * apagado). Solo vive en memoria hasta el próximo alta: no se vuelve a mostrar.
+   */
+  readonly contrasenaManual = signal<string | null>(null);
+  readonly copiada = signal(false);
+  readonly errorCopiar = signal<string | null>(null);
+
+  /**
+   * Creados de la última carga que trajeron contraseña. Hoy el backend no
+   * manda correos, así que es la única vez que se pueden ver; cuando active el
+   * correo vendrán vacías y esta lista queda vacía.
+   */
+  readonly creadosConContrasena = computed(() => conContrasena(this.resultado()?.creados ?? []));
   readonly menuCursoAbierto = signal<string | null>(null);
 
   readonly filasValidas = computed(() => this.filas().filter((f) => f.estado === 'ok'));
@@ -248,6 +264,9 @@ export class GestionEstudiantes {
     const identificacion = this.manualId().trim();
     this.avisoManual.set(null);
     this.errorManual.set(null);
+    this.contrasenaManual.set(null);
+    this.copiada.set(false);
+    this.errorCopiar.set(null);
     if (!cursoId || !nombre || !correo || !identificacion) {
       this.errorManual.set('Completa nombre, correo y número de identificación.');
       return;
@@ -259,10 +278,13 @@ export class GestionEstudiantes {
     this.estudiantes.agregarManual(cursoId, nombre, correo, identificacion).subscribe({
       next: ({ estudiante, vinculado }) => {
         this.agregandoManual.set(false);
+        const contrasena = vinculado ? null : estudiante.contrasenaGenerada || null;
+        this.contrasenaManual.set(contrasena);
         this.avisoManual.set(
           vinculado
             ? `${estudiante.nombre} ya tenía cuenta; se agregó a tu lista.`
-            : `Se creó la cuenta de ${estudiante.nombre} y se agregó a tu lista.`,
+            : `Se creó la cuenta de ${estudiante.nombre} y se agregó a tu lista.` +
+                (contrasena ? '' : ' La contraseña se envió a su correo.'),
         );
         this.manualNombre.set('');
         this.manualCorreo.set('');
@@ -274,6 +296,31 @@ export class GestionEstudiantes {
         this.errorManual.set(err?.error?.message ?? err?.message ?? 'No se pudo agregar el estudiante.');
       },
     });
+  }
+
+  async copiarContrasena(): Promise<void> {
+    const contrasena = this.contrasenaManual();
+    if (!contrasena) {
+      return;
+    }
+    this.errorCopiar.set(null);
+    try {
+      await navigator.clipboard.writeText(contrasena);
+      this.copiada.set(true);
+    } catch {
+      this.errorCopiar.set('No se pudo copiar: selecciónala y cópiala a mano.');
+    }
+  }
+
+  /** CSV con nombre, correo, identificación y contraseña de los creados en la última carga. */
+  descargarContrasenas(): void {
+    const estudiantes = this.creadosConContrasena();
+    if (estudiantes.length === 0) {
+      return;
+    }
+    const blob = new Blob([csvContrasenas(estudiantes)], { type: 'text/csv;charset=utf-8' });
+    const fecha = new Date().toISOString().slice(0, 10);
+    descargarArchivo(blob, `contrasenas-estudiantes-${fecha}.csv`);
   }
 
   private construirPrevisualizacion(filas: FilaEstudianteExcel[]): FilaPrevisualizacion[] {
