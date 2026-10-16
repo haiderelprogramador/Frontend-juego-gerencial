@@ -26,5 +26,5 @@ export function csvContrasenas(estudiantes: readonly EstudianteCargado[]): strin
     ['nombre', 'correo', 'identificacion', 'contrasena'],
     ...estudiantes.map((e) => [e.nombre, e.correo, e.numeroIdentificacion, e.contrasenaGenerada]),
   ];
-  return '﻿' + filas.map((f) => f.map(campo).join(SEPARADOR)).join('\r\n') + '\r\n';
+  return '\uFEFF' + filas.map((f) => f.map(campo).join(SEPARADOR)).join('\r\n') + '\r\n';
 }

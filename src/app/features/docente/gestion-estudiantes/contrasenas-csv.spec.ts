@@ -23,7 +23,7 @@ describe('contrasenas-csv', () => {
 
   it('arma el CSV con BOM, separador ";" (Excel en español), encabezado y \\r\\n', () => {
     const csv = csvContrasenas([est('1', 'Ana Pérez', 'Usu-001-101!'), est('2', 'Luis', 'Usu-002-102!')]);
-    expect(csv.startsWith('﻿')).toBe(true);
+    expect(csv.startsWith('\uFEFF')).toBe(true);
     expect(csv.slice(1).split('\r\n')).toEqual([
       'nombre;correo;identificacion;contrasena',
       'Ana Pérez;1@uni.test;101;Usu-001-101!',
