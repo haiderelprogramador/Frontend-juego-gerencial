@@ -4,7 +4,21 @@
       <h1 class="t-display">Clasificación</h1>
       <p class="clasif__sub">Ranking de empresas por utilidad acumulada en la simulación.</p>
     </div>
+    @if (puedeExportar()) {
+      <div class="exportar">
+        <button type="button" class="btn btn--secundario" [disabled]="descargando()" (click)="descargarExcel()">
+          {{ descargando() ? 'Descargando…' : 'Descargar Excel' }}
+        </button>
+        @if (exportaVistaPrevia()) {
+          <span class="exportar__nota">La simulación no ha terminado: la clasificación sale como vista previa.</span>
+        }
+      </div>
+    }
   </header>
+
+  @if (errorExportar(); as msg) {
+    <app-alerta tipo="error" [mensaje]="msg" />
+  }
 
   <div class="card clasif__sim">
     <label class="field">

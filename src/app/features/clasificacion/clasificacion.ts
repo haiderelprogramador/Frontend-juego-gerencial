@@ -4,10 +4,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 
+import { API_CONFIG } from '../../core/api/api.config';
 import { Rol } from '../../core/models/rol.enum';
 import { AuthService } from '../../core/services/auth.service';
 import { Alerta } from '../../shared/components/alerta/alerta';
 import { Badge } from '../../shared/components/badge/badge';
+import { descargarArchivo } from '../../shared/utils/descarga';
 import { SimulacionService } from '../docente/simulaciones/services/simulacion.service';
 import { PortalEstudianteService } from '../estudiante/services/portal-estudiante.service';
 import { formatearMoneda } from '../simulacion/models/financiero.model';
@@ -46,6 +48,9 @@ const AUN_NO_DISPONIBLE = /disponible cuando la simulaci[oó]n finalice/i;
  *
  * El orden y la `posicion` (con empates 1, 1, 3) vienen resueltos del backend:
  * no se reordena ni se recalcula nada.
+ *
+ * "Descargar Excel" (solo docente, con una simulación elegida):
+ * `SimulacionService.exportar`, detrás de `API_CONFIG.disponible.exportar`.
  */
 @Component({
   selector: 'app-clasificacion',
@@ -79,6 +84,23 @@ export class Clasificacion {
   readonly estado = signal<Estado>('sin-simulacion');
   readonly datos = signal<ClasificacionDto | null>(null);
   readonly mensaje = signal<string | null>(null);
+  // -- Descargar Excel (solo docente) --
+  readonly exportarDisponible = signal<boolean>(API_CONFIG.disponible.exportar);
+  readonly puedeExportar = computed(
+    () => this.exportarDisponible() && this.esDocente() && this.idSimulacion() !== null,
+  );
+  /**
+   * Si la simulación todavía no terminó, el Excel lleva la clasificación como
+   * vista previa. El estado sale del selector o, si no está, de la clasificación.
+   */
+  readonly exportaVistaPrevia = computed(() => {
+    const estado =
+      this.simulaciones().find((s) => s.id === this.idSimulacion())?.estado ?? this.datos()?.estadoSimulacion;
+    return estado !== 'FINALIZADA';
+  });
+  readonly descargando = signal(false);
+  readonly errorExportar = signal<string | null>(null);
+
   /** Filas abiertas (por `idEmpresa`). */
   readonly expandidas = signal<ReadonlySet<number>>(new Set());
 
@@ -100,6 +122,7 @@ export class Clasificacion {
   }
 
   elegirSimulacion(valor: string): void {
+    this.errorExportar.set(null);
     const id = Number(valor);
     void this.router.navigate([], {
       relativeTo: this.route,
@@ -110,6 +133,25 @@ export class Clasificacion {
 
   estadoLegible(estado: string): string {
     return ESTADOS_SIMULACION[estado] ?? estado.toLowerCase();
+  }
+
+  descargarExcel(): void {
+    const id = this.idSimulacion();
+    if (id === null || !this.puedeExportar() || this.descargando()) {
+      return;
+    }
+    this.descargando.set(true);
+    this.errorExportar.set(null);
+    this.simulacionService.exportar(id).subscribe({
+      next: ({ nombre, blob }) => {
+        this.descargando.set(false);
+        descargarArchivo(blob, nombre);
+      },
+      error: (err: Error) => {
+        this.descargando.set(false);
+        this.errorExportar.set(err.message);
+      },
+    });
   }
 
   alternar(idEmpresa: number): void {

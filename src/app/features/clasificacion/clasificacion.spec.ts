@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
+import { vi } from 'vitest';
 
 import { API_CONFIG, apiUrl } from '../../core/api/api.config';
 import { DemoDb } from '../../core/demo/demo-db';
@@ -104,6 +105,106 @@ describe.runIf(!API_CONFIG.demoMode)('Clasificacion', () => {
       expect(host.querySelector('#desglose-6')).toBeNull();
     });
 
+    describe('Descargar Excel', () => {
+      // jsdom no implementa URL.createObjectURL / revokeObjectURL.
+      const originales = { crear: URL.createObjectURL, liberar: URL.revokeObjectURL };
+      let liberar: ReturnType<typeof vi.fn>;
+      let clics: HTMLAnchorElement[];
+
+      beforeEach(() => {
+        liberar = vi.fn();
+        URL.createObjectURL = vi.fn(() => 'blob:fake') as unknown as typeof URL.createObjectURL;
+        URL.revokeObjectURL = liberar as unknown as typeof URL.revokeObjectURL;
+        clics = [];
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+          clics.push(this);
+        });
+      });
+
+      afterEach(() => {
+        URL.createObjectURL = originales.crear;
+        URL.revokeObjectURL = originales.liberar;
+        vi.restoreAllMocks();
+        vi.useRealTimers();
+      });
+
+      /** Monta la pantalla con la exportación habilitada (el flag va en false hasta confirmar develop). */
+      function montarConExportar(datos: ClasificacionDto) {
+        const r = montar(datos);
+        r.fixture.componentInstance.exportarDisponible.set(true);
+        r.fixture.detectChanges();
+        return r;
+      }
+
+      function boton(host: HTMLElement): HTMLButtonElement | null {
+        return host.querySelector<HTMLButtonElement>('.exportar button');
+      }
+
+      it('con disponible.exportar = false no aparece', () => {
+        const { host } = montar(respuesta());
+        expect(boton(host)).toBeNull();
+      });
+
+      it('descarga el .xlsx con el nombre del backend y libera la URL', () => {
+        vi.useFakeTimers();
+        const { fixture, host } = montarConExportar(respuesta());
+        expect(boton(host)?.textContent?.trim()).toBe('Descargar Excel');
+        // FINALIZADA: sin nota de vista previa.
+        expect(host.querySelector('.exportar__nota')).toBeNull();
+
+        boton(host)!.click();
+        fixture.detectChanges();
+        expect(boton(host)?.disabled).toBe(true);
+        expect(boton(host)?.textContent?.trim()).toBe('Descargando…');
+
+        http
+          .expectOne(`${DOCENTE_SIMS}/41/exportar`)
+          .flush(new Blob(['xlsx']), { headers: { 'Content-Disposition': 'attachment; filename="estratego-simulacion-41.xlsx"' } });
+        fixture.detectChanges();
+
+        expect(clics).toHaveLength(1);
+        expect(clics[0].download).toBe('estratego-simulacion-41.xlsx');
+        vi.advanceTimersByTime(1000);
+        expect(liberar).toHaveBeenCalledWith('blob:fake');
+        expect(boton(host)?.disabled).toBe(false);
+        expect(boton(host)?.textContent?.trim()).toBe('Descargar Excel');
+      });
+
+      it('con un archivo vacío no descarga nada y muestra el mensaje genérico', () => {
+        const { fixture, host } = montarConExportar(respuesta());
+        boton(host)!.click();
+        http.expectOne(`${DOCENTE_SIMS}/41/exportar`).flush(new Blob([]));
+        fixture.detectChanges();
+
+        expect(clics).toHaveLength(0);
+        expect(host.textContent).toContain('No se pudo descargar el Excel de la simulación.');
+        expect(boton(host)?.disabled).toBe(false);
+      });
+
+      it('si la simulación no está FINALIZADA avisa que la clasificación sale como vista previa', () => {
+        const { host } = montarConExportar(respuesta({ definitiva: false, estadoSimulacion: 'EN_CURSO' }));
+        expect(host.querySelector('.exportar__nota')?.textContent).toContain('la clasificación sale como vista previa');
+      });
+
+      it('si falla muestra el mensaje del backend y vuelve a habilitar el botón', async () => {
+        const { fixture, host } = montarConExportar(respuesta());
+        boton(host)!.click();
+        http
+          .expectOne(`${DOCENTE_SIMS}/41/exportar`)
+          .flush(new Blob([JSON.stringify({ message: 'No tienes acceso a esta simulación' })]), {
+            status: 403,
+            statusText: 'Forbidden',
+          });
+        // El cuerpo Blob del error se lee de forma asíncrona.
+        await vi.waitFor(() => expect(fixture.componentInstance.errorExportar()).toBe('No tienes acceso a esta simulación'));
+        fixture.detectChanges();
+
+        expect(host.textContent).toContain('No tienes acceso a esta simulación');
+        expect(boton(host)?.disabled).toBe(false);
+        expect(clics).toHaveLength(0);
+      });
+    });
+
     it('sin casos considerados: "Todavía no hay resultados", no una tabla en 0', () => {
       const { host } = montar(respuesta({ casosConsiderados: 0, clasificacion: [] }));
       expect(host.textContent).toContain('Todavía no hay resultados');
@@ -148,6 +249,14 @@ describe.runIf(!API_CONFIG.demoMode)('Clasificacion', () => {
       expect((fixture.nativeElement as HTMLElement).querySelector('app-alerta')?.textContent).toContain(
         'estará disponible cuando la simulación finalice',
       );
+    });
+
+    it('el estudiante no ve "Descargar Excel" aunque la exportación esté habilitada', () => {
+      const fixture = montar();
+      http.expectOne(`${ESTUDIANTE_SIMS}/41/clasificacion`).flush(respuesta());
+      fixture.componentInstance.exportarDisponible.set(true);
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('.exportar')).toBeNull();
     });
 
     it('400 "No participas en esta simulación" sí es un error', () => {

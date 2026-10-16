@@ -63,7 +63,8 @@ export const API_CONFIG = {
      * También base de las rutas anidadas `/{id}/casos` y `/{id}/empresas`.
      *  GET/POST -> SimulacionRequest ; GET/PUT/DELETE `/{id}` ;
      *  POST `/{id}/programar|desprogramar|iniciar|finalizar` ; GET `/{id}/clasificacion`
-     *  -> Clasificacion (cualquier estado; ClasificacionService).
+     *  -> Clasificacion (cualquier estado; ClasificacionService) ;
+     *  GET `/{id}/exportar` -> .xlsx (ver `disponible.exportar`).
      */
     simulacionesDocente: '/docente/simulaciones',
     /**
@@ -120,6 +121,12 @@ export const API_CONFIG = {
      * `false`, Reportes financieros no la pide (sin gráfico de evolución).
      */
     historia: false,
+    /**
+     * GET /docente/simulaciones/{id}/exportar (.xlsx con Clasificación,
+     * Estados por empresa y Decisiones). En `false`, Clasificación no muestra
+     * "Descargar Excel". Pendiente de confirmar si ya está en develop.
+     */
+    exportar: false,
   },
 } as const;
 

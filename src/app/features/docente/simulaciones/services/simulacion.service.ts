@@ -1,9 +1,35 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, catchError, from, of, switchMap, throwError } from 'rxjs';
 
 import { API_CONFIG, apiUrl } from '../../../../core/api/api.config';
+import { nombreDesdeContentDisposition } from '../../../../shared/utils/descarga';
 import { Simulacion, SimulacionRequest } from '../models/simulacion.model';
+
+/** Un archivo recibido del backend, listo para descargar. */
+export interface ArchivoDescargado {
+  nombre: string;
+  blob: Blob;
+}
+
+const MENSAJE_EXPORTAR = 'No se pudo descargar el Excel de la simulación.';
+
+/**
+ * Con `responseType: 'blob'`, el cuerpo de un error también llega como Blob:
+ * se lee como texto y se toma el `message` estándar del backend. Si no es JSON
+ * o no trae `message`, queda el mensaje genérico.
+ */
+async function mensajeDeErrorBlob(err: HttpErrorResponse): Promise<string> {
+  const cuerpo: unknown = err.error;
+  try {
+    const texto = cuerpo instanceof Blob ? await cuerpo.text() : typeof cuerpo === 'string' ? cuerpo : null;
+    const json = texto ? JSON.parse(texto) : cuerpo;
+    const message = (json as { message?: unknown } | null)?.message;
+    return typeof message === 'string' && message.trim() ? message : MENSAJE_EXPORTAR;
+  } catch {
+    return MENSAJE_EXPORTAR;
+  }
+}
 
 /**
  * Simulaciones del docente — cliente de `/api/docente/simulaciones` (API
@@ -64,6 +90,33 @@ export class SimulacionService {
   /** EN_CURSO -> FINALIZADA. */
   finalizar(id: number): Observable<Simulacion> {
     return this.http.post<Simulacion>(`${this.base}/${id}/finalizar`, {});
+  }
+
+  /**
+   * Resultados de la simulación en Excel: hojas Clasificación, Estados por
+   * empresa (con indicadores) y Decisiones. El nombre viene en
+   * `Content-Disposition` (expuesto por CORS); si no viene, se usa
+   * `estratego-simulacion-{id}.xlsx`. Un error se convierte en `Error` con el
+   * `message` del backend; una respuesta sin cuerpo (o con un blob vacío) también
+   * es un error, para no descargar un .xlsx roto. Ver `API_CONFIG.disponible.exportar`.
+   */
+  exportar(idSimulacion: number): Observable<ArchivoDescargado> {
+    return this.http
+      .get(`${this.base}/${idSimulacion}/exportar`, { responseType: 'blob', observe: 'response' })
+      .pipe(
+        catchError((err: HttpErrorResponse) =>
+          from(mensajeDeErrorBlob(err)).pipe(switchMap((msg) => throwError(() => new Error(msg)))),
+        ),
+        switchMap((res) => {
+          if (!res.body || res.body.size === 0) {
+            return throwError(() => new Error(MENSAJE_EXPORTAR));
+          }
+          const nombre =
+            nombreDesdeContentDisposition(res.headers.get('Content-Disposition')) ??
+            `estratego-simulacion-${idSimulacion}.xlsx`;
+          return of({ nombre, blob: res.body });
+        }),
+      );
   }
 
   /** Solo si está BORRADOR. */

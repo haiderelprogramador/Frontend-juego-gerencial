@@ -183,3 +183,19 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* "Descargar Excel" (docente): botón + nota de vista previa debajo. */
+.exportar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  max-width: 16rem;
+
+  &__nota {
+    font-size: 0.74rem;
+    line-height: 1.4;
+    color: var(--bs-muted);
+    text-align: right;
+  }
+}
