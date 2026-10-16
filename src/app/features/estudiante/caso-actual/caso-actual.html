@@ -94,7 +94,15 @@
         <div class="card">
           <h2 class="t-title">Información financiera inicial</h2>
           <p class="financiero__sub">{{ subtituloFinanciero() }}</p>
-          @if (financieroInicial(); as f) {
+          @if (balanceNoDisponible()) {
+            <div class="financiero__grid">
+              <div class="financiero__item">
+                <span class="financiero__label">Utilidad neta</span>
+                <span class="financiero__val num">{{ moneda(c.financiero.utilidadNeta) }}</span>
+              </div>
+            </div>
+            <p class="financiero__aviso">{{ avisoBalance }}</p>
+          } @else if (financieroInicial(); as f) {
             <div class="financiero__grid">
               <div class="financiero__item">
                 <span class="financiero__label">Activo total</span>

@@ -55,6 +55,9 @@ export const API_CONFIG = {
      *  simulación, con `decidio`). Rol DOCENTE.
      *  Boletín (D14): PUT `/{id}/boletin` -> BoletinRequest ; GET -> Boletin o
      *  204 ; DELETE. Ver `disponible.boletin`.
+     *  GET `/{id}/estados-empresas` -> estado inicial y final de cada empresa en
+     *  el caso (EstadoFinancieroEmpresa, con indicadores). Sin uso todavía: el
+     *  16-oct-2026 respondía 500 en develop (igual que boletín e historia).
      */
     casos: '/docente/casos',
 

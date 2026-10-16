@@ -155,6 +155,27 @@ describe('ReportesFinancieros', () => {
     expect(host.querySelector('.comparativo__pendiente')).toBeTruthy();
   });
 
+  it('respaldo en un caso siguiente (balance en null): solo utilidad neta, aviso y sin la tabla del balance', () => {
+    const dto = casoActual();
+    delete (dto as Partial<CasoActual>).financieroEmpresa;
+    const nulos = Object.fromEntries(Object.keys(dto.caso.financiero).map((k) => [k, null]));
+    dto.caso = {
+      ...dto.caso,
+      financiero: { ...nulos, ...Object.fromEntries(['ventasNetas', 'costoVentas', 'gastosAdministracion', 'gastosVentas', 'gastosFinancieros', 'impuestoRenta'].map((k) => [k, (PARTIDAS as unknown as Record<string, number>)[k]])), utilidadNeta: 200 },
+    } as CasoActual['caso'];
+    const host = render(dto);
+
+    const kpis = host.querySelectorAll('app-kpi');
+    expect(kpis).toHaveLength(1);
+    expect(kpis[0].textContent).toContain('Utilidad neta');
+    expect(kpis[0].textContent).toContain('$200');
+    expect(host.textContent).toContain('El balance propio de tu empresa todavía no está disponible; aparecerá aquí en cuanto se publique.');
+    expect(host.querySelector('.comparativo')).toBeNull();
+    // El estado de resultados (las 6 partidas) sí se muestra.
+    expect(host.querySelectorAll('.estado__row').length).toBeGreaterThan(6);
+    expect(host.querySelector('.reportes__kpis')?.textContent).not.toContain('—');
+  });
+
   it('sin caso visible (204) muestra el estado vacío', () => {
     const host = render(null);
     expect(host.querySelector('.reportes__vacio')).toBeTruthy();

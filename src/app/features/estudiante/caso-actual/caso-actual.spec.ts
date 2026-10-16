@@ -191,6 +191,51 @@ describe('CasoActual', () => {
     expect(host.textContent).toContain('No hay un caso activo todavía');
   });
 
+  describe('balance mientras no llega financieroEmpresa (respaldo con caso.financiero)', () => {
+    /** Caso siguiente tal como lo devuelve develop hoy: balance en null, solo el estado de resultados. */
+    function casoSiguiente(): CasoEstudiante {
+      const base = casoEstudiante(UNA_HORA_MS, 2 * UNA_HORA_MS);
+      const nulos = Object.fromEntries(Object.keys(base.financiero).map((k) => [k, null]));
+      return {
+        ...base,
+        financiero: { ...nulos, utilidadNeta: 130000, ventasNetas: 1200000, costoVentas: 700000 } as CasoEstudiante['financiero'],
+      };
+    }
+
+    function sinFinancieroEmpresa(caso: CasoEstudiante): CasoActualDto {
+      const dto = casoActualDto({ caso });
+      delete (dto as Partial<CasoActualDto>).financieroEmpresa;
+      return dto;
+    }
+
+    it('en un caso siguiente muestra la utilidad neta y el aviso, no "—"', () => {
+      const fixture = crearFixture(sinFinancieroEmpresa(casoSiguiente()));
+      const host = fixture.nativeElement as HTMLElement;
+      const items = [...host.querySelectorAll('.financiero__item')].map(
+        (i) => `${i.querySelector('.financiero__label')?.textContent?.trim()}: ${i.querySelector('.financiero__val')?.textContent?.trim()}`,
+      );
+
+      expect(fixture.componentInstance.balanceNoDisponible()).toBe(true);
+      expect(items).toEqual(['Utilidad neta: $130.000']);
+      expect(host.querySelector('.financiero__aviso')?.textContent).toContain('El balance propio de tu empresa todavía no está disponible; aparecerá aquí en cuanto se publique.');
+      expect(host.querySelector('.financiero__grid')?.textContent).not.toContain('—');
+    });
+
+    it('en el primer caso (totales con valor) muestra los 4 totales, sin aviso', () => {
+      const fixture = crearFixture(sinFinancieroEmpresa(casoEstudiante(UNA_HORA_MS, 2 * UNA_HORA_MS)));
+      const host = fixture.nativeElement as HTMLElement;
+      expect(fixture.componentInstance.balanceNoDisponible()).toBe(false);
+      expect(host.querySelectorAll('.financiero__item')).toHaveLength(4);
+      expect(host.querySelector('.financiero__aviso')).toBeNull();
+    });
+
+    it('con financieroEmpresa no aplica, aunque caso.financiero venga en null', () => {
+      const fixture = crearFixture(casoActualDto({ caso: casoSiguiente() }));
+      expect(fixture.componentInstance.balanceNoDisponible()).toBe(false);
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll('.financiero__item')).toHaveLength(4);
+    });
+  });
+
   it('muestra el boletín del período cuando caso-actual lo trae', () => {
     const fixture = crearFixture(
       casoActualDto({

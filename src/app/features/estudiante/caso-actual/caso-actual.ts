@@ -123,6 +123,17 @@ export class CasoActual implements OnDestroy {
     const propio = d.financieroEmpresa?.inicial;
     return propio ?? d.caso.financiero;
   });
+  /**
+   * Respaldo con `caso.financiero` en un caso que no es el primero: el backend
+   * no manda el balance (los totales vienen `null`, porque el balance se
+   * hereda por empresa y llega en `financieroEmpresa`, que todavía no está en
+   * develop). Se muestra solo la utilidad neta y un aviso, no "—".
+   */
+  readonly balanceNoDisponible = computed(() => {
+    const d = this.datos();
+    return !!d && !d.financieroEmpresa?.inicial && d.caso.financiero.activoTotal == null;
+  });
+  readonly avisoBalance = 'El balance propio de tu empresa todavía no está disponible; aparecerá aquí en cuanto se publique.';
   readonly subtituloFinanciero = computed(() => {
     const origen = this.datos()?.financieroEmpresa?.inicial?.origen;
     if (origen === 'heredado') {

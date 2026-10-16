@@ -147,6 +147,18 @@ export class ReportesFinancieros {
     return { inicial: { ...f, origen: 'docente' }, final: null };
   });
 
+  /**
+   * Respaldo con `caso.financiero` en un caso que no es el primero: los totales
+   * del balance vienen `null` (el balance por empresa llega en
+   * `financieroEmpresa`, que todavía no está en develop). Entonces se muestra
+   * solo la utilidad neta, un aviso y no la tabla del balance.
+   */
+  readonly balanceNoDisponible = computed(() => {
+    const d = this.datos();
+    return !!d && !d.financieroEmpresa?.inicial && d.caso.financiero.activoTotal == null;
+  });
+  readonly avisoBalance = 'El balance propio de tu empresa todavía no está disponible; aparecerá aquí en cuanto se publique.';
+
   /** true si lo que se ve sale de la historia (caso-actual en 204), no del caso actual. */
   readonly esRespaldo = computed(() => this.ultimoDeHistoria() !== null);
 
@@ -187,12 +199,14 @@ export class ReportesFinancieros {
       final: f?.[campo] ?? null,
       sinColor,
     });
-    return [
+    const todas = [
       cifra('Activo total', 'activoTotal'),
       cifra('Pasivo total', 'pasivoTotal', true),
       cifra('Patrimonio', 'patrimonio'),
       cifra('Utilidad neta', 'utilidadNeta'),
     ];
+    // Sin balance propio todavía: los tres totales del balance serían "—".
+    return this.balanceNoDisponible() ? todas.filter((c) => c.etiqueta === 'Utilidad neta') : todas;
   });
 
   /**

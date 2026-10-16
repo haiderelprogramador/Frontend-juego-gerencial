@@ -42,8 +42,12 @@
           [tendencia]="tendencia(c)" />
       }
     </div>
+    @if (balanceNoDisponible()) {
+      <app-alerta tipo="info" [mensaje]="avisoBalance" />
+    }
 
     <div class="reportes__grid">
+      @if (!balanceNoDisponible()) {
       <div class="card comparativo">
         <header class="comparativo__head">
           <div>
@@ -94,6 +98,7 @@
           </div>
         }
       </div>
+      }
 
       <div class="card estado">
         <header class="estado__head">
