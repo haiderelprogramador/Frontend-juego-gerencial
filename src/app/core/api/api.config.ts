@@ -123,10 +123,11 @@ export const API_CONFIG = {
     historia: false,
     /**
      * GET /docente/simulaciones/{id}/exportar (.xlsx con Clasificación,
-     * Estados por empresa y Decisiones). En `false`, Clasificación no muestra
-     * "Descargar Excel". Pendiente de confirmar si ya está en develop.
+     * Estados por empresa y Decisiones). Probado en vivo contra develop el
+     * 16-oct-2026 (simulación 61). En `false`, Clasificación no muestra
+     * "Descargar Excel".
      */
-    exportar: false,
+    exportar: true,
   },
 } as const;
 

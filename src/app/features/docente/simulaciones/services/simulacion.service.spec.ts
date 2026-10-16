@@ -106,6 +106,36 @@ describe('SimulacionService', () => {
       await expect(promesa).rejects.toThrow('Simulación no encontrada');
     });
 
+    it.each([
+      ['Simulación no encontrada'],
+      ['La simulación no pertenece a este docente'],
+    ])('un 400 muestra el message del backend: %s', async (msg) => {
+      const promesa = firstValueFrom(service.exportar(7));
+      http
+        .expectOne(`${URL}/7/exportar`)
+        .flush(new Blob([JSON.stringify({ status: 400, message: msg })]), { status: 400, statusText: 'Bad Request' });
+      await expect(promesa).rejects.toThrow(msg);
+    });
+
+    it('un 401 (sesión vencida, cuerpo vacío) pide volver a iniciar sesión', async () => {
+      const promesa = firstValueFrom(service.exportar(7));
+      http.expectOne(`${URL}/7/exportar`).flush(new Blob([]), { status: 401, statusText: 'Unauthorized' });
+      await expect(promesa).rejects.toThrow('Tu sesión venció. Vuelve a iniciar sesión para descargar el archivo.');
+    });
+
+    it('un 403 (sin permiso o sesión vencida: el backend no distingue) da un mensaje que cubre los dos casos', async () => {
+      const promesa = firstValueFrom(service.exportar(7));
+      http
+        .expectOne(`${URL}/7/exportar`)
+        .flush(new Blob([JSON.stringify({ status: 403, error: 'Forbidden', message: 'Access Denied' })]), {
+          status: 403,
+          statusText: 'Forbidden',
+        });
+      await expect(promesa).rejects.toThrow(
+        'No tienes permiso para descargar este archivo o tu sesión venció. Vuelve a iniciar sesión e inténtalo de nuevo.',
+      );
+    });
+
     it('si el cuerpo del error no es JSON (o no trae message), da un mensaje genérico', async () => {
       const promesa = firstValueFrom(service.exportar(7));
       http

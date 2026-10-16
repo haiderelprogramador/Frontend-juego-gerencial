@@ -15,11 +15,28 @@ export interface ArchivoDescargado {
 const MENSAJE_EXPORTAR = 'No se pudo descargar el Excel de la simulación.';
 
 /**
+ * 401 y 403 los responde Spring Security, con el cuerpo vacío o con un texto
+ * técnico: se reemplazan siempre por un mensaje para el docente. Hoy el
+ * backend responde 403 también sin sesión o con el token vencido (probado en
+ * vivo, 16-oct-2026), así que el del 403 cubre los dos casos. El del 401 queda
+ * para cuando el backend lo devuelva (ya se le pidió).
+ */
+const MENSAJES_EXPORTAR_POR_STATUS: Readonly<Record<number, string>> = {
+  401: 'Tu sesión venció. Vuelve a iniciar sesión para descargar el archivo.',
+  403: 'No tienes permiso para descargar este archivo o tu sesión venció. Vuelve a iniciar sesión e inténtalo de nuevo.',
+};
+
+/**
  * Con `responseType: 'blob'`, el cuerpo de un error también llega como Blob:
- * se lee como texto y se toma el `message` estándar del backend. Si no es JSON
- * o no trae `message`, queda el mensaje genérico.
+ * se lee como texto y se toma el `message` estándar del backend (por ejemplo,
+ * los 400 "Simulación no encontrada" y "La simulación no pertenece a este
+ * docente"). Si no es JSON o no trae `message`, queda el mensaje genérico.
  */
 async function mensajeDeErrorBlob(err: HttpErrorResponse): Promise<string> {
+  const porStatus = MENSAJES_EXPORTAR_POR_STATUS[err.status];
+  if (porStatus) {
+    return porStatus;
+  }
   const cuerpo: unknown = err.error;
   try {
     const texto = cuerpo instanceof Blob ? await cuerpo.text() : typeof cuerpo === 'string' ? cuerpo : null;

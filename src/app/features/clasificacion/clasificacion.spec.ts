@@ -141,7 +141,9 @@ describe.runIf(!API_CONFIG.demoMode)('Clasificacion', () => {
       }
 
       it('con disponible.exportar = false no aparece', () => {
-        const { host } = montar(respuesta());
+        const { fixture, host } = montar(respuesta());
+        fixture.componentInstance.exportarDisponible.set(false);
+        fixture.detectChanges();
         expect(boton(host)).toBeNull();
       });
 
@@ -191,15 +193,15 @@ describe.runIf(!API_CONFIG.demoMode)('Clasificacion', () => {
         boton(host)!.click();
         http
           .expectOne(`${DOCENTE_SIMS}/41/exportar`)
-          .flush(new Blob([JSON.stringify({ message: 'No tienes acceso a esta simulación' })]), {
-            status: 403,
-            statusText: 'Forbidden',
+          .flush(new Blob([JSON.stringify({ message: 'La simulación no pertenece a este docente' })]), {
+            status: 400,
+            statusText: 'Bad Request',
           });
         // El cuerpo Blob del error se lee de forma asíncrona.
-        await vi.waitFor(() => expect(fixture.componentInstance.errorExportar()).toBe('No tienes acceso a esta simulación'));
+        await vi.waitFor(() => expect(fixture.componentInstance.errorExportar()).toBe('La simulación no pertenece a este docente'));
         fixture.detectChanges();
 
-        expect(host.textContent).toContain('No tienes acceso a esta simulación');
+        expect(host.textContent).toContain('La simulación no pertenece a este docente');
         expect(boton(host)?.disabled).toBe(false);
         expect(clics).toHaveLength(0);
       });
