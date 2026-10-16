@@ -136,7 +136,11 @@ export interface EstudianteApi {
   edad: number | null;
   genero: string | null;
   rol?: string;
-  /** `null` cuando el estudiante ya existía y solo se vinculó. */
+  /**
+   * Solo mientras el backend no manda correos (SMTP apagado). `null` cuando el
+   * estudiante ya existía y solo se vinculó. Con el correo activo (desde el
+   * 19-oct-2026) el campo deja de venir en el alta y en la carga masiva.
+   */
   contrasenaGenerada?: string | null;
   /** El backend todavía no lo envía; si llega, se respeta. */
   cargadoEn?: string;

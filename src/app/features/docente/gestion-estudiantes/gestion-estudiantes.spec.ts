@@ -239,6 +239,24 @@ describe('GestionEstudiantes', () => {
       ]);
     });
 
+    it('sin el campo contrasenaGenerada (así responde el backend con el correo activo): avisa y no rompe', async () => {
+      // Desde que el backend activa el correo, el campo directamente no viene (no llega en null).
+      const sinCampo = (id: number) => ({
+        id, nombre: `Estudiante ${id}`, correo: `e${id}@uni.edu`, numeroIdentificacion: `10${id}`, edad: null, genero: null,
+      });
+      const fixture = await cargar({ creados: [sinCampo(1), sinCampo(2)], vinculados: [sinCampo(3)], errores: [] });
+      const host = fixture.nativeElement as HTMLElement;
+      const resumen = host.querySelector('.resultado-carga')!.textContent!;
+
+      expect(resumen).toContain('2 estudiante(s) creados.');
+      expect(resumen).toContain('Las contraseñas se enviaron al correo de cada estudiante.');
+      expect(resumen).toContain('1 estudiante(s) ya tenían cuenta y se agregaron a tu lista.');
+      expect(host.querySelector('.contrasenas')).toBeNull();
+      expect(resumen).not.toContain('Descargar CSV');
+      expect(resumen).not.toContain('undefined');
+      expect(fixture.componentInstance.resultado()?.creados.map((e) => e.contrasenaGenerada)).toEqual(['', '']);
+    });
+
     it.each([
       ['null', null],
       ['vacía', ''],
@@ -309,6 +327,23 @@ describe('GestionEstudiantes', () => {
 
       expect(host.textContent).toContain('Se creó la cuenta de Ana Pérez y se agregó a tu lista. La contraseña se envió a su correo.');
       expect(host.querySelector('.contrasena-manual')).toBeNull();
+    });
+
+    it('201 sin el campo contrasenaGenerada (correo activo): dice que se envió al correo y no rompe', () => {
+      const fixture = TestBed.createComponent(GestionEstudiantes);
+      abrirCurso(fixture);
+      const cmp = fixture.componentInstance;
+      llenar(cmp);
+      cmp.agregarManual();
+      const { contrasenaGenerada: _, ...sinCampo } = alta(12, null);
+      http.expectOne({ method: 'POST', url: URL_ESTUDIANTES }).flush(sinCampo, { status: 201, statusText: 'Created' });
+      http.expectOne({ method: 'GET', url: URL_ESTUDIANTES }).flush([]);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.textContent).toContain('Se creó la cuenta de Ana Pérez y se agregó a tu lista. La contraseña se envió a su correo.');
+      expect(host.querySelector('.contrasena-manual')).toBeNull();
+      expect(host.textContent).not.toContain('undefined');
     });
 
     it('si el portapapeles falla, pide copiarla a mano', async () => {

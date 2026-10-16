@@ -80,6 +80,16 @@ describe('EstudianteService (backend real)', () => {
     ]);
   });
 
+  it('cargaMasiva() sin el campo contrasenaGenerada (correo activo) deja la contraseña en ""', async () => {
+    const promesa = firstValueFrom(service.cargaMasiva({ estudiantes: [] }, new File(['x'], 'e.xlsx')));
+    http.expectOne(apiUrl(API_CONFIG.endpoints.estudiantesCargaMasiva)).flush({
+      creados: [{ id: 5, nombre: 'Juan', correo: 'juan@uni.edu', numeroIdentificacion: '1', edad: 22, genero: 'M', rol: 'ESTUDIANTE' }],
+      vinculados: [],
+      errores: [],
+    });
+    expect((await promesa).creados[0].contrasenaGenerada).toBe('');
+  });
+
   it('cargaMasiva() sin vinculados en la respuesta (backend viejo) los deja en []', async () => {
     const promesa = firstValueFrom(service.cargaMasiva({ estudiantes: [] }, new File(['x'], 'e.xlsx')));
     http.expectOne(apiUrl(API_CONFIG.endpoints.estudiantesCargaMasiva)).flush({ creados: [], errores: [] });
@@ -109,6 +119,15 @@ describe('EstudianteService (backend real)', () => {
       http.expectOne({ method: 'POST', url: URL_ESTUDIANTES }).flush(respuesta(null), { status: 200, statusText: 'OK' });
       const r = await promesa;
       expect(r.vinculado).toBe(true);
+      expect(r.estudiante.contrasenaGenerada).toBe('');
+    });
+
+    it('un 201 sin el campo contrasenaGenerada (correo activo) deja la contraseña en ""', async () => {
+      const promesa = firstValueFrom(service.agregarManual('curso-1', 'Ana Pérez', 'ana@uni.edu', '1094'));
+      const { contrasenaGenerada: _, ...sinCampo } = respuesta(null);
+      http.expectOne({ method: 'POST', url: URL_ESTUDIANTES }).flush(sinCampo, { status: 201, statusText: 'Created' });
+      const r = await promesa;
+      expect(r.vinculado).toBe(false);
       expect(r.estudiante.contrasenaGenerada).toBe('');
     });
 
