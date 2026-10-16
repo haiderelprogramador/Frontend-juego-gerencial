@@ -78,9 +78,36 @@ export interface EstudianteCargado {
   cursoId?: string;
 }
 
+/**
+ * Cuerpo de POST /docente/estudiantes (alta manual, doc API 16-oct-2026).
+ * `edad` y `genero` son opcionales.
+ */
+export interface AltaEstudianteRequest {
+  nombre: string;
+  correo: string;
+  numeroIdentificacion: string;
+  edad?: number;
+  genero?: string;
+}
+
+/**
+ * Resultado del alta manual: 201 creó la cuenta; 200 el estudiante ya tenía
+ * cuenta (con otro docente) y solo se vinculó a la lista de este docente
+ * (`vinculado`, sin contraseña nueva). 409 llega como error.
+ */
+export interface AltaEstudianteResultado {
+  estudiante: EstudianteCargado;
+  vinculado: boolean;
+}
+
 /** Respuesta de POST /docente/estudiantes/carga-masiva. */
 export interface CargaMasivaResponse {
   creados: EstudianteCargado[];
+  /**
+   * Estudiantes que ya tenían cuenta con otro docente: no se creó una cuenta
+   * nueva (sin contraseña), solo se agregaron a la lista de este docente.
+   */
+  vinculados: EstudianteCargado[];
   /**
    * Filas rechazadas por el backend (p. ej. correo ya existente).
    * `mensaje` (no `motivo`): así lo devuelve el backend real.
@@ -94,17 +121,23 @@ export interface CargaMasivaResponse {
  * {@link CargaMasivaResponse} antes de entregarla a la pantalla.
  */
 export interface CargaMasivaResponseApi {
-  creados: Array<{
-    id: number | string;
-    nombre: string;
-    correo: string;
-    numeroIdentificacion: string;
-    edad: number | null;
-    genero: string | null;
-    rol?: string;
-    contrasenaGenerada?: string;
-    /** El backend todavía no lo envía; si llega, se respeta. */
-    cargadoEn?: string;
-  }>;
+  creados: EstudianteApi[];
+  /** Ya tenían cuenta con otro docente: solo se agregaron a la lista (sin contraseña). */
+  vinculados?: EstudianteApi[];
   errores: Array<{ fila?: number; correo: string; numeroIdentificacion?: string; mensaje: string }>;
+}
+
+/** Un estudiante tal como lo devuelve el backend (carga masiva y alta manual). */
+export interface EstudianteApi {
+  id: number | string;
+  nombre: string;
+  correo: string;
+  numeroIdentificacion: string;
+  edad: number | null;
+  genero: string | null;
+  rol?: string;
+  /** `null` cuando el estudiante ya existía y solo se vinculó. */
+  contrasenaGenerada?: string | null;
+  /** El backend todavía no lo envía; si llega, se respeta. */
+  cargadoEn?: string;
 }

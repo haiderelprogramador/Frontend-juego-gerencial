@@ -11,6 +11,9 @@ import {
   CargaMasivaRequest,
   CargaMasivaResponse,
   CargaMasivaResponseApi,
+  AltaEstudianteRequest,
+  AltaEstudianteResultado,
+  EstudianteApi,
   EstudianteCargado,
 } from '../models/estudiante.model';
 import { generarContrasena } from './generar-contrasena';
@@ -80,12 +83,33 @@ export class EstudianteService {
     return of(this.aEstudianteCargado(encontrado)).pipe(delay(API_CONFIG.demoLatenciaMs));
   }
 
+  /**
+   * Alta manual. Backend real: POST /docente/estudiantes. 201 = cuenta nueva;
+   * 200 = ya tenía cuenta con otro docente y solo se vinculó (`vinculado`);
+   * 409 = ya está en la lista de este docente o sus datos chocan con otro
+   * usuario (llega como error, con su `message`). `cursoId` solo lo usa el
+   * modo demo: Cursos vive en el navegador.
+   */
   agregarManual(
     cursoId: string,
     nombre: string,
     correo: string,
     numeroIdentificacion: string,
-  ): EstudianteCargado {
+  ): Observable<AltaEstudianteResultado> {
+    if (!API_CONFIG.demoMode) {
+      const req: AltaEstudianteRequest = {
+        nombre: nombre.trim(),
+        correo: correo.trim(),
+        numeroIdentificacion: numeroIdentificacion.trim(),
+      };
+      return this.http
+        .post<EstudianteApi>(apiUrl(API_CONFIG.endpoints.estudiantes), req, { observe: 'response' })
+        .pipe(
+          map((res) => ({ estudiante: this.normalizarEstudiante(res.body!), vinculado: res.status === 200 })),
+          tap((r) => this.agregarAlRespaldo([r.estudiante])),
+        );
+    }
+
     const registro: DemoEstudianteRecord = {
       usuario: {
         id: `est-${cursoId}-${Date.now()}`,
@@ -103,12 +127,12 @@ export class EstudianteService {
       cursoId,
     };
     this.demo.agregarEstudiantes([registro]);
-    return this.aEstudianteCargado(registro);
+    return of({ estudiante: this.aEstudianteCargado(registro), vinculado: false });
   }
 
   crearEstudiantesPrueba(cursoId: string): Observable<CargaMasivaResponse> {
     if (!API_CONFIG.demoMode || this.contarExistentes(cursoId) > 0) {
-      return of({ creados: [], errores: [] });
+      return of({ creados: [], vinculados: [], errores: [] });
     }
 
     const nombres = [
@@ -144,7 +168,7 @@ export class EstudianteService {
 
     return this.contarExistentes(cursoId) === 0
       ? this.crearEstudiantesPrueba(cursoId)
-      : of({ creados: [], errores: [] });
+      : of({ creados: [], vinculados: [], errores: [] });
   }
 
   eliminarPorCurso(cursoId: string): void {
@@ -172,7 +196,7 @@ export class EstudianteService {
         .post<CargaMasivaResponseApi>(apiUrl(API_CONFIG.endpoints.estudiantesCargaMasiva), formData)
         .pipe(
           map((res) => this.normalizarRespuesta(res)),
-          tap((res) => this.agregarAlRespaldo(res.creados)),
+          tap((res) => this.agregarAlRespaldo([...res.creados, ...res.vinculados])),
         );
     }
 
@@ -229,6 +253,7 @@ export class EstudianteService {
 
     const respuesta: CargaMasivaResponse = {
       creados: nuevos.map((r) => this.aEstudianteCargado(r)),
+      vinculados: [],
       errores,
     };
     return of(respuesta).pipe(delay(API_CONFIG.demoLatenciaMs));
@@ -244,19 +269,24 @@ export class EstudianteService {
 
   /** El backend devuelve `id` y `edad` como número (o null): se normalizan a texto. */
   private normalizarRespuesta(res: CargaMasivaResponseApi): CargaMasivaResponse {
-    const ahora = new Date().toISOString();
     return {
-      creados: (res.creados ?? []).map((c) => ({
-        id: String(c.id),
-        nombre: c.nombre,
-        correo: c.correo,
-        numeroIdentificacion: c.numeroIdentificacion,
-        edad: c.edad === null || c.edad === undefined ? '' : String(c.edad),
-        genero: c.genero ?? '',
-        contrasenaGenerada: c.contrasenaGenerada ?? '',
-        cargadoEn: c.cargadoEn ?? ahora,
-      })),
+      creados: (res.creados ?? []).map((c) => this.normalizarEstudiante(c)),
+      vinculados: (res.vinculados ?? []).map((c) => this.normalizarEstudiante(c)),
       errores: res.errores ?? [],
+    };
+  }
+
+  /** `contrasenaGenerada` viene `null` en los vinculados (no se creó cuenta): queda ''. */
+  private normalizarEstudiante(c: EstudianteApi): EstudianteCargado {
+    return {
+      id: String(c.id),
+      nombre: c.nombre,
+      correo: c.correo,
+      numeroIdentificacion: c.numeroIdentificacion,
+      edad: c.edad === null || c.edad === undefined ? '' : String(c.edad),
+      genero: c.genero ?? '',
+      contrasenaGenerada: c.contrasenaGenerada ?? '',
+      cargadoEn: c.cargadoEn ?? new Date().toISOString(),
     };
   }
 

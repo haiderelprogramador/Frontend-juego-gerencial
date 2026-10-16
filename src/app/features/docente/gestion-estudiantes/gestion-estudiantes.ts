@@ -64,6 +64,14 @@ export class GestionEstudiantes {
   readonly estudiantesCargados = signal<EstudianteCargado[]>([]);
   readonly cargandoListado = signal(false);
   readonly nombreCurso = signal('');
+
+  // -- Alta manual (POST /docente/estudiantes) --
+  readonly manualNombre = signal('');
+  readonly manualCorreo = signal('');
+  readonly manualId = signal('');
+  readonly agregandoManual = signal(false);
+  readonly avisoManual = signal<string | null>(null);
+  readonly errorManual = signal<string | null>(null);
   readonly menuCursoAbierto = signal<string | null>(null);
 
   readonly filasValidas = computed(() => this.filas().filter((f) => f.estado === 'ok'));
@@ -226,14 +234,46 @@ export class GestionEstudiantes {
     });
   }
 
-  agregarManual(nombre: string, correo: string, identificacion: string): void {
+  /**
+   * Alta manual de un estudiante. Tres resultados posibles:
+   *  - 201: se creó la cuenta.
+   *  - 200: ya tenía cuenta con otro docente; solo se agregó a esta lista.
+   *  - 409 (u otro error): el mensaje del backend (ya está en la lista, o sus
+   *    datos chocan con otro usuario).
+   */
+  agregarManual(): void {
     const cursoId = this.cursoSeleccionado();
-    if (!cursoId || !nombre.trim() || !correo.trim() || !identificacion.trim()) {
-      this.errorArchivo.set('Completa nombre, correo y número de identificación.');
+    const nombre = this.manualNombre().trim();
+    const correo = this.manualCorreo().trim();
+    const identificacion = this.manualId().trim();
+    this.avisoManual.set(null);
+    this.errorManual.set(null);
+    if (!cursoId || !nombre || !correo || !identificacion) {
+      this.errorManual.set('Completa nombre, correo y número de identificación.');
       return;
     }
-    this.estudiantes.agregarManual(cursoId, nombre, correo, identificacion);
-    this.cargarListado();
+    if (this.agregandoManual()) {
+      return;
+    }
+    this.agregandoManual.set(true);
+    this.estudiantes.agregarManual(cursoId, nombre, correo, identificacion).subscribe({
+      next: ({ estudiante, vinculado }) => {
+        this.agregandoManual.set(false);
+        this.avisoManual.set(
+          vinculado
+            ? `${estudiante.nombre} ya tenía cuenta; se agregó a tu lista.`
+            : `Se creó la cuenta de ${estudiante.nombre} y se agregó a tu lista.`,
+        );
+        this.manualNombre.set('');
+        this.manualCorreo.set('');
+        this.manualId.set('');
+        this.cargarListado();
+      },
+      error: (err: { message?: string; error?: { message?: string } }) => {
+        this.agregandoManual.set(false);
+        this.errorManual.set(err?.error?.message ?? err?.message ?? 'No se pudo agregar el estudiante.');
+      },
+    });
   }
 
   private construirPrevisualizacion(filas: FilaEstudianteExcel[]): FilaPrevisualizacion[] {

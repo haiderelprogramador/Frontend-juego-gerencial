@@ -111,22 +111,22 @@
     <section class="card panel-block">
       <h3>Agregar estudiante manualmente</h3>
       <div class="manual-grid">
-        <input #manualNombre type="text" placeholder="Nombre completo" />
-        <input #manualCorreo type="email" placeholder="Correo" />
-        <input #manualId type="text" placeholder="Número de identificación" />
-        <button
-          type="button"
-          class="btn btn--secondary"
-          (click)="
-            agregarManual(manualNombre.value, manualCorreo.value, manualId.value);
-            manualNombre.value = '';
-            manualCorreo.value = '';
-            manualId.value = ''
-          "
-        >
-          Agregar
+        <input type="text" placeholder="Nombre completo" name="manualNombre" [value]="manualNombre()"
+          (input)="manualNombre.set($any($event.target).value)" />
+        <input type="email" placeholder="Correo" name="manualCorreo" [value]="manualCorreo()"
+          (input)="manualCorreo.set($any($event.target).value)" />
+        <input type="text" placeholder="Número de identificación" name="manualId" [value]="manualId()"
+          (input)="manualId.set($any($event.target).value)" />
+        <button type="button" class="btn btn--secondary" [disabled]="agregandoManual()" (click)="agregarManual()">
+          {{ agregandoManual() ? 'Agregando…' : 'Agregar' }}
         </button>
       </div>
+      @if (errorManual(); as msg) {
+        <app-alerta tipo="error" [mensaje]="msg" />
+      }
+      @if (avisoManual(); as msg) {
+        <app-alerta tipo="exito" [mensaje]="msg" />
+      }
     </section>
 
     <section class="card panel-block uploader">
@@ -145,6 +145,30 @@
 
     @if (errorArchivo(); as msg) {
       <app-alerta tipo="error" [mensaje]="msg" />
+    }
+
+    @if (estado() === 'resultado' && resultado(); as res) {
+      <!-- Resumen de la carga (sin contraseñas: al estudiante le llegan por correo, docs/08). -->
+      <div class="resultado-carga">
+        @if (res.creados.length > 0) {
+          <app-alerta tipo="exito" [mensaje]="res.creados.length + ' estudiante(s) creados.'" />
+        }
+        @if (res.vinculados.length > 0) {
+          <app-alerta tipo="info"
+            [mensaje]="res.vinculados.length + ' estudiante(s) ya tenían cuenta y se agregaron a tu lista.'" />
+        }
+        @if (res.errores.length > 0) {
+          <app-alerta tipo="error" [mensaje]="res.errores.length + ' fila(s) rechazadas:'" />
+          <ul class="resultado-carga__errores">
+            @for (e of res.errores; track $index) {
+              <li>@if (e.fila) {Fila {{ e.fila }} · }{{ e.correo }}: {{ e.mensaje }}</li>
+            }
+          </ul>
+        }
+        @if (res.creados.length === 0 && res.vinculados.length === 0 && res.errores.length === 0) {
+          <app-alerta tipo="info" mensaje="No se agregó ningún estudiante." />
+        }
+      </div>
     }
 
     @if (estado() === 'previsualizando' || estado() === 'cargando') {
