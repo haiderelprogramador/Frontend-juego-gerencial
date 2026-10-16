@@ -254,10 +254,7 @@ async function main() {
     reportar('POST /docente/simulaciones', true, `${crearSim.status} — id ${crearSim.data?.id}`);
     assert(crearSim.ok, 'no se pudo crear la simulación — se cancela el resto del flujo');
     idSimulacion = crearSim.data.id;
-
-    const programar = await pedir('POST', `/docente/simulaciones/${idSimulacion}/programar`, { token: tokenDocente });
-    reportar(`POST /docente/simulaciones/${idSimulacion}/programar`, true, `${programar.status} — estado ${programar.data?.estado}`);
-    await sleep(8000); // que pase fechaInicio, para poder llamar /iniciar
+    const fechaInicioSim = ahora + 5_000;
 
     const crearEmpresa = await pedir('POST', `/docente/simulaciones/${idSimulacion}/empresas`, {
       token: tokenDocente,
@@ -315,16 +312,30 @@ async function main() {
     reportar('POST /docente/casos', true, `${crearCaso.status} — id ${crearCaso.data?.id}`);
     assert(crearCaso.ok, 'no se pudo crear el caso — se cancela el resto del flujo');
     idCaso = crearCaso.data.id;
+
+    // /programar valida que la simulación esté lista (casos con el primero
+    // cuadrado, empresas con integrantes y líder): se llama recién ahora, con
+    // todo armado. Responde 400 con errores[].campo ("casos"/"empresas") si falta algo.
+    const programar = await pedir('POST', `/docente/simulaciones/${idSimulacion}/programar`, { token: tokenDocente });
+    reportar(
+      `POST /docente/simulaciones/${idSimulacion}/programar`,
+      true,
+      `${programar.status} — estado ${programar.data?.estado} ${programar.ok ? '' : JSON.stringify(programar.data)}`,
+    );
+    assert(programar.ok, 'no se pudo programar la simulación — se cancela el resto del flujo');
+
     await pedir('POST', `/docente/casos/${idCaso}/activar`, { token: tokenDocente });
+    // /iniciar exige que ya haya pasado fechaInicio (el arranque automático todavía no está en el backend).
+    await sleep(Math.max(0, fechaInicioSim + 2_000 - Date.now()));
   } else {
     reportar('POST /docente/simulaciones (omitido)', false, `reusando simulación ${idSimulacion} / empresa ${idEmpresa} / caso ${idCaso}`);
     const obtenerCasoExistente = await pedir('GET', `/docente/casos/${idCaso}`, { token: tokenDocente });
     idOpcionA = obtenerCasoExistente.data?.opciones?.[0]?.id ?? null;
   }
 
-  // --- Endpoint /iniciar: transición válida por sí misma, pero NO es requisito
-  // para decidir (confirmado: decision solo exige PROGRAMADA o EN_CURSO, más
-  // las fechas del caso — el bloqueo real era el bug de zona horaria de arriba).
+  // --- Endpoint /iniciar: PROGRAMADA -> EN_CURSO, a mano mientras el backend
+  // no tenga el arranque automático. Hoy /estudiante/decision exige la
+  // simulación EN_CURSO ("La simulación no está en curso" si no).
   const iniciar = await pedir('POST', `/docente/simulaciones/${idSimulacion}/iniciar`, { token: tokenDocente });
   reportar(`POST /docente/simulaciones/${idSimulacion}/iniciar`, true, `${iniciar.status} — estado ${iniciar.data?.estado ?? '(ver mensaje)'} ${iniciar.ok ? '' : JSON.stringify(iniciar.data)}`);
 
