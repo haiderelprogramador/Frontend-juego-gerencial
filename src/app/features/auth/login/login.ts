@@ -3,6 +3,7 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
+import { MOTIVO_SESION_VENCIDA } from '../../../core/services/sesion-vencida.service';
 import { Rol } from '../../../core/models/rol.enum';
 import { Alerta } from '../../../shared/components/alerta/alerta';
 
@@ -30,6 +31,10 @@ export class Login {
 
   readonly enviando = signal(false);
   readonly error = signal<string | null>(null);
+  /** Llegó acá porque el backend respondió 401 (ver `SesionVencidaService`). */
+  readonly sesionVencida = signal(
+    this.route.snapshot.queryParamMap.get('motivo') === MOTIVO_SESION_VENCIDA,
+  );
   readonly verContrasena = signal(false);
 
   readonly form = this.fb.group({
@@ -45,6 +50,7 @@ export class Login {
 
     this.enviando.set(true);
     this.error.set(null);
+    this.sesionVencida.set(false);
 
     this.auth.login(this.form.getRawValue()).subscribe({
       next: (res) => {

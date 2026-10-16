@@ -48,6 +48,9 @@
       El sistema reconoce si eres docente o estudiante por tu correo; no tienes que elegirlo.
     </p>
 
+    @if (sesionVencida()) {
+      <app-alerta tipo="info" mensaje="Tu sesión venció. Inicia sesión de nuevo." />
+    }
     @if (error(); as msg) {
       <app-alerta tipo="error" [mensaje]="msg" />
     }

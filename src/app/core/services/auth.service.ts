@@ -143,8 +143,8 @@ export class AuthService {
    * Cambia la contraseña del usuario con sesión (docente o estudiante). La
    * sesión sigue igual: no devuelve token nuevo. 400 si la nueva no cumple las
    * reglas (ver `contrasenaSegura()`) o es igual a la actual; 401 si la actual
-   * es incorrecta. Ese 401 es un error de formulario, NO de sesión: si algún
-   * día se agrega un "logout ante 401", tiene que exceptuar esta ruta.
+   * es incorrecta. Ese 401 es un error de formulario, NO de sesión: por eso
+   * `sesionVencidaInterceptor` exceptúa esta ruta.
    */
   cambiarContrasena(req: CambiarContrasenaRequest): Observable<{ message: string }> {
     if (!API_CONFIG.demoMode) {

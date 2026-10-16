@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { Login } from './login';
 
@@ -8,7 +9,8 @@ describe('Login', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [Login],
-      providers: [provideRouter([]), provideHttpClient()],
+      // Backend simulado: ningún test sale a ngrok (ni siquiera el que envía el formulario).
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
 
@@ -62,5 +64,35 @@ describe('Login', () => {
     ) as HTMLAnchorElement;
     expect(link).toBeTruthy();
     expect(link.getAttribute('href')).toBe('/auth/registro-docente');
+  });
+
+  describe('aviso de sesión vencida', () => {
+    function crearCon(queryParams: Record<string, string>) {
+      TestBed.overrideProvider(ActivatedRoute, {
+        useValue: { snapshot: { queryParamMap: convertToParamMap(queryParams) } },
+      });
+      const fixture = TestBed.createComponent(Login);
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    it('con ?motivo=sesion-vencida muestra "Tu sesión venció. Inicia sesión de nuevo."', () => {
+      const fixture = crearCon({ motivo: 'sesion-vencida', returnUrl: '/docente/casos' });
+      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Tu sesión venció. Inicia sesión de nuevo.');
+    });
+
+    it('sin ese motivo no muestra el aviso', () => {
+      const fixture = crearCon({});
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Tu sesión venció');
+    });
+
+    it('al volver a intentar entrar, el aviso se va', () => {
+      const fixture = crearCon({ motivo: 'sesion-vencida' });
+      fixture.componentInstance.form.setValue({ correo: 'docente@demo.com', contrasena: 'demo1234' });
+      fixture.componentInstance.enviar();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.sesionVencida()).toBe(false);
+      TestBed.inject(HttpTestingController).match(() => true);
+    });
   });
 });
