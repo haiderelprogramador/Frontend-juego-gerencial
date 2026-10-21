@@ -47,6 +47,58 @@
     }
   </ng-template>
 
+  <!-- Paso 4: formulario de "Editar" y error de editar/eliminar, debajo de la simulación a la que corresponden. -->
+  <ng-template #edicionSimulacion let-s>
+    @if (edicion(); as e) {
+      @if (e.sim.id === s.id) {
+        <span class="edicion-sim">
+          <span class="edicion-sim__campos">
+            <label class="field">
+              <span class="field__label">Nombre</span>
+              <input type="text" [value]="e.nombre" (input)="actualizarEdicion({ nombre: $any($event.target).value })" />
+            </label>
+            <label class="field">
+              <span class="field__label">Inicio</span>
+              <input type="date" [value]="e.fechaInicio"
+                (input)="actualizarEdicion({ fechaInicio: $any($event.target).value })" />
+            </label>
+            <label class="field">
+              <span class="field__label">Fin</span>
+              <input type="date" [value]="e.fechaFin"
+                (input)="actualizarEdicion({ fechaFin: $any($event.target).value })" />
+            </label>
+          </span>
+          @if (s.estado === 'PROGRAMADA') {
+            <app-alerta tipo="info"
+              mensaje="Está programada: arranca sola en la nueva fecha de inicio, sin que tengas que hacer nada más." />
+          }
+          <span class="edicion-sim__acciones">
+            <button type="button" class="btn btn--ghost btn--sm" [disabled]="guardandoEdicion()"
+              (click)="cancelarEdicion()">Cancelar</button>
+            <button type="button" class="btn btn--primario btn--sm" [disabled]="guardandoEdicion()"
+              (click)="guardarEdicion()">
+              {{ guardandoEdicion() ? 'Guardando…' : 'Guardar cambios' }}
+            </button>
+          </span>
+        </span>
+      }
+    }
+    @if (errorSimulacion(); as err) {
+      @if (err.idSimulacion === s.id) {
+        <span class="edicion-sim__error">
+          <app-alerta tipo="error" [mensaje]="err.mensaje" />
+          @if (err.detalle.length > 0) {
+            <ul class="programar-error__lista">
+              @for (d of err.detalle; track $index) {
+                <li>{{ d }}</li>
+              }
+            </ul>
+          }
+        </span>
+      }
+    }
+  </ng-template>
+
   @if (errorFinalizar(); as msg) {
     <app-alerta tipo="error" [mensaje]="msg" />
   }
@@ -108,19 +160,45 @@
                   <span class="paso__cuerpo">
                     <span class="paso__titulo">{{ paso.titulo }}</span>
                     <span class="paso__desc">{{ paso.descripcion }}</span>
+                    @if (paso.n === 4 && borradores().length > 0) {
+                      <!-- Las de BORRADOR: se pueden editar y eliminar (con sus empresas y casos). -->
+                      <span class="borradores">
+                        @for (s of borradores(); track s.id) {
+                          <span class="borradores__item">
+                            <span class="borradores__texto">
+                              <strong>{{ s.nombre }}</strong> · Borrador@if (fechaLarga(s.fechaInicio); as f) { · inicio el {{ f }} }
+                            </span>
+                            <span class="borradores__acciones">
+                              <button type="button" class="btn btn--ghost btn--sm" [disabled]="edicion()?.sim?.id === s.id"
+                                (click)="editarSimulacion(s)">Editar</button>
+                              <button type="button" class="btn btn--ghost btn--sm" [disabled]="eliminandoId() !== null"
+                                (click)="eliminarSimulacion(s)">
+                                {{ eliminandoId() === s.id ? 'Eliminando…' : 'Eliminar' }}
+                              </button>
+                            </span>
+                          </span>
+                          <ng-container [ngTemplateOutlet]="edicionSimulacion" [ngTemplateOutletContext]="{ $implicit: s }" />
+                        }
+                      </span>
+                    }
                     @if (paso.n === 4 && programadas().length > 0) {
-                      <!-- Las ya programadas: se pueden desprogramar para que no arranquen solas. -->
+                      <!-- Las ya programadas: se pueden editar, o desprogramar para que no arranquen solas. -->
                       <span class="programadas">
                         @for (s of programadas(); track s.id) {
                           <span class="programadas__item">
                             <span class="programadas__texto">
                               <strong>{{ s.nombre }}</strong> · Programada · {{ arranque(s) }}
                             </span>
-                            <button type="button" class="btn btn--ghost btn--sm" [disabled]="desprogramandoId() !== null"
-                              (click)="desprogramarSimulacion(s)">
-                              {{ desprogramandoId() === s.id ? 'Desprogramando…' : 'Desprogramar' }}
-                            </button>
+                            <span class="programadas__acciones">
+                              <button type="button" class="btn btn--ghost btn--sm" [disabled]="edicion()?.sim?.id === s.id"
+                                (click)="editarSimulacion(s)">Editar</button>
+                              <button type="button" class="btn btn--ghost btn--sm" [disabled]="desprogramandoId() !== null"
+                                (click)="desprogramarSimulacion(s)">
+                                {{ desprogramandoId() === s.id ? 'Desprogramando…' : 'Desprogramar' }}
+                              </button>
+                            </span>
                           </span>
+                          <ng-container [ngTemplateOutlet]="edicionSimulacion" [ngTemplateOutletContext]="{ $implicit: s }" />
                         }
                       </span>
                     }

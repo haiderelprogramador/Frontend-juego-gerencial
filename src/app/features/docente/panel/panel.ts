@@ -11,7 +11,7 @@ import { CasoApi, DecisionEmpresa } from '../../simulacion/models/caso-api.model
 import { Casos } from '../casos/casos';
 import { CasoApiService } from '../casos/services/caso-api.service';
 import { CierreCasoService } from '../casos/services/cierre-caso.service';
-import { EstadoSimulacion, Simulacion } from '../simulaciones/models/simulacion.model';
+import { EstadoSimulacion, Simulacion, SimulacionRequest } from '../simulaciones/models/simulacion.model';
 import { SimulacionService } from '../simulaciones/services/simulacion.service';
 
 type TabPanel = 'periodos' | 'equipos' | 'casos' | 'parametros';
@@ -33,6 +33,24 @@ interface ErrorProgramar {
   idSimulacion: number;
   mensaje: string;
   detalle: MotivoProgramar[];
+}
+
+/**
+ * Formulario de "Editar" una simulación del paso 4. Las fechas son de día
+ * ("2026-10-25"), como las guarda el backend (confirmado en vivo, 21-oct-2026).
+ */
+interface EdicionSimulacion {
+  sim: Simulacion;
+  nombre: string;
+  fechaInicio: string;
+  fechaFin: string;
+}
+
+/** Error de editar/eliminar: el mensaje general y, si vienen, los `errores[]` del backend. */
+interface ErrorSimulacion {
+  idSimulacion: number;
+  mensaje: string;
+  detalle: string[];
 }
 
 /** Un caso activo con su simulación, para el selector de "Entregas por empresa" y "Finalizar simulación". */
@@ -213,6 +231,13 @@ export class Panel {
   /** El 400 del backend se muestra tal cual (no está PROGRAMADA, o ya tiene decisiones). */
   readonly errorDesprogramar = signal<string | null>(null);
 
+  // -- Editar (BORRADOR o PROGRAMADA) y eliminar (solo BORRADOR) (backend real, paso 4) --
+  readonly edicion = signal<EdicionSimulacion | null>(null);
+  readonly guardandoEdicion = signal(false);
+  readonly eliminandoId = signal<number | null>(null);
+  /** Error de editar o de eliminar; se muestra junto a la simulación de `idSimulacion`. */
+  readonly errorSimulacion = signal<ErrorSimulacion | null>(null);
+
   // -- Finalizar simulación (backend real) --
   /** Solo con la simulación del caso de "Entregas" EN_CURSO (el backend responde 400 en otro estado). */
   readonly puedeFinalizar = computed(() => this.casoEntregas()?.estadoSimulacion === 'EN_CURSO');
@@ -327,9 +352,108 @@ export class Panel {
     });
   }
 
+  /** Abre el formulario de una simulación con sus datos actuales (cierra el que hubiera abierto). */
+  editarSimulacion(sim: Simulacion): void {
+    this.errorSimulacion.set(null);
+    this.avisoProgramar.set(null);
+    this.edicion.set({
+      sim,
+      nombre: sim.nombre,
+      fechaInicio: aInputDia(sim.fechaInicio),
+      fechaFin: aInputDia(sim.fechaFin),
+    });
+  }
+
+  actualizarEdicion(cambios: Partial<Omit<EdicionSimulacion, 'sim'>>): void {
+    this.edicion.update((e) => (e ? { ...e, ...cambios } : e));
+  }
+
+  cancelarEdicion(): void {
+    this.edicion.set(null);
+    this.errorSimulacion.set(null);
+  }
+
+  /**
+   * PUT con nombre y fechas de día, tal cual ("2026-10-25"): pasarlas por
+   * `toISOString()` correría el día en la noche de Bogotá. Antes valida inicio
+   * no pasado (el backend lo acepta: 200 con una fecha pasada, 21-oct-2026) y
+   * fin no anterior al inicio; los mensajes y `errores[]` del backend se
+   * muestran. En una PROGRAMADA, la nueva fecha de inicio es la de su arranque
+   * automático: el formulario y el aviso lo dicen.
+   */
+  guardarEdicion(): void {
+    const e = this.edicion();
+    if (!e || this.guardandoEdicion()) {
+      return;
+    }
+    const nombre = e.nombre.trim();
+    const error = validarEdicion(nombre, e.fechaInicio, e.fechaFin);
+    if (error) {
+      this.errorSimulacion.set({ idSimulacion: e.sim.id, mensaje: error, detalle: [] });
+      return;
+    }
+    const req: SimulacionRequest = {
+      nombre,
+      fechaInicio: e.fechaInicio,
+      ...(e.fechaFin ? { fechaFin: e.fechaFin } : {}),
+    };
+    this.errorSimulacion.set(null);
+    this.avisoProgramar.set(null);
+    this.guardandoEdicion.set(true);
+    this.simulacionService.actualizar(e.sim.id, req).subscribe({
+      next: (guardada) => {
+        this.guardandoEdicion.set(false);
+        this.edicion.set(null);
+        // Editar no cambia el estado: se usa el de antes por si la respuesta no lo trae.
+        this.avisoProgramar.set(
+          e.sim.estado === 'PROGRAMADA'
+            ? `«${guardada.nombre}» se actualizó: arranca sola ${cuandoArranca(guardada)}.`
+            : `«${guardada.nombre}» se actualizó.`,
+        );
+        this.cargarCasosActivos();
+      },
+      error: (err: ErrorHttp) => {
+        this.guardandoEdicion.set(false);
+        this.errorSimulacion.set(errorSimulacion(e.sim.id, err, 'No se pudo guardar la simulación.'));
+      },
+    });
+  }
+
+  /** Solo BORRADOR (DELETE -> 204). Se confirma antes: también borra sus empresas y casos. */
+  eliminarSimulacion(sim: Simulacion): void {
+    if (sim.estado !== 'BORRADOR' || this.eliminandoId() !== null || !window.confirm(mensajeEliminar(sim))) {
+      return;
+    }
+    this.errorSimulacion.set(null);
+    this.avisoProgramar.set(null);
+    this.eliminandoId.set(sim.id);
+    this.simulacionService.eliminar(sim.id).subscribe({
+      next: () => {
+        this.eliminandoId.set(null);
+        if (this.edicion()?.sim.id === sim.id) {
+          this.edicion.set(null);
+        }
+        if (this.idSimulacionProgramar() === sim.id) {
+          this.idSimulacionProgramar.set(null);
+        }
+        this.avisoProgramar.set(`«${sim.nombre}» se eliminó, con sus empresas y casos.`);
+        this.cargarCasosActivos();
+      },
+      error: (err: ErrorHttp) => {
+        this.eliminandoId.set(null);
+        this.errorSimulacion.set(errorSimulacion(sim.id, err, 'No se pudo eliminar la simulación.'));
+      },
+    });
+  }
+
   /** "arranca el 5 de octubre de 2026, 08:00" (o "arranca en su fecha de inicio" si no se puede leer). */
   arranque(sim: Simulacion): string {
     return `arranca ${cuandoArranca(sim)}`;
+  }
+
+  /** "25 de octubre de 2026" (o con hora, si la trae), o `null` si la fecha no se puede leer. */
+  fechaLarga(fecha: string): string | null {
+    return describirFecha(fecha);
   }
 
   fechaEntrega(iso: string | null): string {
@@ -442,12 +566,27 @@ export class Panel {
   }
 }
 
-/** "el 5 de octubre de 2026, 08:00", o "en su fecha de inicio" si la fecha no se puede leer. */
+const SOLO_DIA = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * "25 de octubre de 2026" para una fecha de día (así manda el backend las de
+ * Simulación: `new Date("2026-10-25")` sería medianoche UTC, el 24 a las
+ * 19:00 en Bogotá); "5 de octubre de 2026, 08:00" si trae hora. `null` si no
+ * se puede leer.
+ */
+function describirFecha(fecha: string): string | null {
+  const dia = SOLO_DIA.exec(fecha);
+  if (dia) {
+    return formatoDiaLargo.format(new Date(+dia[1], +dia[2] - 1, +dia[3]));
+  }
+  const d = new Date(fecha);
+  return !fecha || Number.isNaN(d.getTime()) ? null : `${formatoDiaLargo.format(d)}, ${formatoHora24.format(d)}`;
+}
+
+/** "el 25 de octubre de 2026" (con hora si la trae), o "en su fecha de inicio" si la fecha no se puede leer. */
 function cuandoArranca(sim: Simulacion): string {
-  const inicio = new Date(sim.fechaInicio);
-  return Number.isNaN(inicio.getTime())
-    ? 'en su fecha de inicio'
-    : `el ${formatoDiaLargo.format(inicio)}, ${formatoHora24.format(inicio)}`;
+  const texto = describirFecha(sim.fechaInicio);
+  return texto ? `el ${texto}` : 'en su fecha de inicio';
 }
 
 /** Texto de la confirmación de "Programar": que arranca sola y que después ya no se puede cambiar. */
@@ -456,6 +595,54 @@ export function mensajeProgramar(sim: Simulacion): string {
     `¿Programar «${sim.nombre}»? La simulación arranca sola ${cuandoArranca(sim)} y, ` +
     'desde ese momento, ya no se pueden cambiar sus empresas ni sus casos.'
   );
+}
+
+/** Texto de la confirmación de "Eliminar": también se borran sus empresas y casos. */
+export function mensajeEliminar(sim: Simulacion): string {
+  return (
+    `¿Eliminar «${sim.nombre}»? Se borran también todas sus empresas y sus casos. ` +
+    'Esta acción no se puede deshacer.'
+  );
+}
+
+/**
+ * Nombre e inicio obligatorios, inicio no pasado (hoy sí vale), fin no
+ * anterior al inicio (igual sí). Fechas "YYYY-MM-DD": se comparan como texto.
+ */
+export function validarEdicion(nombre: string, inicio: string, fin: string, hoy = hoyLocal()): string | null {
+  if (!nombre || !inicio) {
+    return 'Poné un nombre y la fecha de inicio.';
+  }
+  if (!SOLO_DIA.test(inicio) || (fin && !SOLO_DIA.test(fin))) {
+    return 'Revisá las fechas: no son válidas.';
+  }
+  if (inicio < hoy) {
+    return 'La fecha de inicio no puede ser pasada.';
+  }
+  if (fin && fin < inicio) {
+    return 'La fecha de fin no puede ser anterior a la de inicio.';
+  }
+  return null;
+}
+
+/** Hoy en el navegador, "YYYY-MM-DD". */
+function hoyLocal(): string {
+  const d = new Date();
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+}
+
+/** La fecha de una simulación para `<input type="date">` ("2026-10-25"); '' si no trae una. */
+export function aInputDia(fecha: string): string {
+  return /^\d{4}-\d{2}-\d{2}/.exec(fecha ?? '')?.[0] ?? '';
+}
+
+function errorSimulacion(idSimulacion: number, err: ErrorHttp, porDefecto: string): ErrorSimulacion {
+  return {
+    idSimulacion,
+    mensaje: mensaje(err, porDefecto),
+    detalle: (err?.error?.errores ?? []).map((e) => e.mensaje ?? '').filter((m) => !!m),
+  };
 }
 
 /** Texto de la confirmación de "Desprogramar": vuelve a borrador y no arranca sola. */

@@ -364,8 +364,9 @@
   }
 }
 
-/* Paso 4: simulaciones ya programadas, con "Desprogramar". */
-.programadas {
+/* Paso 4: simulaciones en borrador (Editar/Eliminar) y ya programadas (Editar/Desprogramar). */
+.programadas,
+.borradores {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -381,5 +382,39 @@
   &__texto {
     font-size: 0.78rem;
     color: var(--bs-muted);
+  }
+  &__acciones {
+    display: flex;
+    gap: 0.35rem;
+  }
+}
+
+/* Paso 4: formulario de "Editar" debajo de la simulación. */
+.edicion-sim {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--bs-border-strong);
+  border-radius: var(--bs-radius-sm);
+
+  &__campos {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 0.6rem;
+  }
+  &__acciones {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+  &__error {
+    display: block;
+  }
+}
+
+@media (max-width: 600px) {
+  .edicion-sim__campos {
+    grid-template-columns: 1fr;
   }
 }
