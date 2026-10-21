@@ -36,6 +36,7 @@ import { ImpactoFinancieroOpcion } from './impacto-opcion/impacto-opcion';
 import { CasoApiService } from './services/caso-api.service';
 import { CierreCasoService } from './services/cierre-caso.service';
 import { Simulacion, SimulacionRequest } from '../simulaciones/models/simulacion.model';
+import { validarFechasSimulacion } from '../simulaciones/models/fechas-simulacion';
 import { SimulacionService } from '../simulaciones/services/simulacion.service';
 
 type VistaCasos = 'lista' | 'formulario' | 'boletin';
@@ -221,23 +222,13 @@ export class Casos {
     const nombre = this.nuevaSimNombre().trim();
     const inicio = this.nuevaSimInicio();
     const fin = this.nuevaSimFin();
-    if (!nombre || !inicio) {
-      this.errorNuevaSimulacion.set('Poné un nombre y la fecha de inicio.');
+    const error = validarFechasSimulacion(nombre, inicio, fin);
+    if (error) {
+      this.errorNuevaSimulacion.set(error);
       return;
     }
-    // Contrato: fechaFin no puede ser ANTERIOR a fechaInicio (igual sí se permite).
-    if (fin && new Date(fin) < new Date(inicio)) {
-      this.errorNuevaSimulacion.set('La fecha de fin no puede ser anterior a la de inicio.');
-      return;
-    }
-
-    // Las fechas de Simulación sí se convierten bien desde UTC (ver
-    // scripts/integration: el bug de zona horaria es solo de las fechas de Caso).
-    const req: SimulacionRequest = {
-      nombre,
-      fechaInicio: new Date(inicio).toISOString(),
-      ...(fin ? { fechaFin: new Date(fin).toISOString() } : {}),
-    };
+    // Fechas de día tal cual, sin toISOString() (ver fechas-simulacion.ts).
+    const req: SimulacionRequest = { nombre, fechaInicio: inicio, ...(fin ? { fechaFin: fin } : {}) };
 
     this.errorNuevaSimulacion.set(null);
     this.guardandoSimulacion.set(true);

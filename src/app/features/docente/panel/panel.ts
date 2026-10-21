@@ -12,6 +12,7 @@ import { Casos } from '../casos/casos';
 import { CasoApiService } from '../casos/services/caso-api.service';
 import { CierreCasoService } from '../casos/services/cierre-caso.service';
 import { EstadoSimulacion, Simulacion, SimulacionRequest } from '../simulaciones/models/simulacion.model';
+import { SOLO_DIA, aInputDia, validarFechasSimulacion } from '../simulaciones/models/fechas-simulacion';
 import { SimulacionService } from '../simulaciones/services/simulacion.service';
 
 type TabPanel = 'periodos' | 'equipos' | 'casos' | 'parametros';
@@ -374,11 +375,9 @@ export class Panel {
   }
 
   /**
-   * PUT con nombre y fechas de día, tal cual ("2026-10-25"): pasarlas por
-   * `toISOString()` correría el día en la noche de Bogotá. Antes valida inicio
-   * no pasado (el backend lo acepta: 200 con una fecha pasada, 21-oct-2026) y
-   * fin no anterior al inicio; los mensajes y `errores[]` del backend se
-   * muestran. En una PROGRAMADA, la nueva fecha de inicio es la de su arranque
+   * PUT con nombre y fechas de día, tal cual (ver `fechas-simulacion.ts`).
+   * Antes valida con las mismas reglas que al crear; los mensajes y
+   * `errores[]` del backend se muestran. En una PROGRAMADA, la nueva fecha de inicio es la de su arranque
    * automático: el formulario y el aviso lo dicen.
    */
   guardarEdicion(): void {
@@ -387,7 +386,7 @@ export class Panel {
       return;
     }
     const nombre = e.nombre.trim();
-    const error = validarEdicion(nombre, e.fechaInicio, e.fechaFin);
+    const error = validarFechasSimulacion(nombre, e.fechaInicio, e.fechaFin);
     if (error) {
       this.errorSimulacion.set({ idSimulacion: e.sim.id, mensaje: error, detalle: [] });
       return;
@@ -566,8 +565,6 @@ export class Panel {
   }
 }
 
-const SOLO_DIA = /^(\d{4})-(\d{2})-(\d{2})$/;
-
 /**
  * "25 de octubre de 2026" para una fecha de día (así manda el backend las de
  * Simulación: `new Date("2026-10-25")` sería medianoche UTC, el 24 a las
@@ -603,38 +600,6 @@ export function mensajeEliminar(sim: Simulacion): string {
     `¿Eliminar «${sim.nombre}»? Se borran también todas sus empresas y sus casos. ` +
     'Esta acción no se puede deshacer.'
   );
-}
-
-/**
- * Nombre e inicio obligatorios, inicio no pasado (hoy sí vale), fin no
- * anterior al inicio (igual sí). Fechas "YYYY-MM-DD": se comparan como texto.
- */
-export function validarEdicion(nombre: string, inicio: string, fin: string, hoy = hoyLocal()): string | null {
-  if (!nombre || !inicio) {
-    return 'Poné un nombre y la fecha de inicio.';
-  }
-  if (!SOLO_DIA.test(inicio) || (fin && !SOLO_DIA.test(fin))) {
-    return 'Revisá las fechas: no son válidas.';
-  }
-  if (inicio < hoy) {
-    return 'La fecha de inicio no puede ser pasada.';
-  }
-  if (fin && fin < inicio) {
-    return 'La fecha de fin no puede ser anterior a la de inicio.';
-  }
-  return null;
-}
-
-/** Hoy en el navegador, "YYYY-MM-DD". */
-function hoyLocal(): string {
-  const d = new Date();
-  const dos = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
-}
-
-/** La fecha de una simulación para `<input type="date">` ("2026-10-25"); '' si no trae una. */
-export function aInputDia(fecha: string): string {
-  return /^\d{4}-\d{2}-\d{2}/.exec(fecha ?? '')?.[0] ?? '';
 }
 
 function errorSimulacion(idSimulacion: number, err: ErrorHttp, porDefecto: string): ErrorSimulacion {

@@ -145,12 +145,12 @@
                       </label>
                       <label class="field">
                         <span class="field__label">Inicio</span>
-                        <input type="datetime-local" [value]="nuevaSimInicio()"
+                        <input type="date" [value]="nuevaSimInicio()"
                           (input)="nuevaSimInicio.set($any($event.target).value)" />
                       </label>
                       <label class="field">
                         <span class="field__label">Fin</span>
-                        <input type="datetime-local" [value]="nuevaSimFin()"
+                        <input type="date" [value]="nuevaSimFin()"
                           (input)="nuevaSimFin.set($any($event.target).value)" />
                       </label>
                     </div>

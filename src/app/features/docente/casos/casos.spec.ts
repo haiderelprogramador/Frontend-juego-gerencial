@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import * as XLSX from 'xlsx';
 
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 import { CasoApi, DecisionEmpresa } from '../../simulacion/models/caso-api.model';
 import { CAMPOS_FINANCIEROS, CampoFinanciero, FinancieroTexto } from '../../simulacion/models/financiero.model';
@@ -600,7 +600,7 @@ describe('Casos', () => {
       c.nuevoCaso();
       c.abrirNuevaSimulacion();
       c.nuevaSimNombre.set('Nueva');
-      c.nuevaSimInicio.set('2026-10-05T08:00');
+      c.nuevaSimInicio.set('2099-10-05');
       c.crearSimulacion();
       http.expectOne({ method: 'POST', url: URL_SIMULACIONES }).flush(simulacion(7, 'BORRADOR'));
 
@@ -878,18 +878,16 @@ describe('Casos', () => {
     c.nuevoCaso();
     c.abrirNuevaSimulacion();
     c.nuevaSimNombre.set('Gerencia 2026-2');
-    c.nuevaSimInicio.set('2026-10-05T08:00');
-    c.nuevaSimFin.set('2026-12-05T18:00');
+    c.nuevaSimInicio.set('2099-10-05');
+    c.nuevaSimFin.set('2099-12-05');
     fixture.detectChanges();
+    // Fechas de día: el backend las guarda sin hora.
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.nueva-sim input[type="date"]')).toHaveLength(2);
 
     c.crearSimulacion();
 
     const alta = http.expectOne({ method: 'POST', url: URL_SIMULACIONES });
-    expect(alta.request.body).toEqual({
-      nombre: 'Gerencia 2026-2',
-      fechaInicio: new Date('2026-10-05T08:00').toISOString(),
-      fechaFin: new Date('2026-12-05T18:00').toISOString(),
-    });
+    expect(alta.request.body).toEqual({ nombre: 'Gerencia 2026-2', fechaInicio: '2099-10-05', fechaFin: '2099-12-05' });
     alta.flush({ ...simulacion(7, 'BORRADOR'), nombre: 'Gerencia 2026-2' });
     // Con el arranque automático, programarla acá la haría arrancar sola sin estar armada.
     http.expectNone({ method: 'POST', url: `${URL_SIMULACIONES}/7/programar` });
@@ -901,6 +899,46 @@ describe('Casos', () => {
     expect(c.simulaciones().find((s) => s.id === 7)?.estado).toBe('BORRADOR');
     const select = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('.selector-sim select')!;
     expect(select.value).toBe('7');
+  });
+
+  describe('"+ Nueva simulación" de noche en Bogotá (22:30 del 21 = 03:30Z del 22)', () => {
+    beforeEach(() => {
+      // Solo se falsea Date: HttpTestingController y Angular siguen con los timers reales.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(Date.parse('2026-10-21T22:30:00-05:00'));
+    });
+    afterEach(() => vi.useRealTimers());
+
+    function crearCon(inicio: string, fin: string) {
+      const fixture = crearFixture();
+      const c = fixture.componentInstance;
+      c.nuevoCaso();
+      c.abrirNuevaSimulacion();
+      c.nuevaSimNombre.set('Nocturna');
+      c.nuevaSimInicio.set(inicio);
+      c.nuevaSimFin.set(fin);
+      c.crearSimulacion();
+      return c;
+    }
+
+    it('"hoy" vale como inicio y se envía ese mismo día, no el siguiente', () => {
+      crearCon('2026-10-21', '2026-10-21');
+      const alta = http.expectOne({ method: 'POST', url: URL_SIMULACIONES });
+      expect(alta.request.body).toEqual({ nombre: 'Nocturna', fechaInicio: '2026-10-21', fechaFin: '2026-10-21' });
+      alta.flush(simulacion(7, 'BORRADOR'));
+    });
+
+    it('ayer no vale como inicio', () => {
+      const c = crearCon('2026-10-20', '');
+      expect(c.errorNuevaSimulacion()).toBe('La fecha de inicio no puede ser pasada.');
+      http.expectNone({ method: 'POST', url: URL_SIMULACIONES });
+    });
+
+    it('el fin anterior al inicio no vale', () => {
+      const c = crearCon('2026-10-25', '2026-10-24');
+      expect(c.errorNuevaSimulacion()).toBe('La fecha de fin no puede ser anterior a la de inicio.');
+      http.expectNone({ method: 'POST', url: URL_SIMULACIONES });
+    });
   });
 
   it('sin nombre o fecha de inicio, "Crear simulación" no llama al backend', () => {

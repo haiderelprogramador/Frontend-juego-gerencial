@@ -18,3 +18,8 @@ export function aFechaBogota(fecha: string | undefined): number {
   }
   return Date.parse(TIENE_ZONA_HORARIA.test(fecha) ? fecha : `${fecha}${OFFSET_BOGOTA}`);
 }
+
+/** Hoy en Bogotá, "YYYY-MM-DD" (a las 22:30 del 21 sigue siendo el 21, aunque en UTC ya sea el 22). */
+export function hoyEnBogota(ahoraMs = Date.now()): string {
+  return new Date(ahoraMs - 5 * 3_600_000).toISOString().slice(0, 10);
+}

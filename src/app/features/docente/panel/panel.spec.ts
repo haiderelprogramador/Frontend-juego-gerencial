@@ -7,7 +7,8 @@ import { vi } from 'vitest';
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
 import { CasoApi, DecisionEmpresa } from '../../simulacion/models/caso-api.model';
 import { Simulacion } from '../simulaciones/models/simulacion.model';
-import { Panel, aInputDia, mensajeDesprogramar, mensajeEliminar, mensajeProgramar, validarEdicion } from './panel';
+import { validarFechasSimulacion } from '../simulaciones/models/fechas-simulacion';
+import { Panel, mensajeDesprogramar, mensajeEliminar, mensajeProgramar } from './panel';
 
 const URL_CASOS = apiUrl(API_CONFIG.endpoints.casos);
 const URL_SIMULACIONES = apiUrl(API_CONFIG.endpoints.simulacionesDocente);
@@ -465,9 +466,9 @@ describe('Panel', () => {
     });
 
     it('inicio hoy y fin igual al inicio sí se permiten (como en el backend)', () => {
-      expect(validarEdicion('X', '2026-10-21', '2026-10-21', '2026-10-21')).toBeNull();
-      expect(validarEdicion('X', '2026-10-21', '', '2026-10-21')).toBeNull();
-      expect(validarEdicion('X', '2026-10-20', '', '2026-10-21')).toBe('La fecha de inicio no puede ser pasada.');
+      expect(validarFechasSimulacion('X', '2026-10-21', '2026-10-21', '2026-10-21')).toBeNull();
+      expect(validarFechasSimulacion('X', '2026-10-21', '', '2026-10-21')).toBeNull();
+      expect(validarFechasSimulacion('X', '2026-10-20', '', '2026-10-21')).toBe('La fecha de inicio no puede ser pasada.');
     });
 
     it('un 400 al guardar muestra el mensaje del backend y sus errores[]; el formulario sigue abierto', () => {
@@ -557,12 +558,6 @@ describe('Panel', () => {
       expect(mensajeEliminar(borrador)).toBe(
         '¿Eliminar «Simulación 11»? Se borran también todas sus empresas y sus casos. Esta acción no se puede deshacer.',
       );
-    });
-
-    it('aInputDia toma el día de la fecha del backend, o "" si no trae una', () => {
-      expect(aInputDia('2026-11-20')).toBe('2026-11-20');
-      expect(aInputDia('')).toBe('');
-      expect(aInputDia('no-es-fecha')).toBe('');
     });
 
     it('una fecha de día se muestra como ese día, no corrida por la zona horaria', () => {

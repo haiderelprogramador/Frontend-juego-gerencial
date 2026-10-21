@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
+import { vi } from 'vitest';
 
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
 import { Integrante } from '../integrantes/models/integrante.model';
@@ -68,17 +69,52 @@ describe.runIf(!API_CONFIG.demoMode && API_CONFIG.disponible.listarEstudiantes)(
     const cmp = montar().componentInstance;
     cmp.abrirNuevaSimulacion();
     cmp.nuevaSimNombre.set('Gerencia 2027-1');
-    cmp.nuevaSimInicio.set('2099-02-01T08:00');
+    cmp.nuevaSimInicio.set('2099-02-01');
     cmp.crearSimulacion();
 
-    http
-      .expectOne({ method: 'POST', url: SIMS })
-      .flush({ id: 5, idUsuarioCoordinador: 9, nombre: 'Gerencia 2027-1', fechaInicio: '', fechaFin: '', estado: 'BORRADOR' });
+    const alta = http.expectOne({ method: 'POST', url: SIMS });
+    expect(alta.request.body).toEqual({ nombre: 'Gerencia 2027-1', fechaInicio: '2099-02-01' });
+    alta.flush({ id: 5, idUsuarioCoordinador: 9, nombre: 'Gerencia 2027-1', fechaInicio: '', fechaFin: '', estado: 'BORRADOR' });
     // Programarla al crearla la haría arrancar sola en su fecha de inicio sin estar armada.
     http.expectNone({ method: 'POST', url: `${SIMS}/5/programar` });
 
     expect(cmp.creandoSimulacion()).toBe(false);
     expect(cmp.simulaciones().find((s) => s.id === 5)?.estado).toBe('BORRADOR');
+  });
+
+  describe('"+ Nueva simulación" de noche en Bogotá (22:30 del 21 = 03:30Z del 22)', () => {
+    beforeEach(() => {
+      // Solo se falsea Date: HttpTestingController y Angular siguen con los timers reales.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(Date.parse('2026-10-21T22:30:00-05:00'));
+    });
+    afterEach(() => vi.useRealTimers());
+
+    function crearCon(inicio: string, fin: string) {
+      const fixture = montar();
+      const cmp = fixture.componentInstance;
+      cmp.abrirNuevaSimulacion();
+      fixture.detectChanges();
+      cmp.nuevaSimNombre.set('Nocturna');
+      cmp.nuevaSimInicio.set(inicio);
+      cmp.nuevaSimFin.set(fin);
+      cmp.crearSimulacion();
+      return fixture;
+    }
+
+    it('"hoy" vale como inicio y se envía ese mismo día, no el siguiente', () => {
+      const fixture = crearCon('2026-10-21', '2026-10-21');
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll('.nueva-sim input[type="date"]')).toHaveLength(2);
+      const alta = http.expectOne({ method: 'POST', url: SIMS });
+      expect(alta.request.body).toEqual({ nombre: 'Nocturna', fechaInicio: '2026-10-21', fechaFin: '2026-10-21' });
+      alta.flush({ id: 5, idUsuarioCoordinador: 9, nombre: 'Nocturna', fechaInicio: '2026-10-21', fechaFin: '2026-10-21', estado: 'BORRADOR' });
+    });
+
+    it('ayer no vale como inicio', () => {
+      const cmp = crearCon('2026-10-20', '').componentInstance;
+      expect(cmp.errorNuevaSimulacion()).toBe('La fecha de inicio no puede ser pasada.');
+      http.expectNone({ method: 'POST', url: SIMS });
+    });
   });
 
   it('carga las empresas e integrantes de la simulación de la URL', () => {
