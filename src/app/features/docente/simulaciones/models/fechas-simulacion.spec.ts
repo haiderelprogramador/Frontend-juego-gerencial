@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { hoyEnBogota } from '../../../../shared/utils/fecha-bogota';
-import { aInputDia, validarFechasSimulacion } from './fechas-simulacion';
+import { aInputDia, diaYaPaso, validarFechasSimulacion } from './fechas-simulacion';
 
 describe('hoyEnBogota', () => {
   it('a las 22:30 de Bogotá sigue siendo ese día, aunque en UTC ya sea el siguiente', () => {
@@ -27,6 +27,15 @@ describe('validarFechasSimulacion', () => {
     expect(validarFechasSimulacion('X', '2026-10-20', '', HOY)).toBe('La fecha de inicio no puede ser pasada.');
   });
 
+  it('al editar, conservar el inicio que ya tenía vale aunque esté vencido; cambiarlo a otro pasado no', () => {
+    expect(validarFechasSimulacion('X', '2026-10-01', '', HOY, '2026-10-01')).toBeNull();
+    expect(validarFechasSimulacion('X', '2026-10-02', '', HOY, '2026-10-01')).toBe('La fecha de inicio no puede ser pasada.');
+    // Conservar el inicio no salta las demás reglas.
+    expect(validarFechasSimulacion('X', '2026-10-01', '2026-09-30', HOY, '2026-10-01')).toBe(
+      'La fecha de fin no puede ser anterior a la de inicio.',
+    );
+  });
+
   it('un fin anterior al inicio no vale', () => {
     expect(validarFechasSimulacion('X', '2026-10-25', '2026-10-24', HOY)).toBe(
       'La fecha de fin no puede ser anterior a la de inicio.',
@@ -46,6 +55,14 @@ describe('validarFechasSimulacion', () => {
   it('sin `hoy` explícito usa el día de Bogotá', () => {
     expect(validarFechasSimulacion('X', '2000-01-01', '')).toBe('La fecha de inicio no puede ser pasada.');
     expect(validarFechasSimulacion('X', '2999-01-01', '')).toBeNull();
+  });
+});
+
+describe('diaYaPaso', () => {
+  it('solo antes de hoy; hoy y las fechas inválidas no', () => {
+    expect(diaYaPaso('2026-10-20', '2026-10-21')).toBe(true);
+    expect(diaYaPaso('2026-10-21', '2026-10-21')).toBe(false);
+    expect(diaYaPaso('', '2026-10-21')).toBe(false);
   });
 });
 

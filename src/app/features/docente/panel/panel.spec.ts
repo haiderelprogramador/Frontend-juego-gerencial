@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
 import { CasoApi, DecisionEmpresa } from '../../simulacion/models/caso-api.model';
 import { Simulacion } from '../simulaciones/models/simulacion.model';
+import { hoyEnBogota } from '../../../shared/utils/fecha-bogota';
 import { validarFechasSimulacion } from '../simulaciones/models/fechas-simulacion';
 import { Panel, mensajeDesprogramar, mensajeEliminar, mensajeProgramar } from './panel';
 
@@ -367,9 +368,9 @@ describe('Panel', () => {
 
     /** "YYYY-MM-DD" a `dias` de hoy (como manda el backend), para que "inicio no pasado" no dependa del día. */
     const en = (dias: number) => {
-      const d = new Date(Date.now() + dias * 86_400_000);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return hoyEnBogota(Date.now() + dias * 86_400_000);
     };
+    const AVISO_VENCIDO = 'La fecha de inicio ya pasó: si programas la simulación, arranca de inmediato.';
     const borrador = { ...simulacion(11, 'BORRADOR'), fechaInicio: en(10), fechaFin: en(20) };
     const programada = { ...simulacion(12, 'PROGRAMADA'), fechaInicio: en(5), fechaFin: en(15) };
 
@@ -411,8 +412,9 @@ describe('Panel', () => {
       expect(inputs[1].type).toBe('date');
       expect(inputs[1].value).toBe(borrador.fechaInicio);
       expect(inputs[2].value).toBe(borrador.fechaFin);
-      // Solo una PROGRAMADA avisa del arranque automático.
+      // Solo una PROGRAMADA avisa del arranque automático; con inicio futuro, no hay aviso de vencida.
       expect(host.querySelector('.edicion-sim')?.textContent).not.toContain('arranca sola');
+      expect(host.querySelector('.edicion-sim')?.textContent).not.toContain(AVISO_VENCIDO);
 
       escribir(host, 'Nombre', '  Gerencia 2026-2  ');
       escribir(host, 'Inicio', en(12));
@@ -449,8 +451,7 @@ describe('Panel', () => {
 
     it.each([
       ['sin nombre', { nombre: '   ' }, 'Poné un nombre y la fecha de inicio.'],
-      // El backend acepta un inicio pasado (200, probado el 21-oct-2026): solo lo frena esta validación.
-      ['inicio pasado', { fechaInicio: en(-1) }, 'La fecha de inicio no puede ser pasada.'],
+      ['inicio cambiado a una fecha pasada', { fechaInicio: en(-1) }, 'La fecha de inicio no puede ser pasada.'],
       ['fin anterior al inicio', { fechaFin: en(2) }, 'La fecha de fin no puede ser anterior a la de inicio.'],
     ])('valida antes de enviar: %s', (_caso, cambios, msg) => {
       const fixture = crearFixture([], [borrador]);
@@ -469,6 +470,103 @@ describe('Panel', () => {
       expect(validarFechasSimulacion('X', '2026-10-21', '2026-10-21', '2026-10-21')).toBeNull();
       expect(validarFechasSimulacion('X', '2026-10-21', '', '2026-10-21')).toBeNull();
       expect(validarFechasSimulacion('X', '2026-10-20', '', '2026-10-21')).toBe('La fecha de inicio no puede ser pasada.');
+    });
+
+    describe('fecha de inicio vencida (como el backend: se puede conservar, no poner)', () => {
+      const vencida = { ...simulacion(13, 'BORRADOR'), fechaInicio: en(-3), fechaFin: en(5) };
+
+      it('con la fecha que ya tenía, vencida, cambiar solo el nombre se guarda; avisa sin bloquear', () => {
+        const fixture = crearFixture([], [vencida]);
+        const host = fixture.nativeElement as HTMLElement;
+        boton(host, '.borradores', 'Editar')!.click();
+        fixture.detectChanges();
+        expect(host.querySelector('.edicion-sim')!.textContent).toContain(AVISO_VENCIDO);
+
+        escribir(host, 'Nombre', 'Gerencia renombrada');
+        boton(host, '.edicion-sim', 'Guardar')!.click();
+
+        const req = http.expectOne({ method: 'PUT', url: `${URL_SIMULACIONES}/13` });
+        expect(req.request.body).toEqual({ nombre: 'Gerencia renombrada', fechaInicio: en(-3), fechaFin: en(5) });
+        req.flush({ ...vencida, nombre: 'Gerencia renombrada' });
+        http.expectOne({ method: 'GET', url: URL_CASOS }).flush([]);
+        http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([{ ...vencida, nombre: 'Gerencia renombrada' }]);
+        fixture.detectChanges();
+        expect(host.textContent).toContain('«Gerencia renombrada» se actualizó.');
+      });
+
+      it('cambiar a otra fecha pasada se rechaza y también muestra el aviso', () => {
+        const fixture = crearFixture([], [borrador]);
+        const host = fixture.nativeElement as HTMLElement;
+        boton(host, '.borradores', 'Editar')!.click();
+        fixture.detectChanges();
+        escribir(host, 'Inicio', en(-1));
+        fixture.detectChanges();
+        expect(host.querySelector('.edicion-sim')!.textContent).toContain(AVISO_VENCIDO);
+
+        boton(host, '.edicion-sim', 'Guardar')!.click();
+        fixture.detectChanges();
+
+        http.expectNone({ method: 'PUT', url: `${URL_SIMULACIONES}/11` });
+        expect(host.querySelector('.edicion-sim__error')!.textContent).toContain('La fecha de inicio no puede ser pasada.');
+      });
+
+      it('si una vencida se cambia a otra fecha también pasada, se rechaza', () => {
+        expect(validarFechasSimulacion('X', en(-1), '', en(0), en(-3))).toBe('La fecha de inicio no puede ser pasada.');
+        expect(validarFechasSimulacion('X', en(-3), '', en(0), en(-3))).toBeNull();
+      });
+
+      it('el 400 de fechaInicio del backend se muestra debajo de ese campo, sin repetirlo arriba', () => {
+        const fixture = crearFixture([], [borrador]);
+        const host = fixture.nativeElement as HTMLElement;
+        boton(host, '.borradores', 'Editar')!.click();
+        fixture.detectChanges();
+        boton(host, '.edicion-sim', 'Guardar')!.click();
+        http.expectOne({ method: 'PUT', url: `${URL_SIMULACIONES}/11` }).flush(
+          {
+            message: 'La fecha de inicio no puede ser pasada',
+            status: 400,
+            errores: [{ campo: 'fechaInicio', mensaje: 'La fecha de inicio no puede ser pasada' }],
+          },
+          { status: 400, statusText: 'Bad Request' },
+        );
+        fixture.detectChanges();
+
+        const labelInicio = [...host.querySelectorAll('.edicion-sim label')].find(
+          (l) => l.querySelector('.field__label')?.textContent === 'Inicio',
+        )!;
+        expect(labelInicio.querySelector('.field__error')?.textContent).toBe('La fecha de inicio no puede ser pasada');
+        expect(host.querySelector('.edicion-sim__error')).toBeNull();
+
+        // Al cambiar la fecha, ese error deja de aplicar.
+        escribir(host, 'Inicio', en(15));
+        fixture.detectChanges();
+        expect(labelInicio.querySelector('.field__error')).toBeNull();
+      });
+
+      it('el 400 de fechaInicio junto a otros errores: el de fecha debajo del campo, el resto arriba', () => {
+        const fixture = crearFixture([], [borrador]);
+        const cmp = fixture.componentInstance;
+        cmp.editarSimulacion(borrador);
+        cmp.guardarEdicion();
+        http.expectOne({ method: 'PUT', url: `${URL_SIMULACIONES}/11` }).flush(
+          {
+            message: 'Datos inválidos',
+            errores: [
+              { campo: 'fechaInicio', mensaje: 'La fecha de inicio no puede ser pasada' },
+              { campo: 'nombre', mensaje: 'El nombre del curso es obligatorio' },
+            ],
+          },
+          { status: 400, statusText: 'Bad Request' },
+        );
+        fixture.detectChanges();
+        const host = fixture.nativeElement as HTMLElement;
+
+        const arriba = host.querySelector('.edicion-sim__error')!.textContent!;
+        expect(arriba).toContain('Datos inválidos');
+        expect(arriba).toContain('El nombre del curso es obligatorio');
+        expect(arriba).not.toContain('La fecha de inicio no puede ser pasada');
+        expect(host.querySelector('.edicion-sim .field__error')?.textContent).toBe('La fecha de inicio no puede ser pasada');
+      });
     });
 
     it('un 400 al guardar muestra el mensaje del backend y sus errores[]; el formulario sigue abierto', () => {

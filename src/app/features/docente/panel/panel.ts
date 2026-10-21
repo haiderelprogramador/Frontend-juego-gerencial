@@ -12,7 +12,7 @@ import { Casos } from '../casos/casos';
 import { CasoApiService } from '../casos/services/caso-api.service';
 import { CierreCasoService } from '../casos/services/cierre-caso.service';
 import { EstadoSimulacion, Simulacion, SimulacionRequest } from '../simulaciones/models/simulacion.model';
-import { SOLO_DIA, aInputDia, validarFechasSimulacion } from '../simulaciones/models/fechas-simulacion';
+import { SOLO_DIA, aInputDia, diaYaPaso, validarFechasSimulacion } from '../simulaciones/models/fechas-simulacion';
 import { SimulacionService } from '../simulaciones/services/simulacion.service';
 
 type TabPanel = 'periodos' | 'equipos' | 'casos' | 'parametros';
@@ -47,11 +47,16 @@ interface EdicionSimulacion {
   fechaFin: string;
 }
 
-/** Error de editar/eliminar: el mensaje general y, si vienen, los `errores[]` del backend. */
+/**
+ * Error de editar/eliminar: el mensaje general y, si vienen, los `errores[]`
+ * del backend. El de `fechaInicio` va aparte, debajo de ese campo.
+ */
 interface ErrorSimulacion {
   idSimulacion: number;
-  mensaje: string;
+  /** `null` si solo hay error de campo (el backend repite en `message` el de `fechaInicio`). */
+  mensaje: string | null;
   detalle: string[];
+  errorInicio: string | null;
 }
 
 /** Un caso activo con su simulación, para el selector de "Entregas por empresa" y "Finalizar simulación". */
@@ -238,6 +243,16 @@ export class Panel {
   readonly eliminandoId = signal<number | null>(null);
   /** Error de editar o de eliminar; se muestra junto a la simulación de `idSimulacion`. */
   readonly errorSimulacion = signal<ErrorSimulacion | null>(null);
+  /**
+   * La fecha de inicio del formulario ya pasó. No bloquea si es la que ya
+   * tenía (el backend la deja conservar); si la cambiaron a una pasada,
+   * además se rechaza al guardar.
+   */
+  readonly inicioVencido = computed(() => {
+    const e = this.edicion();
+    return !!e && diaYaPaso(e.fechaInicio);
+  });
+  readonly avisoInicioVencido = 'La fecha de inicio ya pasó: si programas la simulación, arranca de inmediato.';
 
   // -- Finalizar simulación (backend real) --
   /** Solo con la simulación del caso de "Entregas" EN_CURSO (el backend responde 400 en otro estado). */
@@ -367,6 +382,10 @@ export class Panel {
 
   actualizarEdicion(cambios: Partial<Omit<EdicionSimulacion, 'sim'>>): void {
     this.edicion.update((e) => (e ? { ...e, ...cambios } : e));
+    // El error del backend debajo de "Inicio" deja de aplicar en cuanto se cambia esa fecha.
+    if (cambios.fechaInicio !== undefined) {
+      this.errorSimulacion.update((err) => (err?.errorInicio ? { ...err, errorInicio: null } : err));
+    }
   }
 
   cancelarEdicion(): void {
@@ -386,9 +405,10 @@ export class Panel {
       return;
     }
     const nombre = e.nombre.trim();
-    const error = validarFechasSimulacion(nombre, e.fechaInicio, e.fechaFin);
+    // Conservar el inicio que ya tenía vale aunque esté vencido (como en el backend).
+    const error = validarFechasSimulacion(nombre, e.fechaInicio, e.fechaFin, undefined, aInputDia(e.sim.fechaInicio));
     if (error) {
-      this.errorSimulacion.set({ idSimulacion: e.sim.id, mensaje: error, detalle: [] });
+      this.errorSimulacion.set({ idSimulacion: e.sim.id, mensaje: error, detalle: [], errorInicio: null });
       return;
     }
     const req: SimulacionRequest = {
@@ -603,10 +623,14 @@ export function mensajeEliminar(sim: Simulacion): string {
 }
 
 function errorSimulacion(idSimulacion: number, err: ErrorHttp, porDefecto: string): ErrorSimulacion {
+  const errores = (err?.error?.errores ?? []).filter((e) => !!e.mensaje);
+  const errorInicio = errores.find((e) => e.campo === 'fechaInicio')?.mensaje ?? null;
+  const general = mensaje(err, porDefecto);
   return {
     idSimulacion,
-    mensaje: mensaje(err, porDefecto),
-    detalle: (err?.error?.errores ?? []).map((e) => e.mensaje ?? '').filter((m) => !!m),
+    mensaje: general === errorInicio ? null : general,
+    detalle: errores.filter((e) => e.campo !== 'fechaInicio').map((e) => e.mensaje!),
+    errorInicio,
   };
 }
 

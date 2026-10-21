@@ -61,6 +61,11 @@
               <span class="field__label">Inicio</span>
               <input type="date" [value]="e.fechaInicio"
                 (input)="actualizarEdicion({ fechaInicio: $any($event.target).value })" />
+              @if (errorSimulacion(); as err) {
+                @if (err.idSimulacion === s.id && err.errorInicio) {
+                  <span class="field__error">{{ err.errorInicio }}</span>
+                }
+              }
             </label>
             <label class="field">
               <span class="field__label">Fin</span>
@@ -68,6 +73,9 @@
                 (input)="actualizarEdicion({ fechaFin: $any($event.target).value })" />
             </label>
           </span>
+          @if (inicioVencido()) {
+            <app-alerta tipo="info" [mensaje]="avisoInicioVencido" />
+          }
           @if (s.estado === 'PROGRAMADA') {
             <app-alerta tipo="info"
               mensaje="Está programada: arranca sola en la nueva fecha de inicio, sin que tengas que hacer nada más." />
@@ -84,9 +92,11 @@
       }
     }
     @if (errorSimulacion(); as err) {
-      @if (err.idSimulacion === s.id) {
+      @if (err.idSimulacion === s.id && (err.mensaje || err.detalle.length > 0)) {
         <span class="edicion-sim__error">
-          <app-alerta tipo="error" [mensaje]="err.mensaje" />
+          @if (err.mensaje) {
+            <app-alerta tipo="error" [mensaje]="err.mensaje" />
+          }
           @if (err.detalle.length > 0) {
             <ul class="programar-error__lista">
               @for (d of err.detalle; track $index) {

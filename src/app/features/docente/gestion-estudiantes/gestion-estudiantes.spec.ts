@@ -239,6 +239,20 @@ describe('GestionEstudiantes', () => {
       ]);
     });
 
+    it('el nombre del CSV lleva el día de Bogotá: a las 22:30 del 21 (03:30Z del 22) sigue siendo el 21', async () => {
+      const fixture = await cargar({ creados: [estudiante(1, 'Usu-001-101!')], vinculados: [], errores: [] });
+      // Solo se falsea Date, y recién al descargar: la carga del Excel usa los timers reales.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(Date.parse('2026-10-21T22:30:00-05:00'));
+      try {
+        fixture.componentInstance.descargarContrasenas();
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(clics[0].download).toBe('contrasenas-estudiantes-2026-10-21.csv');
+    });
+
     it('sin el campo contrasenaGenerada (así responde el backend con el correo activo): avisa y no rompe', async () => {
       // Desde que el backend activa el correo, el campo directamente no viene (no llega en null).
       const sinCampo = (id: number) => ({

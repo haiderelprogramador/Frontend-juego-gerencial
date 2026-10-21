@@ -5,6 +5,7 @@ import { Curso } from '../../../core/models/curso.model';
 import { CursoService } from '../../../core/services/curso.service';
 import { Alerta } from '../../../shared/components/alerta/alerta';
 import { descargarArchivo } from '../../../shared/utils/descarga';
+import { hoyEnBogota } from '../../../shared/utils/fecha-bogota';
 import { conContrasena, csvContrasenas } from './contrasenas-csv';
 import {
   CargaMasivaRequest,
@@ -319,8 +320,8 @@ export class GestionEstudiantes {
       return;
     }
     const blob = new Blob([csvContrasenas(estudiantes)], { type: 'text/csv;charset=utf-8' });
-    const fecha = new Date().toISOString().slice(0, 10);
-    descargarArchivo(blob, `contrasenas-estudiantes-${fecha}.csv`);
+    // Día de Bogotá: con toISOString() (UTC), de noche saldría el día siguiente.
+    descargarArchivo(blob, `contrasenas-estudiantes-${hoyEnBogota()}.csv`);
   }
 
   private construirPrevisualizacion(filas: FilaEstudianteExcel[]): FilaPrevisualizacion[] {
