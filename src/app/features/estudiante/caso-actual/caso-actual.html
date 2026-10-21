@@ -18,6 +18,29 @@
   <app-alerta tipo="info" [mensaje]="msg" />
 }
 
+<!-- "Mi empresa": integrantes de la empresa del estudiante (no se muestra si el backend no la da). -->
+<ng-template #tarjetaMiEmpresa>
+  @if (miEmpresa(); as emp) {
+    <div class="card mi-empresa">
+      <h2 class="t-title">Mi empresa</h2>
+      <p class="financiero__sub">{{ emp.nombre }} · {{ emp.integrantes.length }} integrante{{ emp.integrantes.length === 1 ? '' : 's' }}</p>
+      <ul class="mi-empresa__lista">
+        @for (i of emp.integrantes; track i.idUsuario) {
+          <li class="mi-empresa__item">
+            <span class="mi-empresa__persona">
+              <span class="mi-empresa__nombre">{{ i.nombre }}</span>
+              <span class="mi-empresa__depto">{{ departamento(i.departamento) }}</span>
+            </span>
+            @if (i.esLider) {
+              <app-badge variante="docente">Líder</app-badge>
+            }
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</ng-template>
+
 @if (cargando()) {
   <p class="t-muted">Cargando…</p>
 } @else if (caso(); as c) {
@@ -223,6 +246,8 @@
             }
           }
         </div>
+
+        <ng-container [ngTemplateOutlet]="tarjetaMiEmpresa" />
       </div>
     </div>
   </section>
@@ -231,6 +256,8 @@
     El caso anterior se cerró. El siguiente todavía no está publicado; tus resultados aparecerán en
     <a routerLink="/estudiante/reportes-financieros">Reportes financieros</a>.
   </p>
+  <ng-container [ngTemplateOutlet]="tarjetaMiEmpresa" />
 } @else {
   <p class="t-muted">No hay un caso activo todavía. Cuando el docente active uno, aparecerá aquí.</p>
+  <ng-container [ngTemplateOutlet]="tarjetaMiEmpresa" />
 }

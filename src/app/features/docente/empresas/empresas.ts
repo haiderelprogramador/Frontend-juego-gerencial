@@ -7,7 +7,12 @@ import { Alerta } from '../../../shared/components/alerta/alerta';
 import { Badge } from '../../../shared/components/badge/badge';
 import { EstudianteCargado } from '../gestion-estudiantes/models/estudiante.model';
 import { EstudianteService } from '../gestion-estudiantes/services/estudiante.service';
-import { DepartamentoIntegrante, Integrante } from '../integrantes/models/integrante.model';
+import {
+  DEPARTAMENTOS,
+  DepartamentoIntegrante,
+  Integrante,
+  nombreDepartamento,
+} from '../integrantes/models/integrante.model';
 import { IntegranteService } from '../integrantes/services/integrante.service';
 import { EstadoSimulacion, Simulacion, SimulacionRequest } from '../simulaciones/models/simulacion.model';
 import { SimulacionService } from '../simulaciones/services/simulacion.service';
@@ -29,13 +34,6 @@ export const ESTADOS_SIMULACION: Record<EstadoSimulacion, string> = {
   EN_CURSO: 'en curso',
   FINALIZADA: 'finalizada',
 };
-
-export const DEPARTAMENTOS: readonly { valor: DepartamentoIntegrante; etiqueta: string }[] = [
-  { valor: 'GERENCIA_GENERAL', etiqueta: 'Gerencia general' },
-  { valor: 'COMERCIAL', etiqueta: 'Comercial' },
-  { valor: 'OPERACIONES', etiqueta: 'Operaciones' },
-  { valor: 'ADMINISTRATIVA', etiqueta: 'Administrativa' },
-];
 
 interface FormEmpresa {
   nombre: string;
@@ -431,7 +429,7 @@ export class Empresas {
   }
 
   nombreDepartamento(d: DepartamentoIntegrante): string {
-    return DEPARTAMENTOS.find((x) => x.valor === d)?.etiqueta ?? d;
+    return nombreDepartamento(d);
   }
 
   // ---------------------------------------------------------------------------

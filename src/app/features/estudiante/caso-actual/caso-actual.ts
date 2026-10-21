@@ -1,4 +1,4 @@
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable, Subscription, interval, of } from 'rxjs';
@@ -15,7 +15,8 @@ import { formatearPorcentajeBoletin, formatearTasaCambio } from '../../simulacio
 import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
 import { describirImpacto, formatearMoneda } from '../../simulacion/models/financiero.model';
 import { AuthService } from '../../../core/services/auth.service';
-import { CasoActual as CasoActualDto, MiSimulacion } from '../models/portal-estudiante.model';
+import { nombreDepartamento } from '../../docente/integrantes/models/integrante.model';
+import { CasoActual as CasoActualDto, MiEmpresa, MiSimulacion } from '../models/portal-estudiante.model';
 import { PortalEstudianteService } from '../services/portal-estudiante.service';
 import { aFechaBogota } from '../../../shared/utils/fecha-bogota';
 
@@ -67,7 +68,7 @@ const ESTADOS_SIMULACION: Record<string, string> = {
 
 @Component({
   selector: 'app-caso-actual',
-  imports: [RouterLink, Badge, Alerta, Kpi, TarjetaSeleccion],
+  imports: [NgTemplateOutlet, RouterLink, Badge, Alerta, Kpi, TarjetaSeleccion],
   templateUrl: './caso-actual.html',
   styleUrl: './caso-actual.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -157,6 +158,16 @@ export class CasoActual implements OnDestroy {
   /** Impacto financiero de la opción elegida, en líneas legibles (vacío si no tenía). */
   readonly detalleImpacto = computed(() => describirImpacto(this.decisionActual()?.impacto));
 
+  /**
+   * "Mi empresa": integrantes de la empresa del estudiante en la simulación
+   * mostrada. `null` mientras carga o si el backend no la da (400: la empresa
+   * no es suya; cualquier otro error tampoco la muestra, es información de apoyo).
+   */
+  readonly miEmpresa = signal<MiEmpresa | null>(null);
+  /** De qué empresa es `miEmpresa` (o la que se está pidiendo), para no repetir el GET ni aceptar respuestas viejas. */
+  private idEmpresaPedida: number | null = null;
+  readonly departamento = nombreDepartamento;
+
   /** Reloj reactivo: se actualiza solo cada `INTERVALO_RELOJ_MS` (ver `ngOnDestroy`). */
   private readonly ahora = signal(Date.now());
   private readonly relojSub: Subscription = interval(INTERVALO_RELOJ_MS).subscribe(() =>
@@ -229,7 +240,14 @@ export class CasoActual implements OnDestroy {
   constructor() {
     this.cargar(this.leerSimulacionRecordada());
     // Sin la lista no hay selector (catchError -> []); el resto de la pantalla funciona igual.
-    this.misSimulaciones$.subscribe((lista) => this.simulaciones.set(lista));
+    this.misSimulaciones$.subscribe((lista) => {
+      this.simulaciones.set(lista);
+      // Con 204 no hay `idEmpresa` en caso-actual: sale de esta lista. Si
+      // caso-actual todavía no respondió, espera (`mostrar` la pide).
+      if (!this.cargando()) {
+        this.cargarMiEmpresa();
+      }
+    });
     this.documento.addEventListener('visibilitychange', this.alVolverVisible);
   }
 
@@ -354,6 +372,7 @@ export class CasoActual implements OnDestroy {
   private mostrar(dto: CasoActualDto | null, idSimulacion: number | undefined): void {
     this.datos.set(dto);
     this.entreCasos.set(false);
+    this.cargarMiEmpresa();
     if (dto) {
       return;
     }
@@ -362,6 +381,38 @@ export class CasoActual implements OnDestroy {
       if (!this.datos()) {
         this.entreCasos.set(tuvo);
       }
+    });
+  }
+
+  /**
+   * Empresa del estudiante en la simulación mostrada: la de caso-actual o,
+   * sin caso (204), la de `misSimulaciones` (la pedida, o la más reciente si
+   * eligió el backend). Solo pide de nuevo si cambió la empresa.
+   */
+  private cargarMiEmpresa(): void {
+    const idSimulacion = this.idSolicitada();
+    const idEmpresa =
+      this.datos()?.idEmpresa ??
+      (idSimulacion !== undefined
+        ? this.simulaciones().find((s) => s.idSimulacion === idSimulacion)?.idEmpresa
+        : this.simulaciones()[0]?.idEmpresa) ??
+      null;
+    if (idEmpresa === this.idEmpresaPedida) {
+      return;
+    }
+    this.idEmpresaPedida = idEmpresa;
+    this.miEmpresa.set(null);
+    if (idEmpresa === null) {
+      return;
+    }
+    this.portal.miEmpresa(idEmpresa).subscribe({
+      next: (empresa) => {
+        if (idEmpresa === this.idEmpresaPedida) {
+          this.miEmpresa.set(empresa);
+        }
+      },
+      // 400 (no es su empresa) u otro error: la tarjeta no se muestra.
+      error: () => undefined,
     });
   }
 

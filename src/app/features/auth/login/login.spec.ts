@@ -3,6 +3,7 @@ import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/route
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
+import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
 import { Login } from './login';
 
 describe('Login', () => {
@@ -94,5 +95,23 @@ describe('Login', () => {
       expect(fixture.componentInstance.sesionVencida()).toBe(false);
       TestBed.inject(HttpTestingController).match(() => true);
     });
+  });
+
+  it('un 429 (cuenta bloqueada por intentos fallidos) muestra el mensaje del backend, no uno genérico', () => {
+    const fixture = TestBed.createComponent(Login);
+    const http = TestBed.inject(HttpTestingController);
+    // Respuesta real del backend al sexto intento fallido (estudiante de prueba 87, 21-oct-2026).
+    const msg = 'Demasiados intentos fallidos. Intenta nuevamente en 15 minutos';
+    fixture.componentInstance.form.setValue({ correo: 'estudiante@uni.test', contrasena: 'incorrecta' });
+    fixture.componentInstance.enviar();
+    http
+      .expectOne(apiUrl(API_CONFIG.endpoints.login))
+      .flush({ status: 429, message: msg }, { status: 429, statusText: 'Too Many Requests' });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.error()).toBe(msg);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(msg);
+    expect(fixture.componentInstance.enviando()).toBe(false);
+    http.verify();
   });
 });

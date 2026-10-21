@@ -11,6 +11,7 @@ import {
   OrigenFinancieroInicial,
 } from '../../simulacion/models/estado-empresa.model';
 import { ImpactoOpcion } from '../../simulacion/models/financiero.model';
+import { DepartamentoIntegrante } from '../../docente/integrantes/models/integrante.model';
 
 // El estado por empresa también lo usa el docente (historia, estados-empresas): vive en simulacion/models.
 export type {
@@ -86,13 +87,15 @@ export interface MiSimulacion {
 }
 
 /**
- * Integrante de la empresa del estudiante.
- * 🔎 INFERENCIA: el doc no detalla el shape de cada fila de `integrantes[]`.
+ * Integrante de la empresa del estudiante (confirmado en vivo, 21-oct-2026:
+ * `idUsuario`, no `id`; `departamento` con el mismo enum que en
+ * `/docente/empresas/{id}/integrantes`).
  */
 export interface IntegranteEmpresa {
-  id: number;
+  idUsuario: number;
   nombre: string;
   correo: string;
+  departamento: DepartamentoIntegrante;
   esLider: boolean;
 }
 
@@ -102,7 +105,7 @@ export interface MiEmpresa {
   idSimulacion: number;
   codigoEmpresa: string;
   nombre: string;
-  estrategia: string;
+  estrategia: string | null;
   tipoJugador: string;
   estado: string;
   integrantes: IntegranteEmpresa[];

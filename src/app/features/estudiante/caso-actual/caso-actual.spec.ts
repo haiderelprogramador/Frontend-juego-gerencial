@@ -9,12 +9,13 @@ import { financieroANumeros, financieroVacio } from '../../simulacion/models/fin
 import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { CasoActual as CasoActualDto, Decision, MiSimulacion } from '../models/portal-estudiante.model';
+import { CasoActual as CasoActualDto, Decision, MiEmpresa, MiSimulacion } from '../models/portal-estudiante.model';
 import { aFechaBogota, calcularFase, CasoActual, formatearCuenta } from './caso-actual';
 
 const URL_CASO_ACTUAL = apiUrl(API_CONFIG.endpoints.estudianteCasoActual);
 const URL_DECISION = apiUrl(API_CONFIG.endpoints.estudianteDecision);
 const URL_SIMULACIONES = apiUrl(API_CONFIG.endpoints.estudianteSimulaciones);
+const URL_EMPRESAS = apiUrl(API_CONFIG.endpoints.estudianteEmpresas);
 
 const AHORA = Date.parse('2026-09-29T12:00:00');
 const UNA_HORA_MS = 60 * 60 * 1000;
@@ -172,6 +173,8 @@ describe('CasoActual', () => {
   });
 
   afterEach(() => {
+    // "Mi empresa" se pide en cada pantalla con empresa; solo la prueban sus propios tests.
+    http.match((r) => r.url.startsWith(`${URL_EMPRESAS}/`));
     http.verify();
     vi.useRealTimers();
   });
@@ -538,6 +541,106 @@ describe('CasoActual', () => {
 
     expect(instancia.fase()).toBe('visualizacion');
   });
+
+  describe('Mi empresa', () => {
+    function empresa(overrides: Partial<MiEmpresa> = {}): MiEmpresa {
+      return {
+        id: 20,
+        idSimulacion: 23,
+        codigoEmpresa: 'EMP-001',
+        nombre: 'TextilAndes S.A.',
+        estrategia: null,
+        tipoJugador: 'MULTIUSUARIO',
+        estado: 'ACTIVA',
+        integrantes: [
+          { idUsuario: 1, nombre: 'Laura Gómez', correo: 'laura@uni.test', departamento: 'GERENCIA_GENERAL', esLider: true },
+          { idUsuario: 2, nombre: 'Andrés Ruiz', correo: 'andres@uni.test', departamento: 'COMERCIAL', esLider: false },
+        ],
+        ...overrides,
+      };
+    }
+
+    function tarjeta(host: HTMLElement): HTMLElement | null {
+      return host.querySelector('.mi-empresa');
+    }
+
+    it('con caso muestra los integrantes de la empresa de caso-actual, con departamento y quién es el líder', () => {
+      const fixture = crearFixture(casoActualDto());
+      http.expectOne({ method: 'GET', url: `${URL_EMPRESAS}/20` }).flush(empresa());
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      const items = host.querySelectorAll('.mi-empresa__item');
+      expect(items).toHaveLength(2);
+      expect(items[0].textContent).toContain('Laura Gómez');
+      expect(items[0].textContent).toContain('Gerencia general');
+      expect(items[0].textContent).toContain('Líder');
+      expect(items[1].textContent).toContain('Andrés Ruiz');
+      expect(items[1].textContent).toContain('Comercial');
+      expect(items[1].textContent).not.toContain('Líder');
+      expect(tarjeta(host)!.textContent).toContain('2 integrantes');
+    });
+
+    it('si responde 400 la tarjeta no se muestra (y el resto de la pantalla sí)', () => {
+      const fixture = crearFixture(casoActualDto());
+      http
+        .expectOne({ method: 'GET', url: `${URL_EMPRESAS}/20` })
+        .flush({ message: 'No perteneces a esta empresa', status: 400 }, { status: 400, statusText: 'Bad Request' });
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(tarjeta(host)).toBeNull();
+      expect(fixture.componentInstance.error()).toBeNull();
+      expect(host.textContent).toContain('Opciones de decisión');
+    });
+
+    it('con un solo integrante dice "1 integrante"', () => {
+      const fixture = crearFixture(casoActualDto());
+      http
+        .expectOne({ method: 'GET', url: `${URL_EMPRESAS}/20` })
+        .flush(empresa({ integrantes: [empresa().integrantes[0]] }));
+      fixture.detectChanges();
+      const texto = tarjeta(fixture.nativeElement)!.textContent!;
+
+      expect(texto).toContain('1 integrante');
+      expect(texto).not.toContain('1 integrantes');
+    });
+
+    it('sin caso (204) toma la empresa de misSimulaciones', () => {
+      const fixture = TestBed.createComponent(CasoActual);
+      http.expectOne({ method: 'GET', url: URL_CASO_ACTUAL }).flush(null, { status: 204, statusText: 'No Content' });
+      http.expectOne({ method: 'GET', url: URL_SIMULACIONES }).flush([{ ...miSimulacion(23, 'PROGRAMADA'), idEmpresa: 31 }]);
+      http.expectOne({ method: 'GET', url: `${URL_SIMULACIONES}/23/casos` }).flush([]);
+      http.expectOne({ method: 'GET', url: `${URL_EMPRESAS}/31` }).flush(empresa({ id: 31 }));
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.textContent).toContain('No hay un caso activo todavía');
+      expect(host.querySelectorAll('.mi-empresa__item')).toHaveLength(2);
+    });
+
+    it('al cambiar a una simulación con otra empresa la vuelve a pedir; con la misma, no', () => {
+      const fixture = crearFixture(casoActualDto(), [miSimulacion(23, 'EN_CURSO'), miSimulacion(40, 'EN_CURSO')]);
+      http.expectOne({ method: 'GET', url: `${URL_EMPRESAS}/20` }).flush(empresa());
+
+      fixture.componentInstance.elegirSimulacion(40);
+      http
+        .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '40')
+        .flush(casoActualDto({ idSimulacion: 40, idEmpresa: 55 }));
+      // Mientras llega la nueva, no se muestra la empresa anterior.
+      fixture.detectChanges();
+      expect(tarjeta(fixture.nativeElement)).toBeNull();
+      http.expectOne({ method: 'GET', url: `${URL_EMPRESAS}/55` }).flush(empresa({ id: 55, nombre: 'Grupo Norte' }));
+      fixture.detectChanges();
+      expect(tarjeta(fixture.nativeElement)!.textContent).toContain('Grupo Norte');
+
+      fixture.componentInstance.elegirSimulacion(40);
+      http
+        .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '40')
+        .flush(casoActualDto({ idSimulacion: 40, idEmpresa: 55 }));
+      http.expectNone(`${URL_EMPRESAS}/55`);
+    });
+  });
 });
 
 describe('CasoActual — simulación recordada', () => {
@@ -559,6 +662,7 @@ describe('CasoActual — simulación recordada', () => {
   });
 
   afterEach(() => {
+    http.match((r) => r.url.startsWith(`${URL_EMPRESAS}/`));
     http.verify();
     localStorage.removeItem(CLAVE);
     vi.useRealTimers();
