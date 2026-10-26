@@ -19,6 +19,30 @@ export function aFechaBogota(fecha: string | undefined): number {
   return Date.parse(TIENE_ZONA_HORARIA.test(fecha) ? fecha : `${fecha}${OFFSET_BOGOTA}`);
 }
 
+const formatos = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * Formatea una fecha del backend (LocalDateTime de Bogotá, sin zona: casos,
+ * decisiones, `publicadoEn`/`actualizadoEn` del boletín) en hora de Bogotá,
+ * sea cual sea la zona del navegador: se lee con `aFechaBogota` y se formatea
+ * con `timeZone: 'America/Bogota'`. `new Date(texto)` la leería como hora
+ * local y, desde otro huso, mostraría otra hora (o hasta otro día).
+ * `null` si el texto no es una fecha.
+ */
+export function formatearFechaBogota(fecha: string | null | undefined, opciones: Intl.DateTimeFormatOptions): string | null {
+  const ms = aFechaBogota(fecha ?? undefined);
+  if (Number.isNaN(ms)) {
+    return null;
+  }
+  const clave = JSON.stringify(opciones);
+  let formato = formatos.get(clave);
+  if (!formato) {
+    formato = new Intl.DateTimeFormat('es-CO', { ...opciones, timeZone: 'America/Bogota' });
+    formatos.set(clave, formato);
+  }
+  return formato.format(ms);
+}
+
 /** Hoy en Bogotá, "YYYY-MM-DD" (a las 22:30 del 21 sigue siendo el 21, aunque en UTC ya sea el 22). */
 export function hoyEnBogota(ahoraMs = Date.now()): string {
   return new Date(ahoraMs - 5 * 3_600_000).toISOString().slice(0, 10);

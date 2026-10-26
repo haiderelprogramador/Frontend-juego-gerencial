@@ -7,6 +7,7 @@ import { catchError } from 'rxjs/operators';
 import { Alerta } from '../../../shared/components/alerta/alerta';
 import { Badge } from '../../../shared/components/badge/badge';
 import { Toggle } from '../../../shared/components/toggle/toggle';
+import { formatearFechaBogota } from '../../../shared/utils/fecha-bogota';
 import { CasoApi, DecisionEmpresa } from '../../simulacion/models/caso-api.model';
 import { Casos } from '../casos/casos';
 import { CasoApiService } from '../casos/services/caso-api.service';
@@ -94,14 +95,10 @@ function mensaje(err: ErrorHttp, porDefecto: string): string {
 
 /** "5 de octubre de 2026" y "08:00" por separado: en es-CO, Intl junto daría "… a las 08:00 a. m.". */
 const formatoDiaLargo = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
-const formatoHora24 = new Intl.DateTimeFormat('es-CO', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
-const formatoFecha = new Intl.DateTimeFormat('es-CO', {
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-});
+const FORMATO_FECHA: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+const FORMATO_DIA_LARGO: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+const FORMATO_HORA_24: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' };
 
 interface PasoConfig {
   n: number;
@@ -488,12 +485,12 @@ export class Panel {
     return describirFecha(fecha);
   }
 
+  /** `fechaDecision` viene en hora de Bogotá, sin zona: se muestra así desde cualquier huso. */
   fechaEntrega(iso: string | null): string {
     if (!iso) {
       return '';
     }
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? iso : formatoFecha.format(d);
+    return formatearFechaBogota(iso, FORMATO_FECHA) ?? iso;
   }
 
   irA(tab: TabPanel): void {
@@ -609,8 +606,9 @@ function describirFecha(fecha: string): string | null {
   if (dia) {
     return formatoDiaLargo.format(new Date(+dia[1], +dia[2] - 1, +dia[3]));
   }
-  const d = new Date(fecha);
-  return !fecha || Number.isNaN(d.getTime()) ? null : `${formatoDiaLargo.format(d)}, ${formatoHora24.format(d)}`;
+  // Con hora: LocalDateTime de Bogotá (sin zona), formateado en Bogotá.
+  const diaLargo = formatearFechaBogota(fecha, FORMATO_DIA_LARGO);
+  return diaLargo ? `${diaLargo}, ${formatearFechaBogota(fecha, FORMATO_HORA_24)}` : null;
 }
 
 /** "el 25 de octubre de 2026" (con hora si la trae), o "en su fecha de inicio" si la fecha no se puede leer. */

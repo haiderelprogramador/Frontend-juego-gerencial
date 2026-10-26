@@ -767,6 +767,25 @@ describe('Panel', () => {
     http.match(URL_SIMULACIONES).forEach((r) => r.flush([]));
   });
 
+  it('fechaDecision (hora de Bogotá, sin zona) se muestra igual con el navegador en otra zona', () => {
+    const entorno = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+    const tz = entorno['TZ'];
+    entorno['TZ'] = 'America/New_York';
+    try {
+      const cmp = crearFixture().componentInstance;
+      // 02:30 del 8-mar-2026 no existe en Nueva York: con new Date(texto) se veía 03:30.
+      expect(cmp.fechaEntrega('2026-03-08T02:30:00')).toContain('02:30');
+      expect(cmp.fechaEntrega('no-es-fecha')).toBe('no-es-fecha');
+      expect(cmp.fechaEntrega(null)).toBe('');
+    } finally {
+      if (tz === undefined) {
+        delete entorno['TZ'];
+      } else {
+        entorno['TZ'] = tz;
+      }
+    }
+  });
+
   it('la tab "parametros" muestra el placeholder', () => {
     const fixture = crearFixture();
     fixture.componentInstance.irA('parametros');

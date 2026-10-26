@@ -9,6 +9,7 @@ import {
   RANGO_INFLACION,
   RANGO_TASA_INTERES,
 } from '../../../simulacion/models/boletin.model';
+import { formatearFechaBogota } from '../../../../shared/utils/fecha-bogota';
 import { CasoApiService } from '../services/caso-api.service';
 
 /** Un 400 del backend trae, además de `message`, el detalle por campo en `errores[]`. */
@@ -60,12 +61,7 @@ function errorRango(valor: number | null, rango: { min: number; max: number }): 
   return null;
 }
 
-const formatoFecha = new Intl.DateTimeFormat('es-CO', {
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-});
+const FORMATO_FECHA: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
 
 /**
  * Boletín de un caso (D14): el docente publica los factores de entorno
@@ -213,9 +209,9 @@ export class BoletinCaso {
     });
   }
 
+  /** `publicadoEn`/`actualizadoEn` vienen en hora de Bogotá, sin zona: se muestran así desde cualquier huso. */
   fecha(iso: string): string {
-    const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? iso : formatoFecha.format(d);
+    return formatearFechaBogota(iso, FORMATO_FECHA) ?? iso;
   }
 
   private cargar(id: number): void {

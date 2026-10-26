@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { API_CONFIG } from '../../../core/api/api.config';
 import { Badge } from '../../../shared/components/badge/badge';
 import { Alerta } from '../../../shared/components/alerta/alerta';
+import { formatearFechaBogota } from '../../../shared/utils/fecha-bogota';
 import { ExcelCasoService } from './services/excel-caso.service';
 import {
   AsignacionEquiposCaso,
@@ -623,12 +624,11 @@ export class Casos {
     this.errorFormulario.set(null);
   }
 
-  /** "5 sept." a partir de una fecha ISO; si no se puede interpretar, devuelve el texto tal cual. */
+  /**
+   * "5 sept." a partir de una fecha del caso (hora de Bogotá, sin zona); si no
+   * se puede interpretar, devuelve el texto tal cual.
+   */
   fechaCorta(iso: string): string {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) {
-      return iso;
-    }
-    return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(d);
+    return formatearFechaBogota(iso, { day: 'numeric', month: 'short' }) ?? iso;
   }
 }

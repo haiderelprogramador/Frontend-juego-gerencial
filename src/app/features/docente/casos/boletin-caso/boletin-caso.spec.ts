@@ -290,6 +290,24 @@ describe('BoletinCaso', () => {
     expect(cmp.guardando()).toBe(false);
   });
 
+  it('publicadoEn/actualizadoEn (hora de Bogotá, sin zona) se muestran igual con el navegador en otra zona', () => {
+    const entorno = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+    const tz = entorno['TZ'];
+    entorno['TZ'] = 'America/New_York';
+    try {
+      const cmp = crearFixture(boletin()).componentInstance;
+      // 02:30 del 8-mar-2026 no existe en Nueva York: con new Date(texto) se veía 03:30.
+      expect(cmp.fecha('2026-03-08T02:30:00.7279025')).toContain('02:30');
+      expect(cmp.fecha('2026-10-26T16:17:18.727903')).toContain('04:17');
+    } finally {
+      if (tz === undefined) {
+        delete entorno['TZ'];
+      } else {
+        entorno['TZ'] = tz;
+      }
+    }
+  });
+
   describe('simulación FINALIZADA (solo lectura)', () => {
     function crearSoloLectura(respuesta: Boletin | null) {
       const fixture = TestBed.createComponent(BoletinCaso);
