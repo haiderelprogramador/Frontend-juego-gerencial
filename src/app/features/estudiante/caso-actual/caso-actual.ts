@@ -11,7 +11,7 @@ import {
   OpcionSeleccion,
   TarjetaSeleccion,
 } from '../../../shared/components/tarjeta-seleccion/tarjeta-seleccion';
-import { formatearPorcentajeBoletin, formatearTasaCambio } from '../../simulacion/models/boletin.model';
+import { Boletin, formatearPorcentajeBoletin, formatearTasaCambio } from '../../simulacion/models/boletin.model';
 import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
 import { describirImpacto, formatearMoneda } from '../../simulacion/models/financiero.model';
 import { AuthService } from '../../../core/services/auth.service';
@@ -150,8 +150,22 @@ export class CasoActual implements OnDestroy {
     const d = this.datos();
     return d ? { simulacion: d.nombreSimulacion, empresa: d.nombreEmpresa } : null;
   });
-  /** Boletín del docente para este caso (D14); `undefined` (backend sin D14) se trata como `null`. */
-  readonly boletin = computed(() => this.datos()?.boletin ?? null);
+  /**
+   * Boletín del docente para este caso (D14). Si caso-actual trae la
+   * propiedad, aunque sea `null`, manda esa; si no la trae (`undefined`), el
+   * que se pidió a GET /estudiante/casos/{id}/boletin (ver `cargarBoletin`).
+   */
+  readonly boletin = computed<Boletin | null>(() => {
+    const d = this.datos();
+    if (!d) {
+      return null;
+    }
+    return d.boletin !== undefined ? d.boletin : this.boletinPedido();
+  });
+  /** Respaldo mientras caso-actual no traiga `boletin`: el del GET del caso (`null` = 204 o error). */
+  private readonly boletinPedido = signal<Boletin | null>(null);
+  /** De qué caso es (o se está pidiendo) `boletinPedido`, para no aceptar respuestas viejas. */
+  private idCasoBoletinPedido: number | null = null;
   readonly esLider = computed(() => this.datos()?.esLider ?? false);
   readonly puedeDecidir = computed(() => this.datos()?.puedeDecidir ?? false);
   readonly decisionActual = computed(() => this.datos()?.decision ?? null);
@@ -373,6 +387,7 @@ export class CasoActual implements OnDestroy {
     this.datos.set(dto);
     this.entreCasos.set(false);
     this.cargarMiEmpresa();
+    this.cargarBoletin(dto);
     if (dto) {
       return;
     }
@@ -381,6 +396,36 @@ export class CasoActual implements OnDestroy {
       if (!this.datos()) {
         this.entreCasos.set(tuvo);
       }
+    });
+  }
+
+  /**
+   * Solo si caso-actual no trae la propiedad `boletin`: lo pide al endpoint
+   * del caso (204 = sin boletín, o el caso aún no es visible). Un error
+   * tampoco lo muestra. Al refrescar el mismo caso no se borra el que ya se veía.
+   */
+  private cargarBoletin(dto: CasoActualDto | null): void {
+    if (!dto || dto.boletin !== undefined) {
+      this.idCasoBoletinPedido = null;
+      this.boletinPedido.set(null);
+      return;
+    }
+    const idCaso = dto.caso.id;
+    if (idCaso !== this.idCasoBoletinPedido) {
+      this.idCasoBoletinPedido = idCaso;
+      this.boletinPedido.set(null);
+    }
+    this.portal.boletin(idCaso).subscribe({
+      next: (b) => {
+        if (idCaso === this.idCasoBoletinPedido) {
+          this.boletinPedido.set(b);
+        }
+      },
+      error: () => {
+        if (idCaso === this.idCasoBoletinPedido) {
+          this.boletinPedido.set(null);
+        }
+      },
     });
   }
 

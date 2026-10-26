@@ -66,10 +66,12 @@ export interface CasoActual {
   decision: Decision | null;
   /**
    * Boletín del caso (D14): factores de entorno publicados por el docente.
-   * `null` si no publicó ninguno. Hasta que el backend lo mande puede no
-   * venir: la UI trata `undefined` igual que `null`.
+   * `null` si no publicó ninguno. El backend todavía no manda el campo (está
+   * "en camino", oct-2026): `undefined` (no vino) NO es lo mismo que `null`
+   * (vino vacío). Sin el campo, el portal lo pide a
+   * GET /estudiante/casos/{id}/boletin; cuando llegue, deja de pedirlo solo.
    */
-  boletin: Boletin | null;
+  boletin?: Boletin | null;
 }
 
 /** Una simulación en la que participa el estudiante (para GET /estudiante/simulaciones). */
