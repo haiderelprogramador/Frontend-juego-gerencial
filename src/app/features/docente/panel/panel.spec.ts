@@ -451,7 +451,6 @@ describe('Panel', () => {
 
     it.each([
       ['sin nombre', { nombre: '   ' }, 'Poné un nombre y la fecha de inicio.'],
-      ['inicio cambiado a una fecha pasada', { fechaInicio: en(-1) }, 'La fecha de inicio no puede ser pasada.'],
       ['fin anterior al inicio', { fechaFin: en(2) }, 'La fecha de fin no puede ser anterior a la de inicio.'],
     ])('valida antes de enviar: %s', (_caso, cambios, msg) => {
       const fixture = crearFixture([], [borrador]);
@@ -507,7 +506,9 @@ describe('Panel', () => {
         fixture.detectChanges();
 
         http.expectNone({ method: 'PUT', url: `${URL_SIMULACIONES}/11` });
-        expect(host.querySelector('.edicion-sim__error')!.textContent).toContain('La fecha de inicio no puede ser pasada.');
+        // Marcado debajo de "Inicio", igual que el 400 del backend; no se repite arriba.
+        expect(host.querySelector('.edicion-sim .field__error')?.textContent).toBe('La fecha de inicio no puede ser pasada.');
+        expect(host.querySelector('.edicion-sim__error')).toBeNull();
       });
 
       it('si una vencida se cambia a otra fecha también pasada, se rechaza', () => {
@@ -521,10 +522,12 @@ describe('Panel', () => {
         boton(host, '.borradores', 'Editar')!.click();
         fixture.detectChanges();
         boton(host, '.edicion-sim', 'Guardar')!.click();
+        // Respuesta real de ngrok (26-oct-2026) al PUT con un inicio pasado.
         http.expectOne({ method: 'PUT', url: `${URL_SIMULACIONES}/11` }).flush(
           {
             message: 'La fecha de inicio no puede ser pasada',
             status: 400,
+            timestamp: '2026-10-26T16:18:31.4559303',
             errores: [{ campo: 'fechaInicio', mensaje: 'La fecha de inicio no puede ser pasada' }],
           },
           { status: 400, statusText: 'Bad Request' },

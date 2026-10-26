@@ -9,6 +9,9 @@ import { hoyEnBogota } from '../../../../shared/utils/fecha-bogota';
  */
 export const SOLO_DIA = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** El error de "inicio pasado": el panel lo muestra debajo del campo, como el 400 del backend. */
+export const MENSAJE_INICIO_PASADO = 'La fecha de inicio no puede ser pasada.';
+
 /**
  * Reglas de crear y de editar: nombre e inicio obligatorios, inicio no
  * pasado (hoy sí vale) y fin no anterior al inicio (igual sí). Las fechas
@@ -33,7 +36,7 @@ export function validarFechasSimulacion(
     return 'Revisá las fechas: no son válidas.';
   }
   if (inicio < hoy && inicio !== inicioAnterior) {
-    return 'La fecha de inicio no puede ser pasada.';
+    return MENSAJE_INICIO_PASADO;
   }
   if (fin && fin < inicio) {
     return 'La fecha de fin no puede ser anterior a la de inicio.';

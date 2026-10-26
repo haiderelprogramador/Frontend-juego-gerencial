@@ -12,7 +12,13 @@ import { Casos } from '../casos/casos';
 import { CasoApiService } from '../casos/services/caso-api.service';
 import { CierreCasoService } from '../casos/services/cierre-caso.service';
 import { EstadoSimulacion, Simulacion, SimulacionRequest } from '../simulaciones/models/simulacion.model';
-import { SOLO_DIA, aInputDia, diaYaPaso, validarFechasSimulacion } from '../simulaciones/models/fechas-simulacion';
+import {
+  MENSAJE_INICIO_PASADO,
+  SOLO_DIA,
+  aInputDia,
+  diaYaPaso,
+  validarFechasSimulacion,
+} from '../simulaciones/models/fechas-simulacion';
 import { SimulacionService } from '../simulaciones/services/simulacion.service';
 
 type TabPanel = 'periodos' | 'equipos' | 'casos' | 'parametros';
@@ -408,7 +414,14 @@ export class Panel {
     // Conservar el inicio que ya tenía vale aunque esté vencido (como en el backend).
     const error = validarFechasSimulacion(nombre, e.fechaInicio, e.fechaFin, undefined, aInputDia(e.sim.fechaInicio));
     if (error) {
-      this.errorSimulacion.set({ idSimulacion: e.sim.id, mensaje: error, detalle: [], errorInicio: null });
+      // "Inicio pasado" va debajo del campo, igual que el 400 del backend (errores[{campo:"fechaInicio"}]).
+      const deInicio = error === MENSAJE_INICIO_PASADO;
+      this.errorSimulacion.set({
+        idSimulacion: e.sim.id,
+        mensaje: deInicio ? null : error,
+        detalle: [],
+        errorInicio: deInicio ? error : null,
+      });
       return;
     }
     const req: SimulacionRequest = {
