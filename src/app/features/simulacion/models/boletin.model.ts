@@ -4,8 +4,10 @@
  * informativo: no entra en el cálculo financiero.
  *
  *  - Docente: PUT/GET/DELETE `/docente/casos/{id}/boletin`.
- *  - Estudiante: GET `/estudiante/casos/{id}/boletin`, y además viene en
- *    `CasoActual.boletin`.
+ *  - Estudiante: GET `/estudiante/casos/{id}/boletin` (204 también si el
+ *    caso aún no es visible). Va a venir además en `CasoActual.boletin`.
+ *  - La lista y el detalle de casos del docente traen `tieneBoletin`.
+ *  - Con la simulación FINALIZADA, el PUT y el DELETE responden 400.
  *  - Los GET responden 204 (sin cuerpo) si el caso no tiene boletín: el
  *    frontend lo representa como `null`.
  */

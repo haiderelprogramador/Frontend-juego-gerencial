@@ -57,7 +57,7 @@ export const API_CONFIG = {
      *  204 ; DELETE. Ver `disponible.boletin`.
      *  GET `/{id}/estados-empresas` -> estado inicial y final de cada empresa en
      *  el caso (EstadoFinancieroEmpresa, con indicadores). Sin uso todavía: el
-     *  16-oct-2026 respondía 500 en develop (igual que boletín e historia).
+     *  16-oct-2026 respondía 500 en develop (igual que historia).
      */
     casos: '/docente/casos',
 
@@ -113,11 +113,14 @@ export const API_CONFIG = {
     /** GET /docente/estudiantes — confirmado funcionando (53/53 endpoints probados, 29-sep-2026). */
     listarEstudiantes: true,
     /**
-     * Boletín del caso (D14): los endpoints todavía no están en develop. En
-     * `false`, el docente no ve el botón "Boletín" en Casos. El portal del
-     * estudiante no depende de esto: muestra `caso-actual.boletin` si viene.
+     * Boletín del caso (D14): publicado en develop y en ngrok (oct-2026). El
+     * docente publica, edita y elimina el boletín desde Casos (`tieneBoletin`
+     * de la lista dice si ya tiene). El portal del estudiante no depende de
+     * este flag: usa `caso-actual.boletin` si viene (aunque sea `null`) y, si
+     * el backend todavía no manda el campo, lo pide a
+     * GET /estudiante/casos/{id}/boletin. En `false`, Casos no muestra el botón.
      */
-    boletin: false,
+    boletin: true,
     /**
      * Historia por empresa (contrato B): GET /docente/empresas/{id}/historia y
      * GET /estudiante/empresas/{id}/historia. Todavía no está en develop. En

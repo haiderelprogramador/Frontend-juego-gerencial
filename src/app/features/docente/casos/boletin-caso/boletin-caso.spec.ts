@@ -237,6 +237,59 @@ describe('BoletinCaso', () => {
     expect(fixture.componentInstance.boletin()).not.toBeNull();
   });
 
+  it('avisa si el caso tiene boletín al cargarlo, al publicarlo y al eliminarlo (para la lista de Casos)', () => {
+    const fixture = TestBed.createComponent(BoletinCaso);
+    const emitidos: boolean[] = [];
+    fixture.componentInstance.tieneBoletin.subscribe((v) => emitidos.push(v));
+    fixture.componentRef.setInput('idCaso', 7);
+    fixture.detectChanges();
+    http.expectOne({ method: 'GET', url: URL_BOLETIN }).flush(null, { status: 204, statusText: 'No Content' });
+    expect(emitidos).toEqual([false]);
+
+    const cmp = fixture.componentInstance;
+    llenar(cmp);
+    cmp.publicar();
+    http.expectOne({ method: 'PUT', url: URL_BOLETIN }).flush(boletin());
+    expect(emitidos).toEqual([false, true]);
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    cmp.eliminar();
+    http.expectOne({ method: 'DELETE', url: URL_BOLETIN }).flush(null, { status: 204, statusText: 'No Content' });
+    expect(emitidos).toEqual([false, true, false]);
+  });
+
+  it('si la simulación ya terminó y la lista no lo sabía, el 400 del PUT se muestra y no cambia el indicador', () => {
+    const fixture = crearFixture(boletin());
+    const cmp = fixture.componentInstance;
+    const emitidos: boolean[] = [];
+    cmp.tieneBoletin.subscribe((v) => emitidos.push(v));
+    llenar(cmp);
+    cmp.publicar();
+    http
+      .expectOne({ method: 'PUT', url: URL_BOLETIN })
+      .flush({ message: 'La simulación está finalizada', status: 400 }, { status: 400, statusText: 'Bad Request' });
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('La simulación está finalizada');
+    expect(emitidos).toEqual([]);
+  });
+
+  it('el 400 del DELETE (simulación FINALIZADA) muestra el message del backend y conserva el boletín', () => {
+    const fixture = crearFixture(boletin());
+    const cmp = fixture.componentInstance;
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    cmp.eliminar();
+    http
+      .expectOne({ method: 'DELETE', url: URL_BOLETIN })
+      .flush({ message: 'La simulación está finalizada', status: 400 }, { status: 400, statusText: 'Bad Request' });
+    fixture.detectChanges();
+
+    expect(cmp.error()).toBe('La simulación está finalizada');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('La simulación está finalizada');
+    expect(cmp.boletin()).not.toBeNull();
+    expect(cmp.guardando()).toBe(false);
+  });
+
   describe('simulación FINALIZADA (solo lectura)', () => {
     function crearSoloLectura(respuesta: Boletin | null) {
       const fixture = TestBed.createComponent(BoletinCaso);

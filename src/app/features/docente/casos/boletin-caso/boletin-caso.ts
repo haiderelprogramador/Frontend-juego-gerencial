@@ -91,6 +91,11 @@ export class BoletinCaso {
   /** true con la simulación FINALIZADA: se ve el boletín, pero no se publica ni se elimina. */
   readonly soloLectura = input(false);
   readonly volver = output<void>();
+  /**
+   * Si el caso tiene boletín, cada vez que se sabe: al cargarlo, al publicar y
+   * al eliminar. Casos lo usa para mantener al día `tieneBoletin` en la lista.
+   */
+  readonly tieneBoletin = output<boolean>();
 
   readonly notaMax = NOTA_BOLETIN_MAX;
   readonly rangoInflacion = RANGO_INFLACION;
@@ -173,6 +178,7 @@ export class BoletinCaso {
       next: (b) => {
         this.guardando.set(false);
         this.llenar(b);
+        this.tieneBoletin.emit(true);
         this.aviso.set(eraNuevo ? 'Boletín publicado.' : 'Boletín actualizado.');
       },
       error: (err: ErrorHttp) => {
@@ -197,6 +203,7 @@ export class BoletinCaso {
       next: () => {
         this.guardando.set(false);
         this.llenar(null);
+        this.tieneBoletin.emit(false);
         this.aviso.set('Boletín eliminado.');
       },
       error: (err: ErrorHttp) => {
@@ -218,6 +225,7 @@ export class BoletinCaso {
     this.casoApi.obtenerBoletin(id).subscribe({
       next: (b) => {
         this.llenar(b);
+        this.tieneBoletin.emit(b !== null);
         this.cargando.set(false);
       },
       error: (err: ErrorHttp) => {

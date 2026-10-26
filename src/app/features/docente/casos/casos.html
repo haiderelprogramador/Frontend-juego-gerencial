@@ -59,7 +59,7 @@
                     <button type="button" class="btn btn--ghost btn--sm" (click)="editarCaso(c.id)">Editar</button>
                   }
                   @if (boletinDisponible()) {
-                    <button type="button" class="btn btn--ghost btn--sm" (click)="abrirBoletin(c.id)">Boletín</button>
+                    <button type="button" class="btn btn--ghost btn--sm" (click)="abrirBoletin(c.id)">{{ etiquetaBoletin(c) }}</button>
                   }
                 </div>
               </td>
@@ -75,7 +75,7 @@
 @if (vista() === 'boletin') {
   @if (casoBoletin(); as c) {
     <app-boletin-caso [idCaso]="c.id" [nombreCaso]="c.nombre" [soloLectura]="simulacionFinalizada(c.idSimulacion)"
-      (volver)="volverALista()" />
+      (volver)="volverALista()" (tieneBoletin)="marcarBoletin(c.id, $event)" />
   }
 }
 

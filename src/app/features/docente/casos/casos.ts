@@ -385,6 +385,28 @@ export class Casos {
     this.casoBoletin.set(null);
   }
 
+  /**
+   * Texto del botón del boletín, según `tieneBoletin` de la lista (no se pide
+   * el boletín de cada caso). Con la simulación FINALIZADA se abre de solo
+   * lectura. Si el backend no manda el campo, queda "Boletín".
+   */
+  etiquetaBoletin(c: CasoApi): string {
+    if (this.simulacionFinalizada(c.idSimulacion)) {
+      return c.tieneBoletin === false ? 'Sin boletín' : 'Ver boletín';
+    }
+    if (c.tieneBoletin === undefined) {
+      return 'Boletín';
+    }
+    return c.tieneBoletin ? 'Boletín publicado' : 'Publicar boletín';
+  }
+
+  /** Lo avisa el boletín al cargarlo, publicarlo o eliminarlo: la lista queda al día sin recargarla. */
+  marcarBoletin(idCaso: number, tiene: boolean): void {
+    this.casos.update((lista) =>
+      lista.map((c) => (c.id === idCaso && c.tieneBoletin !== tiene ? { ...c, tieneBoletin: tiene } : c)),
+    );
+  }
+
   abrirBoletin(id: number): void {
     const caso = this.casos().find((c) => c.id === id);
     if (!caso) {

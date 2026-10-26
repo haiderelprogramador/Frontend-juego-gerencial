@@ -122,16 +122,89 @@ describe('Casos', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('.tabla-casos')).toBeTruthy();
   });
 
-  it('sin los endpoints del boletín (disponible.boletin = false) no muestra el botón "Boletín"', () => {
+  /** Texto del botón del boletín de cada fila, en orden. */
+  function botonesBoletin(host: HTMLElement): string[] {
+    return Array.from(host.querySelectorAll('.acciones-caso button'))
+      .map((b) => b.textContent!.trim())
+      .filter((t) => t.toLowerCase().includes('boletín'));
+  }
+
+  it('con disponible.boletin = false no muestra el botón del boletín', () => {
     const fixture = crearFixture();
-    const botones = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.acciones-caso button'));
-    expect(botones.some((b) => b.textContent?.trim() === 'Boletín')).toBe(false);
+    fixture.componentInstance.boletinDisponible.set(false);
+    fixture.detectChanges();
+    expect(botonesBoletin(fixture.nativeElement)).toEqual([]);
   });
 
-  it('con el boletín disponible, "Boletín" abre la vista del boletín de ese caso', () => {
-    const fixture = crearFixture();
-    fixture.componentInstance.boletinDisponible.set(true);
+  it('el boletín está encendido (disponible.boletin = true)', () => {
+    expect(API_CONFIG.disponible.boletin).toBe(true);
+  });
+
+  it('el botón dice si el caso ya tiene boletín según tieneBoletin de la lista, sin pedir cada boletín', () => {
+    const fixture = crearFixture([
+      { ...casoApi(1, 'Con boletín', 'activo'), tieneBoletin: true },
+      { ...casoApi(2, 'Sin boletín'), tieneBoletin: false },
+    ]);
+    expect(botonesBoletin(fixture.nativeElement)).toEqual(['Boletín publicado', 'Publicar boletín']);
+    http.expectNone((r) => r.url.endsWith('/boletin'));
+  });
+
+  it('si el backend no manda tieneBoletin, el botón queda "Boletín"', () => {
+    const fixture = crearFixture([casoApi(1, 'Viejo', 'activo')]);
+    expect(botonesBoletin(fixture.nativeElement)).toEqual(['Boletín']);
+  });
+
+  it('con la simulación FINALIZADA el botón es "Ver boletín" o "Sin boletín"', () => {
+    const fixture = crearFixture(
+      [
+        { ...casoApi(1, 'A', 'activo'), tieneBoletin: true },
+        { ...casoApi(2, 'B'), tieneBoletin: false },
+      ],
+      [simulacion(1, 'FINALIZADA')],
+    );
+    expect(botonesBoletin(fixture.nativeElement)).toEqual(['Ver boletín', 'Sin boletín']);
+  });
+
+  it('después de publicar o eliminar el boletín, el indicador de la lista se actualiza sin recargar', () => {
+    const fixture = crearFixture([
+      { ...casoApi(1, 'TextilAndes S.A.', 'activo'), tieneBoletin: false },
+      { ...casoApi(2, 'Otro'), tieneBoletin: false },
+    ]);
+    const c = fixture.componentInstance;
+    const host = fixture.nativeElement as HTMLElement;
+    c.abrirBoletin(1);
     fixture.detectChanges();
+    http.expectOne({ method: 'GET', url: `${URL_CASOS}/1/boletin` }).flush(null, { status: 204, statusText: 'No Content' });
+    fixture.detectChanges();
+
+    const boletin = host.querySelector('app-boletin-caso')!;
+    const set = (name: string, valor: string) => {
+      const control = boletin.querySelector<HTMLInputElement>(`[name="${name}"]`)!;
+      control.value = valor;
+      control.dispatchEvent(new Event('input'));
+    };
+    set('inflacion', '5');
+    set('tasaInteres', '9');
+    set('tasaCambio', '4000');
+    Array.from(boletin.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent?.includes('Publicar boletín'))!.click();
+    http.expectOne({ method: 'PUT', url: `${URL_CASOS}/1/boletin` }).flush({
+      idCaso: 1, inflacion: 5, tasaInteres: 9, tasaCambio: 4000, nota: null,
+      publicadoEn: '2026-10-26T08:00:00', actualizadoEn: '2026-10-26T08:00:00',
+    });
+    expect(c.casos().map((x) => x.tieneBoletin)).toEqual([true, false]);
+    http.expectNone({ method: 'GET', url: URL_CASOS });
+
+    c.volverALista();
+    fixture.detectChanges();
+    expect(botonesBoletin(host)).toEqual(['Boletín publicado', 'Publicar boletín']);
+
+    c.marcarBoletin(1, false);
+    fixture.detectChanges();
+    expect(botonesBoletin(host)).toEqual(['Publicar boletín', 'Publicar boletín']);
+  });
+
+  it('el botón del boletín abre la vista del boletín de ese caso', () => {
+    const fixture = crearFixture();
     const host = fixture.nativeElement as HTMLElement;
     const boton = Array.from(host.querySelectorAll<HTMLButtonElement>('.acciones-caso button')).find(
       (b) => b.textContent?.trim() === 'Boletín',
@@ -152,9 +225,8 @@ describe('Casos', () => {
     expect(fixture.componentInstance.casoBoletin()).toBeNull();
   });
 
-  it('con la simulación FINALIZADA, "Boletín" abre el boletín de solo lectura', () => {
+  it('con la simulación FINALIZADA, el boletín se abre de solo lectura', () => {
     const fixture = crearFixture([casoApi(1, 'TextilAndes S.A.', 'activo')], [simulacion(1, 'FINALIZADA')]);
-    fixture.componentInstance.boletinDisponible.set(true);
     fixture.componentInstance.abrirBoletin(1);
     fixture.detectChanges();
     http.expectOne({ method: 'GET', url: `${URL_CASOS}/1/boletin` }).flush({
