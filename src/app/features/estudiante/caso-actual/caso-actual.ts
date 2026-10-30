@@ -13,6 +13,7 @@ import {
 } from '../../../shared/components/tarjeta-seleccion/tarjeta-seleccion';
 import { Boletin, formatearPorcentajeBoletin, formatearTasaCambio } from '../../simulacion/models/boletin.model';
 import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
+import { penalizacionAplicada } from '../../simulacion/models/estado-empresa.model';
 import { describirImpacto, formatearMoneda } from '../../simulacion/models/financiero.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { nombreDepartamento } from '../../docente/integrantes/models/integrante.model';
@@ -157,6 +158,8 @@ export class CasoActual implements OnDestroy {
   readonly decisionActual = computed(() => this.datos()?.decision ?? null);
   /** Impacto financiero de la opción elegida, en líneas legibles (vacío si no tenía). */
   readonly detalleImpacto = computed(() => describirImpacto(this.decisionActual()?.impacto));
+  /** "5,75 %" cuando el caso cerró con la penalización por no decidir; `null` si no aplica. */
+  readonly penalizacion = computed(() => penalizacionAplicada(this.datos()?.financieroEmpresa?.final));
 
   /**
    * "Mi empresa": integrantes de la empresa del estudiante en la simulación

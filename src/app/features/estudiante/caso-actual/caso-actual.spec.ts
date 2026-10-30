@@ -320,6 +320,7 @@ describe('CasoActual', () => {
       const host = fixture.nativeElement as HTMLElement;
       expect(fixture.componentInstance.balanceNoDisponible()).toBe(false);
       expect(host.querySelectorAll('.financiero__item')).toHaveLength(4);
+      expect(fixture.componentInstance.penalizacion()).toBeNull();
       expect(host.textContent).toContain('Información financiera inicial');
     });
 
@@ -330,6 +331,38 @@ describe('CasoActual', () => {
       const fixture = crearFixture(casoActualDto({ caso, financieroEmpresa: { inicial: null, final: null } }));
       expect(fixture.componentInstance.balanceNoDisponible()).toBe(true);
       expect((fixture.nativeElement as HTMLElement).querySelector('.financiero__aviso')).toBeTruthy();
+    });
+
+    it('caso cerrado sin decisión y final con origen penalizacion: muestra "Penalización aplicada: 5,75 %"', () => {
+      const caso = { ...casoEstudiante(-2 * UNA_HORA_MS, -UNA_HORA_MS), partidaFinalizada: true };
+      const final = { ...inicial(), origen: 'PENALIZACION' as 'penalizacion', penalizacionPorcentaje: 5.75 };
+      const fixture = crearFixture(casoActualDto({ caso, financieroEmpresa: { inicial: inicial(), final } }));
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(fixture.componentInstance.estadoOpciones()).toBe('resultado');
+      const kpi = host.querySelector('.opciones app-kpi');
+      expect(kpi?.textContent?.replace(/\s+/g, ' ')).toContain('Penalización aplicada');
+      expect(kpi?.textContent).toContain('5,75 %');
+      expect(host.textContent).toContain('El equipo no decidió a tiempo');
+    });
+
+    it('con final de origen decision no muestra penalización', () => {
+      const caso = { ...casoEstudiante(-2 * UNA_HORA_MS, -UNA_HORA_MS), partidaFinalizada: true };
+      const final = { ...inicial(), origen: 'decision' as const };
+      const fixture = crearFixture(
+        casoActualDto({ caso, decision: decision(1, 'Ventas +10 %'), financieroEmpresa: { inicial: inicial(), final } }),
+      );
+      expect(fixture.componentInstance.penalizacion()).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Penalización aplicada');
+    });
+
+    it('penalización sin porcentaje (null) no muestra el KPI, solo el aviso', () => {
+      const caso = { ...casoEstudiante(-2 * UNA_HORA_MS, -UNA_HORA_MS), partidaFinalizada: true };
+      const final = { ...inicial(), origen: 'penalizacion' as const, penalizacionPorcentaje: null };
+      const fixture = crearFixture(casoActualDto({ caso, financieroEmpresa: { inicial: inicial(), final } }));
+      const host = fixture.nativeElement as HTMLElement;
+      expect(host.textContent).not.toContain('Penalización aplicada');
+      expect(host.textContent).toContain('El equipo no decidió a tiempo');
     });
   });
 

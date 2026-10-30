@@ -5,6 +5,7 @@
  * (docente y estudiante) y `estados-empresas` del docente.
  */
 
+import { formatearPorcentajeBoletin } from './boletin.model';
 import { FinancieroCaso } from './caso-api.model';
 import { FinancieroEntrada, IndicadoresFinancieros } from './financiero.model';
 
@@ -71,3 +72,12 @@ export function aHistoriaCasoEmpresa(h: HistoriaCasoEmpresa): HistoriaCasoEmpres
   return { ...h, inicial: aEstadoEmpresa(h.inicial), final: aEstadoEmpresa(h.final) };
 }
 
+/**
+ * "5,75 %" si el final salió de la penalización por no decidir y el backend
+ * mandó el porcentaje; `null` en cualquier otro caso.
+ */
+export function penalizacionAplicada(final: EstadoFinancieroEmpresa<string> | null | undefined): string | null {
+  return final?.origen === 'penalizacion' && final.penalizacionPorcentaje != null
+    ? formatearPorcentajeBoletin(final.penalizacionPorcentaje)
+    : null;
+}

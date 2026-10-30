@@ -169,6 +169,36 @@ describe('ReportesFinancieros', () => {
     expect(host.textContent).toContain('vs. inicio');
   });
 
+  it('con final de origen penalizacion y porcentaje muestra "Penalización aplicada: 5,75 %" en la nota del resultado', () => {
+    const host = render(
+      casoActual({
+        financieroEmpresa: { inicial: estado('docente'), final: { ...estado('penalizacion', 150), penalizacionPorcentaje: 5.75 } },
+      }),
+    );
+    expect(host.querySelector('.comparativo__nota')?.textContent).toContain(
+      'Tu empresa no decidió a tiempo: el resultado incluye la penalización del caso. Penalización aplicada: 5,75 %.',
+    );
+  });
+
+  it('origen en MAYÚSCULAS se normaliza en el servicio: la nota y el origen del balance siguen funcionando', () => {
+    const host = render(
+      casoActual({
+        financieroEmpresa: {
+          inicial: estado('HEREDADO') as unknown as EstadoFinancieroEmpresa<'heredado'>,
+          final: { ...estado('PENALIZACION', 150), penalizacionPorcentaje: 3.46 } as unknown as EstadoFinancieroEmpresa<'penalizacion'>,
+        },
+      }),
+    );
+    expect(host.textContent).toContain('heredado de los casos anteriores');
+    expect(host.querySelector('.comparativo__nota')?.textContent).toContain('Penalización aplicada: 3,46 %.');
+  });
+
+  it('con final de origen decision no menciona penalización', () => {
+    const host = render(casoActual({ financieroEmpresa: { inicial: estado('docente'), final: estado('decision', 250) } }));
+    expect(host.querySelector('.comparativo__nota')?.textContent).toContain('Resultado de la decisión que tomó tu empresa.');
+    expect(host.textContent).not.toContain('Penalización aplicada');
+  });
+
   it('con inicial y final en null no rompe: usa caso.financiero como estado inicial', () => {
     const host = render(casoActual({ financieroEmpresa: { inicial: null, final: null } }));
     expect(host.querySelectorAll('app-kpi')).toHaveLength(4);

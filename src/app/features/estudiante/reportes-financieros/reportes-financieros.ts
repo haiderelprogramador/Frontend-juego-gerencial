@@ -12,6 +12,7 @@ import {
   IndicadoresFinancieros,
   formatearMoneda,
 } from '../../simulacion/models/financiero.model';
+import { penalizacionAplicada } from '../../simulacion/models/estado-empresa.model';
 import {
   CasoActual,
   EstadoFinancieroEmpresa,
@@ -177,7 +178,9 @@ export class ReportesFinancieros {
   readonly resultadoLegible = computed(() => {
     const origen = this.final()?.origen;
     if (origen === 'penalizacion') {
-      return 'Tu empresa no decidió a tiempo: el resultado incluye la penalización del caso.';
+      const pct = penalizacionAplicada(this.final());
+      const base = 'Tu empresa no decidió a tiempo: el resultado incluye la penalización del caso.';
+      return pct ? `${base} Penalización aplicada: ${pct}.` : base;
     }
     if (origen === 'decision') {
       return 'Resultado de la decisión que tomó tu empresa.';
