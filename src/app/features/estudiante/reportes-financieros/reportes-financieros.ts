@@ -106,7 +106,7 @@ export class ReportesFinancieros {
   readonly error = signal<string | null>(null);
   private readonly datos = signal<CasoActual | null>(null);
 
-  /** Historia por empresa (contrato B): hasta que esté en develop no se pide. */
+  /** Historia por empresa (contrato B): se pide solo con `API_CONFIG.disponible.historia`. */
   readonly historiaDisponible = signal<boolean>(API_CONFIG.disponible.historia);
   readonly historia = signal<HistoriaCasoEmpresa[] | null>(null);
   readonly errorHistoria = signal<string | null>(null);

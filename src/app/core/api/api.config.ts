@@ -55,9 +55,9 @@ export const API_CONFIG = {
      *  simulación, con `decidio`). Rol DOCENTE.
      *  Boletín (D14): PUT `/{id}/boletin` -> BoletinRequest ; GET -> Boletin o
      *  204 ; DELETE. Ver `disponible.boletin`.
-     *  GET `/{id}/estados-empresas` -> estado inicial y final de cada empresa en
-     *  el caso (EstadoFinancieroEmpresa, con indicadores). Sin uso todavía: el
-     *  16-oct-2026 respondía 500 en develop (igual que historia).
+     *  GET `/{id}/estados-empresas` -> EmpresaEstados[] = { idEmpresa,
+     *  codigoEmpresa, nombre, inicial, final } (estados en `null` si todavía no
+     *  existen). Responde en ngrok desde el 30-oct-2026; sin uso en la UI todavía.
      */
     casos: '/docente/casos',
 
@@ -123,10 +123,12 @@ export const API_CONFIG = {
     boletin: true,
     /**
      * Historia por empresa (contrato B): GET /docente/empresas/{id}/historia y
-     * GET /estudiante/empresas/{id}/historia. Todavía no está en develop. En
-     * `false`, Reportes financieros no la pide (sin gráfico de evolución).
+     * GET /estudiante/empresas/{id}/historia. En develop y en ngrok desde el
+     * 30-oct-2026 (doc API, sección "Estados financieros por empresa (D2)").
+     * Reportes financieros la usa para el gráfico de evolución y como respaldo
+     * cuando caso-actual responde 204. En `false`, no la pide.
      */
-    historia: false,
+    historia: true,
     /**
      * GET /docente/simulaciones/{id}/exportar (.xlsx con Clasificación,
      * Estados por empresa y Decisiones). Probado en vivo contra develop el
