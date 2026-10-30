@@ -21,9 +21,13 @@ export type {
   OrigenFinancieroInicial,
 } from '../../simulacion/models/estado-empresa.model';
 
-/** `financieroEmpresa` de GET /estudiante/caso-actual (contrato D2, oct-2026). */
+/**
+ * `financieroEmpresa` de GET /estudiante/caso-actual (contrato D2, doc API
+ * 30-oct-2026). El objeto siempre viene; un estado que todavía no existe
+ * llega en `null`.
+ */
 export interface FinancieroEmpresa {
-  inicial: EstadoFinancieroEmpresa<OrigenFinancieroInicial>;
+  inicial: EstadoFinancieroEmpresa<OrigenFinancieroInicial> | null;
   /** Misma forma que `inicial` (confirmado con backend), solo cambia `origen`. `null` hasta que el caso cierra. */
   final: EstadoFinancieroEmpresa<OrigenFinancieroFinal> | null;
 }

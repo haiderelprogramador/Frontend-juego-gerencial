@@ -83,6 +83,7 @@ function casoActualDto(overrides: Partial<CasoActualDto> = {}): CasoActualDto {
     financieroEmpresa: {
       inicial: {
         origen: 'docente',
+        penalizacionPorcentaje: null,
         activoTotal: 1,
         pasivoTotal: 1,
         patrimonio: 1,
@@ -331,6 +332,35 @@ describe('CasoActual', () => {
 
       http.expectNone(URL_BOLETIN);
       expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
+    });
+  });
+
+  describe('financieroEmpresa (D2, doc 30-oct-2026)', () => {
+    const inicial = () => casoActualDto().financieroEmpresa.inicial!;
+
+    it('normaliza origen en MAYÚSCULAS (ejemplo JSON del doc) en el servicio: el subtítulo sigue funcionando', () => {
+      const dto = casoActualDto({
+        financieroEmpresa: { inicial: { ...inicial(), origen: 'HEREDADO' as 'heredado' }, final: null },
+      });
+      const fixture = crearFixture(dto);
+      expect(fixture.componentInstance.subtituloFinanciero()).toBe('Heredada de las decisiones anteriores de tu empresa');
+    });
+
+    it('con inicial y final en null no rompe: usa caso.financiero y no muestra penalización', () => {
+      const fixture = crearFixture(casoActualDto({ financieroEmpresa: { inicial: null, final: null } }));
+      const host = fixture.nativeElement as HTMLElement;
+      expect(fixture.componentInstance.balanceNoDisponible()).toBe(false);
+      expect(host.querySelectorAll('.financiero__item')).toHaveLength(4);
+      expect(host.textContent).toContain('Información financiera inicial');
+    });
+
+    it('con inicial null en un caso siguiente (balance en null) muestra el aviso, no "—"', () => {
+      const base = casoEstudiante(UNA_HORA_MS, 2 * UNA_HORA_MS);
+      const nulos = Object.fromEntries(Object.keys(base.financiero).map((k) => [k, null]));
+      const caso = { ...base, financiero: { ...nulos, utilidadNeta: 5 } as CasoEstudiante['financiero'] };
+      const fixture = crearFixture(casoActualDto({ caso, financieroEmpresa: { inicial: null, final: null } }));
+      expect(fixture.componentInstance.balanceNoDisponible()).toBe(true);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.financiero__aviso')).toBeTruthy();
     });
   });
 

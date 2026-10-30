@@ -109,6 +109,44 @@ describe('PortalEstudianteService', () => {
     http.expectOne({ method: 'GET', url: `${URL_CASOS}/3` }).flush({});
   });
 
+  it('casoActual() normaliza origen a minúsculas en financieroEmpresa (inicial y final)', async () => {
+    const promesa = firstValueFrom(service.casoActual());
+    http.expectOne((r) => r.url === URL_CASO_ACTUAL).flush({
+      caso: { opciones: [] },
+      financieroEmpresa: {
+        inicial: { origen: 'HEREDADO', penalizacionPorcentaje: null, utilidadNeta: 1 },
+        final: { origen: 'PENALIZACION', penalizacionPorcentaje: 5.75, utilidadNeta: 0 },
+      },
+    });
+    const fe = (await promesa)!.financieroEmpresa;
+    expect(fe.inicial?.origen).toBe('heredado');
+    expect(fe.final?.origen).toBe('penalizacion');
+    expect(fe.final?.penalizacionPorcentaje).toBe(5.75);
+  });
+
+  it('casoActual() respeta inicial y final en null', async () => {
+    const promesa = firstValueFrom(service.casoActual());
+    http
+      .expectOne((r) => r.url === URL_CASO_ACTUAL)
+      .flush({ caso: { opciones: [] }, financieroEmpresa: { inicial: null, final: null }, boletin: null });
+    const dto = (await promesa)!;
+    expect(dto.financieroEmpresa).toEqual({ inicial: null, final: null });
+    expect(dto.boletin).toBeNull();
+  });
+
+  it('historiaEmpresa() normaliza origen y respeta estados en null', async () => {
+    const promesa = firstValueFrom(service.historiaEmpresa(5));
+    http.expectOne({ method: 'GET', url: `${URL_EMPRESAS}/5/historia` }).flush([
+      { idCaso: 1, nombreCaso: 'C1', fechaInicioPartida: '2026-10-01T08:00:00', inicial: { origen: 'DOCENTE' }, final: { origen: 'Decision' } },
+      { idCaso: 2, nombreCaso: 'C2', fechaInicioPartida: '2026-10-02T08:00:00', inicial: null, final: null },
+    ]);
+    const h = await promesa;
+    expect(h[0].inicial?.origen).toBe('docente');
+    expect(h[0].final?.origen).toBe('decision');
+    expect(h[1].inicial).toBeNull();
+    expect(h[1].final).toBeNull();
+  });
+
   it('boletin() hace GET a /estudiante/casos/{id}/boletin', async () => {
     const promesa = firstValueFrom(service.boletin(3));
     const boletin = {

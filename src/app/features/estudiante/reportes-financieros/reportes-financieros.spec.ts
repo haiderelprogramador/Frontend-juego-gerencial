@@ -46,7 +46,16 @@ function estado<O extends string>(
   utilidadNeta = 200,
   indicadores: IndicadoresFinancieros = INDICADORES,
 ): EstadoFinancieroEmpresa<O> {
-  return { origen, ...PARTIDAS, activoTotal: 400, pasivoTotal: 170, patrimonio: 230, utilidadNeta, indicadores };
+  return {
+    origen,
+    penalizacionPorcentaje: null,
+    ...PARTIDAS,
+    activoTotal: 400,
+    pasivoTotal: 170,
+    patrimonio: 230,
+    utilidadNeta,
+    indicadores,
+  };
 }
 
 /** Un caso de la historia; `cierre` null = caso en curso. */
@@ -145,6 +154,13 @@ describe('ReportesFinancieros', () => {
     expect(host.textContent).toContain('heredado de los casos anteriores');
     expect(host.textContent).toContain('penalización');
     expect(host.textContent).toContain('vs. inicio');
+  });
+
+  it('con inicial y final en null no rompe: usa caso.financiero como estado inicial', () => {
+    const host = render(casoActual({ financieroEmpresa: { inicial: null, final: null } }));
+    expect(host.querySelectorAll('app-kpi')).toHaveLength(4);
+    expect(host.querySelector('.comparativo__pendiente')).toBeTruthy();
+    expect(host.querySelector('.reportes__vacio')).toBeNull();
   });
 
   it('sin financieroEmpresa (backend en transición) usa caso.financiero como estado inicial', () => {

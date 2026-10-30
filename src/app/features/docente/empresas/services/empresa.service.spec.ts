@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { firstValueFrom } from 'rxjs';
 
 import { API_CONFIG, apiUrl } from '../../../../core/api/api.config';
 import { EmpresaRequest } from '../models/empresa.model';
@@ -59,5 +60,18 @@ describe('EmpresaService', () => {
   it('historia() hace GET a /docente/empresas/{id}/historia', () => {
     service.historia(4).subscribe();
     http.expectOne({ method: 'GET', url: `${URL_EMPRESAS}/4/historia` }).flush([]);
+  });
+
+  it('historia() normaliza origen a minúsculas y respeta estados en null', async () => {
+    const promesa = firstValueFrom(service.historia(4));
+    http.expectOne({ method: 'GET', url: `${URL_EMPRESAS}/4/historia` }).flush([
+      { idCaso: 1, nombreCaso: 'C1', fechaInicioPartida: '2026-10-01T08:00:00', inicial: { origen: 'HEREDADO' }, final: { origen: 'PENALIZACION', penalizacionPorcentaje: 2.5 } },
+      { idCaso: 2, nombreCaso: 'C2', fechaInicioPartida: '2026-10-02T08:00:00', inicial: null, final: null },
+    ]);
+    const h = await promesa;
+    expect(h[0].inicial?.origen).toBe('heredado');
+    expect(h[0].final?.origen).toBe('penalizacion');
+    expect(h[0].final?.penalizacionPorcentaje).toBe(2.5);
+    expect(h[1].inicial).toBeNull();
   });
 });
