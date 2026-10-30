@@ -14,6 +14,7 @@ import {
 import { LiquidGlassDirective } from '../../../shared/directives/liquid-glass.directive';
 import { Boletin, formatearPorcentajeBoletin, formatearTasaCambio } from '../../simulacion/models/boletin.model';
 import { CasoEstudiante, OpcionCasoEstudiante } from '../../simulacion/models/caso-api.model';
+import { penalizacionAplicada } from '../../simulacion/models/estado-empresa.model';
 import { describirImpacto, formatearMoneda } from '../../simulacion/models/financiero.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { nombreDepartamento } from '../../docente/integrantes/models/integrante.model';
@@ -151,34 +152,22 @@ export class CasoActual implements OnDestroy {
     const d = this.datos();
     return d ? { simulacion: d.nombreSimulacion, empresa: d.nombreEmpresa } : null;
   });
-
   iniciales(nombre: string): string {
     const partes = nombre.trim().split(/\s+/);
     if (partes.length === 0 || !partes[0]) return 'E';
     if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
     return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
   }
-  /**
-   * Boletín del docente para este caso (D14). Si caso-actual trae la
-   * propiedad, aunque sea `null`, manda esa; si no la trae (`undefined`), el
-   * que se pidió a GET /estudiante/casos/{id}/boletin (ver `cargarBoletin`).
-   */
-  readonly boletin = computed<Boletin | null>(() => {
-    const d = this.datos();
-    if (!d) {
-      return null;
-    }
-    return d.boletin !== undefined ? d.boletin : this.boletinPedido();
-  });
-  /** Respaldo mientras caso-actual no traiga `boletin`: el del GET del caso (`null` = 204 o error). */
-  private readonly boletinPedido = signal<Boletin | null>(null);
-  /** De qué caso es (o se está pidiendo) `boletinPedido`, para no aceptar respuestas viejas. */
-  private idCasoBoletinPedido: number | null = null;
+
+  /** Boletín del docente para este caso (D14): viene en caso-actual, `null` si no publicó. */
+  readonly boletin = computed<Boletin | null>(() => this.datos()?.boletin ?? null);
   readonly esLider = computed(() => this.datos()?.esLider ?? false);
   readonly puedeDecidir = computed(() => this.datos()?.puedeDecidir ?? false);
   readonly decisionActual = computed(() => this.datos()?.decision ?? null);
   /** Impacto financiero de la opción elegida, en líneas legibles (vacío si no tenía). */
   readonly detalleImpacto = computed(() => describirImpacto(this.decisionActual()?.impacto));
+  /** "5,75 %" cuando el caso cerró con la penalización por no decidir; `null` si no aplica. */
+  readonly penalizacion = computed(() => penalizacionAplicada(this.datos()?.financieroEmpresa?.final));
 
   /**
    * "Mi empresa": integrantes de la empresa del estudiante en la simulación
@@ -654,7 +643,6 @@ export class CasoActual implements OnDestroy {
     this.datos.set(dto);
     this.entreCasos.set(false);
     this.cargarMiEmpresa();
-    this.cargarBoletin(dto);
     if (dto) {
       return;
     }
@@ -663,36 +651,6 @@ export class CasoActual implements OnDestroy {
       if (!this.datos()) {
         this.entreCasos.set(tuvo);
       }
-    });
-  }
-
-  /**
-   * Solo si caso-actual no trae la propiedad `boletin`: lo pide al endpoint
-   * del caso (204 = sin boletín, o el caso aún no es visible). Un error
-   * tampoco lo muestra. Al refrescar el mismo caso no se borra el que ya se veía.
-   */
-  private cargarBoletin(dto: CasoActualDto | null): void {
-    if (!dto || dto.boletin !== undefined) {
-      this.idCasoBoletinPedido = null;
-      this.boletinPedido.set(null);
-      return;
-    }
-    const idCaso = dto.caso.id;
-    if (idCaso !== this.idCasoBoletinPedido) {
-      this.idCasoBoletinPedido = idCaso;
-      this.boletinPedido.set(null);
-    }
-    this.portal.boletin(idCaso).subscribe({
-      next: (b) => {
-        if (idCaso === this.idCasoBoletinPedido) {
-          this.boletinPedido.set(b);
-        }
-      },
-      error: () => {
-        if (idCaso === this.idCasoBoletinPedido) {
-          this.boletinPedido.set(null);
-        }
-      },
     });
   }
 

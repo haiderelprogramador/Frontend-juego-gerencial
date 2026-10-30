@@ -21,9 +21,13 @@ export type {
   OrigenFinancieroInicial,
 } from '../../simulacion/models/estado-empresa.model';
 
-/** `financieroEmpresa` de GET /estudiante/caso-actual (contrato D2, oct-2026). */
+/**
+ * `financieroEmpresa` de GET /estudiante/caso-actual (contrato D2, doc API
+ * 30-oct-2026). El objeto siempre viene; un estado que todavía no existe
+ * llega en `null`.
+ */
 export interface FinancieroEmpresa {
-  inicial: EstadoFinancieroEmpresa<OrigenFinancieroInicial>;
+  inicial: EstadoFinancieroEmpresa<OrigenFinancieroInicial> | null;
   /** Misma forma que `inicial` (confirmado con backend), solo cambia `origen`. `null` hasta que el caso cierra. */
   final: EstadoFinancieroEmpresa<OrigenFinancieroFinal> | null;
 }
@@ -66,12 +70,10 @@ export interface CasoActual {
   decision: Decision | null;
   /**
    * Boletín del caso (D14): factores de entorno publicados por el docente.
-   * `null` si no publicó ninguno. El backend todavía no manda el campo (está
-   * "en camino", oct-2026): `undefined` (no vino) NO es lo mismo que `null`
-   * (vino vacío). Sin el campo, el portal lo pide a
-   * GET /estudiante/casos/{id}/boletin; cuando llegue, deja de pedirlo solo.
+   * `null` si no publicó ninguno. Viene siempre en caso-actual (doc API
+   * 30-oct-2026, confirmado en ngrok): ya no se pide aparte.
    */
-  boletin?: Boletin | null;
+  boletin: Boletin | null;
 }
 
 /** Una simulación en la que participa el estudiante (para GET /estudiante/simulaciones). */

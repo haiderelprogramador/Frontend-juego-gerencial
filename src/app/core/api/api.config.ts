@@ -55,9 +55,9 @@ export const API_CONFIG = {
      *  simulación, con `decidio`). Rol DOCENTE.
      *  Boletín (D14): PUT `/{id}/boletin` -> BoletinRequest ; GET -> Boletin o
      *  204 ; DELETE. Ver `disponible.boletin`.
-     *  GET `/{id}/estados-empresas` -> estado inicial y final de cada empresa en
-     *  el caso (EstadoFinancieroEmpresa, con indicadores). Sin uso todavía: el
-     *  16-oct-2026 respondía 500 en develop (igual que historia).
+     *  GET `/{id}/estados-empresas` -> EmpresaEstados[] = { idEmpresa,
+     *  codigoEmpresa, nombre, inicial, final } (estados en `null` si todavía no
+     *  existen). Responde en ngrok desde el 30-oct-2026; sin uso en la UI todavía.
      */
     casos: '/docente/casos',
 
@@ -99,7 +99,8 @@ export const API_CONFIG = {
     estudianteEmpresas: '/estudiante/empresas',
     /**
      * GET `/{id}` -> CasoEstudiante; 400 si el caso aún no es visible.
-     * GET `/{id}/boletin` -> Boletin o 204 (D14, ver `disponible.boletin`).
+     * (El backend también expone GET `/{id}/boletin`, pero el portal ya no lo
+     * usa: el boletín viene en `caso-actual`.)
      */
     estudianteCasos: '/estudiante/casos',
   },
@@ -116,17 +117,18 @@ export const API_CONFIG = {
      * Boletín del caso (D14): publicado en develop y en ngrok (oct-2026). El
      * docente publica, edita y elimina el boletín desde Casos (`tieneBoletin`
      * de la lista dice si ya tiene). El portal del estudiante no depende de
-     * este flag: usa `caso-actual.boletin` si viene (aunque sea `null`) y, si
-     * el backend todavía no manda el campo, lo pide a
-     * GET /estudiante/casos/{id}/boletin. En `false`, Casos no muestra el botón.
+     * este flag: usa `caso-actual.boletin`, que siempre viene (o `null`) desde
+     * el 30-oct-2026. En `false`, Casos no muestra el botón.
      */
     boletin: true,
     /**
      * Historia por empresa (contrato B): GET /docente/empresas/{id}/historia y
-     * GET /estudiante/empresas/{id}/historia. Todavía no está en develop. En
-     * `false`, Reportes financieros no la pide (sin gráfico de evolución).
+     * GET /estudiante/empresas/{id}/historia. En develop y en ngrok desde el
+     * 30-oct-2026 (doc API, sección "Estados financieros por empresa (D2)").
+     * Reportes financieros la usa para el gráfico de evolución y como respaldo
+     * cuando caso-actual responde 204. En `false`, no la pide.
      */
-    historia: false,
+    historia: true,
     /**
      * GET /docente/simulaciones/{id}/exportar (.xlsx con Clasificación,
      * Estados por empresa y Decisiones). Probado en vivo contra develop el

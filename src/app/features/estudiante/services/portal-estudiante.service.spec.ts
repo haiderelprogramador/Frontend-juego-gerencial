@@ -109,24 +109,45 @@ describe('PortalEstudianteService', () => {
     http.expectOne({ method: 'GET', url: `${URL_CASOS}/3` }).flush({});
   });
 
-  it('boletin() hace GET a /estudiante/casos/{id}/boletin', async () => {
-    const promesa = firstValueFrom(service.boletin(3));
-    const boletin = {
-      idCaso: 3,
-      inflacion: 5.2,
-      tasaInteres: 9.75,
-      tasaCambio: 4150,
-      nota: null,
-      publicadoEn: '2026-10-15T09:00:00',
-      actualizadoEn: '2026-10-15T09:00:00',
-    };
-    http.expectOne({ method: 'GET', url: `${URL_CASOS}/3/boletin` }).flush(boletin);
-    expect(await promesa).toEqual(boletin);
+  it('casoActual() normaliza origen a minúsculas en financieroEmpresa (inicial y final)', async () => {
+    const promesa = firstValueFrom(service.casoActual());
+    http.expectOne((r) => r.url === URL_CASO_ACTUAL).flush({
+      caso: { opciones: [] },
+      financieroEmpresa: {
+        inicial: { origen: 'HEREDADO', penalizacionPorcentaje: null, utilidadNeta: 1 },
+        final: { origen: 'PENALIZACION', penalizacionPorcentaje: 5.75, utilidadNeta: 0 },
+      },
+    });
+    const fe = (await promesa)!.financieroEmpresa;
+    expect(fe.inicial?.origen).toBe('heredado');
+    expect(fe.final?.origen).toBe('penalizacion');
+    expect(fe.final?.penalizacionPorcentaje).toBe(5.75);
   });
 
-  it('boletin() devuelve null en un 204 (el docente no publicó)', async () => {
-    const promesa = firstValueFrom(service.boletin(3));
-    http.expectOne({ method: 'GET', url: `${URL_CASOS}/3/boletin` }).flush(null, { status: 204, statusText: 'No Content' });
-    expect(await promesa).toBeNull();
+  it('casoActual() respeta inicial y final en null', async () => {
+    const promesa = firstValueFrom(service.casoActual());
+    http
+      .expectOne((r) => r.url === URL_CASO_ACTUAL)
+      .flush({ caso: { opciones: [] }, financieroEmpresa: { inicial: null, final: null }, boletin: null });
+    const dto = (await promesa)!;
+    expect(dto.financieroEmpresa).toEqual({ inicial: null, final: null });
+    expect(dto.boletin).toBeNull();
+  });
+
+  it('historiaEmpresa() normaliza origen y respeta estados en null', async () => {
+    const promesa = firstValueFrom(service.historiaEmpresa(5));
+    http.expectOne({ method: 'GET', url: `${URL_EMPRESAS}/5/historia` }).flush([
+      { idCaso: 1, nombreCaso: 'C1', fechaInicioPartida: '2026-10-01T08:00:00', inicial: { origen: 'DOCENTE' }, final: { origen: 'Decision' } },
+      { idCaso: 2, nombreCaso: 'C2', fechaInicioPartida: '2026-10-02T08:00:00', inicial: null, final: null },
+    ]);
+    const h = await promesa;
+    expect(h[0].inicial?.origen).toBe('docente');
+    expect(h[0].final?.origen).toBe('decision');
+    expect(h[1].inicial).toBeNull();
+    expect(h[1].final).toBeNull();
+  });
+
+  it('ya no tiene boletin(): el boletín viene en caso-actual', () => {
+    expect((service as unknown as Record<string, unknown>)['boletin']).toBeUndefined();
   });
 });

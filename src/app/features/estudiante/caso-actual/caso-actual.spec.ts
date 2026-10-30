@@ -83,6 +83,7 @@ function casoActualDto(overrides: Partial<CasoActualDto> = {}): CasoActualDto {
     financieroEmpresa: {
       inicial: {
         origen: 'docente',
+        penalizacionPorcentaje: null,
         activoTotal: 1,
         pasivoTotal: 1,
         patrimonio: 1,
@@ -263,7 +264,7 @@ describe('CasoActual', () => {
     expect(texto).toContain('El dólar viene subiendo.');
   });
 
-  describe('boletín: caso-actual.boletin o, si no viene, GET /estudiante/casos/{id}/boletin', () => {
+  describe('boletín: solo el de caso-actual, sin llamada aparte', () => {
     const URL_BOLETIN = `${apiUrl(API_CONFIG.endpoints.estudianteCasos)}/12/boletin`;
     const boletinPublicado = {
       idCaso: 12,
@@ -275,62 +276,93 @@ describe('CasoActual', () => {
       actualizadoEn: '2026-09-29T08:00:00',
     };
 
-    /** caso-actual tal como lo manda hoy el backend: sin la propiedad `boletin`. */
-    function sinCampoBoletin(): CasoActualDto {
-      const dto = casoActualDto();
-      delete (dto as Partial<CasoActualDto>).boletin;
-      return dto;
-    }
-
-    it('con boletin: null en caso-actual no muestra la tarjeta y no hace la llamada extra', () => {
+    it('con boletin: null no muestra la tarjeta ni pide /estudiante/casos/{id}/boletin', () => {
       const fixture = crearFixture(casoActualDto({ boletin: null }));
       expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
       http.expectNone(URL_BOLETIN);
     });
 
-    it('con el boletín en caso-actual lo usa, sin la llamada extra', () => {
-      crearFixture(casoActualDto({ boletin: boletinPublicado }));
+    it('con el boletín en caso-actual lo muestra, sin la llamada aparte', () => {
+      const fixture = crearFixture(casoActualDto({ boletin: boletinPublicado }));
       http.expectNone(URL_BOLETIN);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')!.textContent).toContain('3,1 %');
     });
 
-    it('sin la propiedad en caso-actual pide el boletín del caso y lo muestra', () => {
-      const fixture = crearFixture(sinCampoBoletin());
-      http.expectOne({ method: 'GET', url: URL_BOLETIN }).flush(boletinPublicado);
-      fixture.detectChanges();
-
-      const card = (fixture.nativeElement as HTMLElement).querySelector('.boletin');
-      expect(card!.textContent!.replace(/\s+/g, ' ')).toContain('3,1 %');
-    });
-
-    it('sin la propiedad y con 204 (sin boletín o caso aún no visible) no muestra la tarjeta', () => {
-      const fixture = crearFixture(sinCampoBoletin());
-      http.expectOne({ method: 'GET', url: URL_BOLETIN }).flush(null, { status: 204, statusText: 'No Content' });
-      fixture.detectChanges();
-      expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
-      expect(fixture.componentInstance.error()).toBeNull();
-    });
-
-    it('sin la propiedad y con un error del GET, tampoco la muestra ni rompe la pantalla', () => {
-      const fixture = crearFixture(sinCampoBoletin());
-      http.expectOne({ method: 'GET', url: URL_BOLETIN }).flush({ message: 'x' }, { status: 500, statusText: 'Error' });
-      fixture.detectChanges();
-      expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
-      expect(fixture.componentInstance.error()).toBeNull();
-      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Opciones de decisión');
-    });
-
-    it('cuando el backend empiece a mandar el campo, deja de pedirlo (aunque sea null)', () => {
-      const fixture = crearFixture(sinCampoBoletin(), [miSimulacion(23, 'EN_CURSO'), miSimulacion(40, 'EN_CURSO')]);
-      http.expectOne({ method: 'GET', url: URL_BOLETIN }).flush(boletinPublicado);
-
+    it('al cambiar de simulación o refrescar tampoco lo pide aparte', () => {
+      const fixture = crearFixture(casoActualDto({ boletin: boletinPublicado }), [
+        miSimulacion(23, 'EN_CURSO'),
+        miSimulacion(40, 'EN_CURSO'),
+      ]);
       fixture.componentInstance.elegirSimulacion(40);
       http
         .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '40')
         .flush(casoActualDto({ idSimulacion: 40, boletin: null }));
       fixture.detectChanges();
 
-      http.expectNone(URL_BOLETIN);
+      http.expectNone((r) => r.url.endsWith('/boletin'));
       expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
+    });
+  });
+
+  describe('financieroEmpresa (D2, doc 30-oct-2026)', () => {
+    const inicial = () => casoActualDto().financieroEmpresa.inicial!;
+
+    it('normaliza origen en MAYÚSCULAS (ejemplo JSON del doc) en el servicio: el subtítulo sigue funcionando', () => {
+      const dto = casoActualDto({
+        financieroEmpresa: { inicial: { ...inicial(), origen: 'HEREDADO' as 'heredado' }, final: null },
+      });
+      const fixture = crearFixture(dto);
+      expect(fixture.componentInstance.subtituloFinanciero()).toBe('Heredada de las decisiones anteriores de tu empresa');
+    });
+
+    it('con inicial y final en null no rompe: usa caso.financiero y no muestra penalización', () => {
+      const fixture = crearFixture(casoActualDto({ financieroEmpresa: { inicial: null, final: null } }));
+      const host = fixture.nativeElement as HTMLElement;
+      expect(fixture.componentInstance.balanceNoDisponible()).toBe(false);
+      expect(host.querySelectorAll('.financiero__item')).toHaveLength(4);
+      expect(fixture.componentInstance.penalizacion()).toBeNull();
+      expect(host.textContent).toContain('Información financiera inicial');
+    });
+
+    it('con inicial null en un caso siguiente (balance en null) muestra el aviso, no "—"', () => {
+      const base = casoEstudiante(UNA_HORA_MS, 2 * UNA_HORA_MS);
+      const nulos = Object.fromEntries(Object.keys(base.financiero).map((k) => [k, null]));
+      const caso = { ...base, financiero: { ...nulos, utilidadNeta: 5 } as CasoEstudiante['financiero'] };
+      const fixture = crearFixture(casoActualDto({ caso, financieroEmpresa: { inicial: null, final: null } }));
+      expect(fixture.componentInstance.balanceNoDisponible()).toBe(true);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.financiero__aviso')).toBeTruthy();
+    });
+
+    it('caso cerrado sin decisión y final con origen penalizacion: muestra "Penalización aplicada: 5,75 %"', () => {
+      const caso = { ...casoEstudiante(-2 * UNA_HORA_MS, -UNA_HORA_MS), partidaFinalizada: true };
+      const final = { ...inicial(), origen: 'PENALIZACION' as 'penalizacion', penalizacionPorcentaje: 5.75 };
+      const fixture = crearFixture(casoActualDto({ caso, financieroEmpresa: { inicial: inicial(), final } }));
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(fixture.componentInstance.estadoOpciones()).toBe('resultado');
+      const kpi = host.querySelector('.opciones app-kpi');
+      expect(kpi?.textContent?.replace(/\s+/g, ' ')).toContain('Penalización aplicada');
+      expect(kpi?.textContent).toContain('5,75 %');
+      expect(host.textContent).toContain('El equipo no decidió a tiempo');
+    });
+
+    it('con final de origen decision no muestra penalización', () => {
+      const caso = { ...casoEstudiante(-2 * UNA_HORA_MS, -UNA_HORA_MS), partidaFinalizada: true };
+      const final = { ...inicial(), origen: 'decision' as const };
+      const fixture = crearFixture(
+        casoActualDto({ caso, decision: decision(1, 'Ventas +10 %'), financieroEmpresa: { inicial: inicial(), final } }),
+      );
+      expect(fixture.componentInstance.penalizacion()).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Penalización aplicada');
+    });
+
+    it('penalización sin porcentaje (null) no muestra el KPI, solo el aviso', () => {
+      const caso = { ...casoEstudiante(-2 * UNA_HORA_MS, -UNA_HORA_MS), partidaFinalizada: true };
+      const final = { ...inicial(), origen: 'penalizacion' as const, penalizacionPorcentaje: null };
+      const fixture = crearFixture(casoActualDto({ caso, financieroEmpresa: { inicial: inicial(), final } }));
+      const host = fixture.nativeElement as HTMLElement;
+      expect(host.textContent).not.toContain('Penalización aplicada');
+      expect(host.textContent).toContain('El equipo no decidió a tiempo');
     });
   });
 

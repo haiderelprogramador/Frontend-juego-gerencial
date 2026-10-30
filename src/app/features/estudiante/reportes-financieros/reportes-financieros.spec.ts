@@ -46,7 +46,16 @@ function estado<O extends string>(
   utilidadNeta = 200,
   indicadores: IndicadoresFinancieros = INDICADORES,
 ): EstadoFinancieroEmpresa<O> {
-  return { origen, ...PARTIDAS, activoTotal: 400, pasivoTotal: 170, patrimonio: 230, utilidadNeta, indicadores };
+  return {
+    origen,
+    penalizacionPorcentaje: null,
+    ...PARTIDAS,
+    activoTotal: 400,
+    pasivoTotal: 170,
+    patrimonio: 230,
+    utilidadNeta,
+    indicadores,
+  };
 }
 
 /** Un caso de la historia; `cierre` null = caso en curso. */
@@ -111,12 +120,25 @@ describe('ReportesFinancieros', () => {
 
   afterEach(() => http.verify());
 
-  function render(respuesta: CasoActual | null, antes?: (f: ComponentFixture<ReportesFinancieros>) => void) {
+  /** Crea la pantalla y responde caso-actual; lo que pida después queda pendiente. */
+  function crear(respuesta: CasoActual | null, antes?: (f: ComponentFixture<ReportesFinancieros>) => void) {
     const fixture = TestBed.createComponent(ReportesFinancieros);
     antes?.(fixture);
     fixture.detectChanges();
     const req = http.expectOne((r) => r.url === apiUrl(API_CONFIG.endpoints.estudianteCasoActual));
     req.flush(respuesta, { status: respuesta ? 200 : 204, statusText: respuesta ? 'OK' : 'No Content' });
+    return fixture;
+  }
+
+  /**
+   * Con `disponible.historia` encendido, Reportes también pide la historia
+   * (o, con 204, las simulaciones para encontrarla): aquí se responden vacías,
+   * los tests de evolución las prueban aparte.
+   */
+  function render(respuesta: CasoActual | null, antes?: (f: ComponentFixture<ReportesFinancieros>) => void) {
+    const fixture = crear(respuesta, antes);
+    http.match((r) => r.url.endsWith('/historia')).forEach((r) => r.flush([]));
+    http.match(apiUrl(API_CONFIG.endpoints.estudianteSimulaciones)).forEach((r) => r.flush([]));
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
   }
@@ -145,6 +167,43 @@ describe('ReportesFinancieros', () => {
     expect(host.textContent).toContain('heredado de los casos anteriores');
     expect(host.textContent).toContain('penalización');
     expect(host.textContent).toContain('vs. inicio');
+  });
+
+  it('con final de origen penalizacion y porcentaje muestra "Penalización aplicada: 5,75 %" en la nota del resultado', () => {
+    const host = render(
+      casoActual({
+        financieroEmpresa: { inicial: estado('docente'), final: { ...estado('penalizacion', 150), penalizacionPorcentaje: 5.75 } },
+      }),
+    );
+    expect(host.querySelector('.comparativo__nota')?.textContent).toContain(
+      'Tu empresa no decidió a tiempo: el resultado incluye la penalización del caso. Penalización aplicada: 5,75 %.',
+    );
+  });
+
+  it('origen en MAYÚSCULAS se normaliza en el servicio: la nota y el origen del balance siguen funcionando', () => {
+    const host = render(
+      casoActual({
+        financieroEmpresa: {
+          inicial: estado('HEREDADO') as unknown as EstadoFinancieroEmpresa<'heredado'>,
+          final: { ...estado('PENALIZACION', 150), penalizacionPorcentaje: 3.46 } as unknown as EstadoFinancieroEmpresa<'penalizacion'>,
+        },
+      }),
+    );
+    expect(host.textContent).toContain('heredado de los casos anteriores');
+    expect(host.querySelector('.comparativo__nota')?.textContent).toContain('Penalización aplicada: 3,46 %.');
+  });
+
+  it('con final de origen decision no menciona penalización', () => {
+    const host = render(casoActual({ financieroEmpresa: { inicial: estado('docente'), final: estado('decision', 250) } }));
+    expect(host.querySelector('.comparativo__nota')?.textContent).toContain('Resultado de la decisión que tomó tu empresa.');
+    expect(host.textContent).not.toContain('Penalización aplicada');
+  });
+
+  it('con inicial y final en null no rompe: usa caso.financiero como estado inicial', () => {
+    const host = render(casoActual({ financieroEmpresa: { inicial: null, final: null } }));
+    expect(host.querySelectorAll('app-kpi')).toHaveLength(4);
+    expect(host.querySelector('.comparativo__pendiente')).toBeTruthy();
+    expect(host.querySelector('.reportes__vacio')).toBeNull();
   });
 
   it('sin financieroEmpresa (backend en transición) usa caso.financiero como estado inicial', () => {
@@ -230,11 +289,7 @@ describe('ReportesFinancieros', () => {
 
     /** Con la historia activa: caso-actual y después GET /estudiante/empresas/1/historia. */
     function renderConHistoria(historia: HistoriaCasoEmpresa[] | 'error') {
-      let fixture!: ComponentFixture<ReportesFinancieros>;
-      render(casoActual(), (f) => {
-        fixture = f;
-        f.componentInstance.historiaDisponible.set(true);
-      });
+      const fixture = crear(casoActual());
       const req = http.expectOne({ method: 'GET', url: URL_HISTORIA });
       if (historia === 'error') {
         req.flush({ message: 'La empresa no pertenece al estudiante' }, { status: 400, statusText: 'Bad Request' });
@@ -249,10 +304,26 @@ describe('ReportesFinancieros', () => {
       return renderConHistoria(historia).nativeElement as HTMLElement;
     }
 
+    it('está encendida por defecto (API_CONFIG.disponible.historia)', () => {
+      expect(API_CONFIG.disponible.historia).toBe(true);
+      const fixture = crear(casoActual());
+      expect(fixture.componentInstance.historiaDisponible()).toBe(true);
+      http.expectOne({ method: 'GET', url: URL_HISTORIA }).flush([]);
+    });
+
     it('con disponible.historia = false no la pide ni muestra la sección', () => {
-      const host = render(casoActual());
+      const host = render(casoActual(), (f) => f.componentInstance.historiaDisponible.set(false));
       http.expectNone(URL_HISTORIA);
       expect(host.querySelector('.evolucion')).toBeNull();
+    });
+
+    it('un caso con inicial y final en null en la historia no rompe el gráfico ni la tabla', () => {
+      const host = hostConHistoria([
+        casoHistoria(1, { utilidadNeta: 100, efectivo: 200, patrimonio: 300 }),
+        { idCaso: 2, nombreCaso: 'Caso 2', fechaInicioPartida: '2026-09-10T00:00:00', inicial: null, final: null },
+      ]);
+      expect(host.querySelector('.evolucion app-alerta')).toBeNull();
+      expect(host.querySelectorAll('.evo__tabla tbody tr')).toHaveLength(1);
     });
 
     it('dibuja una línea por serie con los casos cerrados (el en curso no entra), con leyenda y tabla', () => {
@@ -307,7 +378,6 @@ describe('ReportesFinancieros', () => {
 
       function render204(simulaciones: unknown[]) {
         const fixture = TestBed.createComponent(ReportesFinancieros);
-        fixture.componentInstance.historiaDisponible.set(true);
         fixture.detectChanges();
         http
           .expectOne((r) => r.url === apiUrl(API_CONFIG.endpoints.estudianteCasoActual))
@@ -348,6 +418,15 @@ describe('ReportesFinancieros', () => {
         fixture.detectChanges();
         expect((fixture.nativeElement as HTMLElement).querySelector('.reportes__vacio')).toBeTruthy();
         expect(fixture.componentInstance.cargando()).toBe(false);
+      });
+
+      it('si el último caso de la historia trae inicial null, queda el estado vacío (no rompe)', () => {
+        const fixture = render204([miSimulacion]);
+        http
+          .expectOne({ method: 'GET', url: URL_HISTORIA })
+          .flush([{ idCaso: 3, nombreCaso: 'Caso 3', fechaInicioPartida: '2026-09-10T00:00:00', inicial: null, final: null }]);
+        fixture.detectChanges();
+        expect((fixture.nativeElement as HTMLElement).querySelector('.reportes__vacio')).toBeTruthy();
       });
 
       it('con historia vacía también queda el estado vacío', () => {

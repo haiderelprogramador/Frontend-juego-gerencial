@@ -13,6 +13,7 @@ import {
   IndicadoresFinancieros,
   formatearMoneda,
 } from '../../simulacion/models/financiero.model';
+import { penalizacionAplicada } from '../../simulacion/models/estado-empresa.model';
 import {
   CasoActual,
   EstadoFinancieroEmpresa,
@@ -107,7 +108,7 @@ export class ReportesFinancieros {
   readonly error = signal<string | null>(null);
   private readonly datos = signal<CasoActual | null>(null);
 
-  /** Historia por empresa (contrato B): hasta que esté en develop no se pide. */
+  /** Historia por empresa (contrato B): se pide solo con `API_CONFIG.disponible.historia`. */
   readonly historiaDisponible = signal<boolean>(API_CONFIG.disponible.historia);
   readonly historia = signal<HistoriaCasoEmpresa[] | null>(null);
   readonly errorHistoria = signal<string | null>(null);
@@ -178,7 +179,9 @@ export class ReportesFinancieros {
   readonly resultadoLegible = computed(() => {
     const origen = this.final()?.origen;
     if (origen === 'penalizacion') {
-      return 'Tu empresa no decidió a tiempo: el resultado incluye la penalización del caso.';
+      const pct = penalizacionAplicada(this.final());
+      const base = 'Tu empresa no decidió a tiempo: el resultado incluye la penalización del caso.';
+      return pct ? `${base} Penalización aplicada: ${pct}.` : base;
     }
     if (origen === 'decision') {
       return 'Resultado de la decisión que tomó tu empresa.';

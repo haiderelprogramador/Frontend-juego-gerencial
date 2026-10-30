@@ -1,9 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { API_CONFIG, apiUrl } from '../../../../core/api/api.config';
-import { HistoriaCasoEmpresa } from '../../../simulacion/models/estado-empresa.model';
+import { HistoriaCasoEmpresa, aHistoriaCasoEmpresa } from '../../../simulacion/models/estado-empresa.model';
 import { Empresa, EmpresaRequest } from '../models/empresa.model';
 
 /**
@@ -45,10 +46,13 @@ export class EmpresaService {
   }
 
   /**
-   * Estado inicial y final de la empresa en cada caso en que participó,
-   * ordenado por caso (contrato B). Ver `API_CONFIG.disponible.historia`.
+   * Estado inicial y final de la empresa en cada caso en que ya tiene estados,
+   * en orden de partida (contrato B). 400 "La empresa no pertenece a una
+   * simulación de este docente". Ver `API_CONFIG.disponible.historia`.
    */
   historia(idEmpresa: number): Observable<HistoriaCasoEmpresa[]> {
-    return this.http.get<HistoriaCasoEmpresa[]>(`${this.baseEmpresas}/${idEmpresa}/historia`);
+    return this.http
+      .get<HistoriaCasoEmpresa[]>(`${this.baseEmpresas}/${idEmpresa}/historia`)
+      .pipe(map((h) => h.map(aHistoriaCasoEmpresa)));
   }
 }

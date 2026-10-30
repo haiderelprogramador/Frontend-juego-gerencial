@@ -444,6 +444,9 @@
               </div>
             } @else {
               <app-alerta tipo="info" mensaje="El equipo no decidió a tiempo — se aplicó la penalización por defecto." />
+              @if (penalizacion(); as pct) {
+                <app-kpi etiqueta="Penalización aplicada" [valor]="pct" />
+              }
             }
 
             <div class="resultado-hero__footer">

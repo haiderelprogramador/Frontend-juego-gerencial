@@ -4,8 +4,8 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { API_CONFIG, apiUrl } from '../../../core/api/api.config';
-import { Boletin } from '../../simulacion/models/boletin.model';
 import { CasoEstudiante, aCasoEstudiante } from '../../simulacion/models/caso-api.model';
+import { aEstadoEmpresa, aHistoriaCasoEmpresa } from '../../simulacion/models/estado-empresa.model';
 import { CasoActual, Decision, HistoriaCasoEmpresa, MiEmpresa, MiSimulacion } from '../models/portal-estudiante.model';
 
 /**
@@ -25,7 +25,8 @@ import { CasoActual, Decision, HistoriaCasoEmpresa, MiEmpresa, MiSimulacion } fr
  * Solo backend real (sin rama demo), igual que `CasoApiService`.
  *
  * Todo caso que entra por aquí pasa por `aCasoEstudiante()`: las opciones se
- * reconstruyen por lista blanca, sin `resultado` ni `impacto`.
+ * reconstruyen por lista blanca, sin `resultado` ni `impacto`. Y todo estado
+ * financiero por empresa, por `aEstadoEmpresa()` (normaliza `origen`).
  */
 @Injectable({ providedIn: 'root' })
 export class PortalEstudianteService {
@@ -47,7 +48,7 @@ export class PortalEstudianteService {
         params,
         observe: 'response',
       })
-      .pipe(map((res) => (res.body ? { ...res.body, caso: aCasoEstudiante(res.body.caso) } : null)));
+      .pipe(map((res) => (res.body ? aCasoActual(res.body) : null)));
   }
 
   /** Solo el líder puede llamarlo; es permanente (no hay editar/borrar). */
@@ -70,12 +71,13 @@ export class PortalEstudianteService {
 
   /**
    * Historia financiera de la empresa del estudiante, caso a caso (contrato
-   * B). 400 si `idEmpresa` no es la suya. Ver `API_CONFIG.disponible.historia`.
+   * B). 400 "No perteneces a esta empresa" si `idEmpresa` no es la suya. Ver
+   * `API_CONFIG.disponible.historia`.
    */
   historiaEmpresa(idEmpresa: number): Observable<HistoriaCasoEmpresa[]> {
-    return this.http.get<HistoriaCasoEmpresa[]>(
-      `${apiUrl(API_CONFIG.endpoints.estudianteEmpresas)}/${idEmpresa}/historia`,
-    );
+    return this.http
+      .get<HistoriaCasoEmpresa[]>(`${apiUrl(API_CONFIG.endpoints.estudianteEmpresas)}/${idEmpresa}/historia`)
+      .pipe(map((h) => h.map(aHistoriaCasoEmpresa)));
   }
 
   /** Historial de casos visibles de una simulación (opciones sin `resultado`). */
@@ -91,11 +93,17 @@ export class PortalEstudianteService {
       .get<CasoEstudiante>(`${apiUrl(API_CONFIG.endpoints.estudianteCasos)}/${id}`)
       .pipe(map(aCasoEstudiante));
   }
+}
 
-  /** Boletín de un caso visible (D14); `null` si responde 204 (el docente no lo publicó). */
-  boletin(idCaso: number): Observable<Boletin | null> {
-    return this.http
-      .get<Boletin>(`${apiUrl(API_CONFIG.endpoints.estudianteCasos)}/${idCaso}/boletin`, { observe: 'response' })
-      .pipe(map((res) => res.body ?? null));
-  }
+/**
+ * `financieroEmpresa` siempre viene (doc 30-oct-2026); si un backend viejo no
+ * lo mandara, se deja ausente y las pantallas usan su respaldo con `caso.financiero`.
+ */
+function aCasoActual(dto: CasoActual): CasoActual {
+  const fe = dto.financieroEmpresa;
+  return {
+    ...dto,
+    caso: aCasoEstudiante(dto.caso),
+    ...(fe ? { financieroEmpresa: { inicial: aEstadoEmpresa(fe.inicial), final: aEstadoEmpresa(fe.final) } } : {}),
+  };
 }
