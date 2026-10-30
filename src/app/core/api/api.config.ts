@@ -99,7 +99,8 @@ export const API_CONFIG = {
     estudianteEmpresas: '/estudiante/empresas',
     /**
      * GET `/{id}` -> CasoEstudiante; 400 si el caso aún no es visible.
-     * GET `/{id}/boletin` -> Boletin o 204 (D14, ver `disponible.boletin`).
+     * (El backend también expone GET `/{id}/boletin`, pero el portal ya no lo
+     * usa: el boletín viene en `caso-actual`.)
      */
     estudianteCasos: '/estudiante/casos',
   },
@@ -116,9 +117,8 @@ export const API_CONFIG = {
      * Boletín del caso (D14): publicado en develop y en ngrok (oct-2026). El
      * docente publica, edita y elimina el boletín desde Casos (`tieneBoletin`
      * de la lista dice si ya tiene). El portal del estudiante no depende de
-     * este flag: usa `caso-actual.boletin` si viene (aunque sea `null`) y, si
-     * el backend todavía no manda el campo, lo pide a
-     * GET /estudiante/casos/{id}/boletin. En `false`, Casos no muestra el botón.
+     * este flag: usa `caso-actual.boletin`, que siempre viene (o `null`) desde
+     * el 30-oct-2026. En `false`, Casos no muestra el botón.
      */
     boletin: true,
     /**

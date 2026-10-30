@@ -264,7 +264,7 @@ describe('CasoActual', () => {
     expect(texto).toContain('El dólar viene subiendo.');
   });
 
-  describe('boletín: caso-actual.boletin o, si no viene, GET /estudiante/casos/{id}/boletin', () => {
+  describe('boletín: solo el de caso-actual, sin llamada aparte', () => {
     const URL_BOLETIN = `${apiUrl(API_CONFIG.endpoints.estudianteCasos)}/12/boletin`;
     const boletinPublicado = {
       idCaso: 12,
@@ -276,61 +276,30 @@ describe('CasoActual', () => {
       actualizadoEn: '2026-09-29T08:00:00',
     };
 
-    /** caso-actual tal como lo manda hoy el backend: sin la propiedad `boletin`. */
-    function sinCampoBoletin(): CasoActualDto {
-      const dto = casoActualDto();
-      delete (dto as Partial<CasoActualDto>).boletin;
-      return dto;
-    }
-
-    it('con boletin: null en caso-actual no muestra la tarjeta y no hace la llamada extra', () => {
+    it('con boletin: null no muestra la tarjeta ni pide /estudiante/casos/{id}/boletin', () => {
       const fixture = crearFixture(casoActualDto({ boletin: null }));
       expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
       http.expectNone(URL_BOLETIN);
     });
 
-    it('con el boletín en caso-actual lo usa, sin la llamada extra', () => {
-      crearFixture(casoActualDto({ boletin: boletinPublicado }));
+    it('con el boletín en caso-actual lo muestra, sin la llamada aparte', () => {
+      const fixture = crearFixture(casoActualDto({ boletin: boletinPublicado }));
       http.expectNone(URL_BOLETIN);
+      expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')!.textContent).toContain('3,1 %');
     });
 
-    it('sin la propiedad en caso-actual pide el boletín del caso y lo muestra', () => {
-      const fixture = crearFixture(sinCampoBoletin());
-      http.expectOne({ method: 'GET', url: URL_BOLETIN }).flush(boletinPublicado);
-      fixture.detectChanges();
-
-      const card = (fixture.nativeElement as HTMLElement).querySelector('.boletin');
-      expect(card!.textContent!.replace(/\s+/g, ' ')).toContain('3,1 %');
-    });
-
-    it('sin la propiedad y con 204 (sin boletín o caso aún no visible) no muestra la tarjeta', () => {
-      const fixture = crearFixture(sinCampoBoletin());
-      http.expectOne({ method: 'GET', url: URL_BOLETIN }).flush(null, { status: 204, statusText: 'No Content' });
-      fixture.detectChanges();
-      expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
-      expect(fixture.componentInstance.error()).toBeNull();
-    });
-
-    it('sin la propiedad y con un error del GET, tampoco la muestra ni rompe la pantalla', () => {
-      const fixture = crearFixture(sinCampoBoletin());
-      http.expectOne({ method: 'GET', url: URL_BOLETIN }).flush({ message: 'x' }, { status: 500, statusText: 'Error' });
-      fixture.detectChanges();
-      expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
-      expect(fixture.componentInstance.error()).toBeNull();
-      expect((fixture.nativeElement as HTMLElement).textContent).toContain('Opciones de decisión');
-    });
-
-    it('cuando el backend empiece a mandar el campo, deja de pedirlo (aunque sea null)', () => {
-      const fixture = crearFixture(sinCampoBoletin(), [miSimulacion(23, 'EN_CURSO'), miSimulacion(40, 'EN_CURSO')]);
-      http.expectOne({ method: 'GET', url: URL_BOLETIN }).flush(boletinPublicado);
-
+    it('al cambiar de simulación o refrescar tampoco lo pide aparte', () => {
+      const fixture = crearFixture(casoActualDto({ boletin: boletinPublicado }), [
+        miSimulacion(23, 'EN_CURSO'),
+        miSimulacion(40, 'EN_CURSO'),
+      ]);
       fixture.componentInstance.elegirSimulacion(40);
       http
         .expectOne((r) => r.url === URL_CASO_ACTUAL && r.params.get('idSimulacion') === '40')
         .flush(casoActualDto({ idSimulacion: 40, boletin: null }));
       fixture.detectChanges();
 
-      http.expectNone(URL_BOLETIN);
+      http.expectNone((r) => r.url.endsWith('/boletin'));
       expect((fixture.nativeElement as HTMLElement).querySelector('.boletin')).toBeNull();
     });
   });
