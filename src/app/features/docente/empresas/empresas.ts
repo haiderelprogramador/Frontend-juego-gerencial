@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin, map, of } from 'rxjs';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { concatMap, forkJoin, from, map, of, toArray } from 'rxjs';
 
 import { Alerta } from '../../../shared/components/alerta/alerta';
 import { Badge } from '../../../shared/components/badge/badge';
+import { SimulacionContextService } from '../../../core/services/simulacion-context.service';
 import { EstudianteCargado } from '../gestion-estudiantes/models/estudiante.model';
 import { EstudianteService } from '../gestion-estudiantes/services/estudiante.service';
 import {
@@ -72,7 +73,7 @@ function formIntegranteVacio(): FormIntegrante {
  */
 @Component({
   selector: 'app-empresas',
-  imports: [Alerta, Badge],
+  imports: [Alerta, Badge, RouterLink],
   templateUrl: './empresas.html',
   styleUrl: './empresas.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -80,6 +81,7 @@ function formIntegranteVacio(): FormIntegrante {
 export class Empresas {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly simCtx = inject(SimulacionContextService);
   private readonly simulacionService = inject(SimulacionService);
   private readonly empresaService = inject(EmpresaService);
   private readonly integranteService = inject(IntegranteService);
@@ -95,10 +97,14 @@ export class Empresas {
     this.route.queryParamMap.pipe(
       map((p) => {
         const id = Number(p.get('simulacion'));
-        return Number.isInteger(id) && id > 0 ? id : null;
+        if (Number.isInteger(id) && id > 0) {
+          this.simCtx.recordar(id);
+          return id;
+        }
+        return this.simCtx.idSimulacionActiva();
       }),
     ),
-    { initialValue: null },
+    { initialValue: this.simCtx.idSimulacionActiva() },
   );
   readonly simulacion = computed(() => this.simulaciones().find((s) => s.id === this.idSimulacion()) ?? null);
   /** Solo en BORRADOR/PROGRAMADA se puede crear/editar/borrar empresas e integrantes. */
@@ -131,6 +137,19 @@ export class Empresas {
   );
   /** Estudiantes que se pueden agregar: los que no están en ninguna empresa de la simulación. */
   readonly disponibles = computed(() => this.estudiantes().filter((e) => !this.asignados().has(Number(e.id))));
+  readonly empresasConLider = computed(
+    () => this.empresas().filter((e) => !this.sinLider(e.id)).length,
+  );
+  readonly empresasSinLiderConteo = computed(
+    () => this.empresas().filter((e) => this.sinLider(e.id)).length,
+  );
+
+  iniciales(nombre: string): string {
+    const partes = nombre.trim().split(/\s+/);
+    if (partes.length === 0 || !partes[0]) return 'E';
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+  }
 
   /** Formulario de empresa: `null` cerrado; `editandoEmpresaId` null = crear. */
   readonly formEmpresa = signal<FormEmpresa | null>(null);
@@ -139,6 +158,27 @@ export class Empresas {
   readonly confirmandoEliminar = signal<number | null>(null);
   /** Líder a punto de ser quitado (pide confirmación: la empresa queda sin líder). */
   readonly confirmandoQuitarLider = signal<{ idEmpresa: number; idUsuario: number } | null>(null);
+
+  // -- Generación automática de empresas y equipos ----------------------------
+  readonly mostrandoGeneradorAuto = signal(false);
+  readonly tamanoEquipoAuto = signal(4);
+  readonly generandoAuto = signal(false);
+  readonly errorAuto = signal<string | null>(null);
+  readonly avisoAuto = signal<string | null>(null);
+
+  /** Vista previa de los grupos que se van a crear con los estudiantes disponibles */
+  readonly gruposAuto = computed(() => {
+    const disp = this.disponibles();
+    const tam = Math.max(1, Math.min(20, this.tamanoEquipoAuto() || 4));
+    if (disp.length === 0) return [] as EstudianteCargado[][];
+    const numEmpresas = Math.max(1, Math.ceil(disp.length / tam));
+    const grupos: EstudianteCargado[][] = Array.from({ length: numEmpresas }, () => []);
+    // Reparto equilibrado (round-robin) para que no quede una empresa con 1 solo si los demás tienen 4
+    disp.forEach((est, idx) => {
+      grupos[idx % numEmpresas].push(est);
+    });
+    return grupos.filter((g) => g.length > 0);
+  });
 
   /**
    * Al editar una empresa con 2+ integrantes no se ofrece MONOUSUARIO (el
@@ -225,9 +265,118 @@ export class Empresas {
   // ---------------------------------------------------------------------------
 
   nuevaEmpresa(): void {
+    this.mostrandoGeneradorAuto.set(false);
     this.editandoEmpresaId.set(null);
     this.errorEmpresa.set(null);
     this.formEmpresa.set({ nombre: '', estrategia: '', tipoJugador: 'MULTIUSUARIO' });
+  }
+
+  abrirGeneradorAuto(): void {
+    this.cancelarEmpresa();
+    this.errorAuto.set(null);
+    this.avisoAuto.set(null);
+    this.mostrandoGeneradorAuto.set(true);
+  }
+
+  cerrarGeneradorAuto(): void {
+    this.mostrandoGeneradorAuto.set(false);
+    this.errorAuto.set(null);
+  }
+
+  cambiarTamanoEquipoAuto(valor: string): void {
+    const n = Number(valor);
+    if (Number.isInteger(n) && n >= 1 && n <= 20) {
+      this.tamanoEquipoAuto.set(n);
+    }
+  }
+
+  /**
+   * Crea las empresas necesarias para todos los estudiantes disponibles,
+   * reparte a los estudiantes equilibradamente, les asigna departamentos
+   * rotativos y deja al primer integrante de cada empresa como Líder ★.
+   */
+  generarEmpresasAutomaticamente(): void {
+    const idSim = this.idSimulacion();
+    const grupos = this.gruposAuto();
+    if (idSim === null || grupos.length === 0 || this.generandoAuto() || this.ocupado()) {
+      return;
+    }
+
+    const catalogoNombres = [
+      'Andina S.A.',
+      'Pacífico Corp.',
+      'Cumbre S.A.S.',
+      'Horizonte Grupo',
+      'Vértice Industrial',
+      'Altiplano S.A.',
+      'Delta Inversiones',
+      'Meridiano S.A.',
+      'Órbita Empresarial',
+      'Boreal S.A.',
+      'Nova Gestión',
+      'Cima Corporación',
+    ];
+    const usados = new Set(this.empresas().map((e) => e.nombre.toLowerCase()));
+    const elegirNombre = (indice: number): string => {
+      for (const candidato of catalogoNombres) {
+        if (!usados.has(candidato.toLowerCase())) {
+          usados.add(candidato.toLowerCase());
+          return candidato;
+        }
+      }
+      let num = this.empresas().length + indice + 1;
+      while (usados.has(`empresa ${num}`)) num++;
+      const fallback = `Empresa ${num}`;
+      usados.add(fallback.toLowerCase());
+      return fallback;
+    };
+
+    this.generandoAuto.set(true);
+    this.ocupado.set(true);
+    this.errorAuto.set(null);
+    this.avisoAuto.set(null);
+
+    const totalEstudiantes = grupos.reduce((acc, g) => acc + g.length, 0);
+
+    from(grupos.map((estudiantesGrupo, idx) => ({ estudiantesGrupo, nombre: elegirNombre(idx) })))
+      .pipe(
+        concatMap(({ estudiantesGrupo, nombre }) => {
+          const tipoJugador: TipoJugadorEmpresa = estudiantesGrupo.length === 1 ? 'MONOUSUARIO' : 'MULTIUSUARIO';
+          return this.empresaService.crear(idSim, { nombre, tipoJugador }).pipe(
+            concatMap((empresaCreada) =>
+              from(estudiantesGrupo.map((est, pos) => ({ est, pos }))).pipe(
+                concatMap(({ est, pos }) => {
+                  const depto = this.departamentos[pos % this.departamentos.length].valor;
+                  return this.integranteService.agregar(empresaCreada.id, {
+                    idUsuario: Number(est.id),
+                    departamento: depto,
+                    ...(tipoJugador === 'MULTIUSUARIO' && pos === 0 ? { esLider: true } : {}),
+                  });
+                }),
+                toArray(),
+              ),
+            ),
+          );
+        }),
+        toArray(),
+      )
+      .subscribe({
+        next: () => {
+          this.generandoAuto.set(false);
+          this.ocupado.set(false);
+          this.mostrandoGeneradorAuto.set(false);
+          this.avisoAuto.set(
+            `Se generaron ${grupos.length} empresa(s) y se asignaron ${totalEstudiantes} estudiante(s) con sus respectivos líderes ★.`,
+          );
+          this.cargarEmpresas(idSim);
+        },
+        error: (err: ErrorHttp) => {
+          this.generandoAuto.set(false);
+          this.ocupado.set(false);
+          this.errorAuto.set(mensaje(err, 'Ocurrió un error al generar las empresas automáticamente.'));
+          this.cargarEmpresas(idSim);
+        },
+      });
   }
 
   editarEmpresa(e: Empresa): void {

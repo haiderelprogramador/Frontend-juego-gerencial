@@ -86,15 +86,30 @@
       <h2 class="t-title">{{ casoEnEdicionId() ? 'Editar caso' : 'Nuevo caso' }}</h2>
     </div>
 
-    <nav class="subtabs">
-      <button type="button" [class.is-active]="tabForm() === 'general'" (click)="tabForm.set('general')">
-        Info General
+    <nav class="subtabs" #subtabsContainer>
+      <!-- Píldora deslizante de cristal líquido para sub-pestañas del caso -->
+      <div class="subtabs__indicator"
+        appLiquidGlass
+        [active]="isSubtabMoving()"
+        [radius]="999"
+        [rimThickness]="16"
+        [scale]="26"
+        [blur]="0.65"
+        [specularOpacity]="0.45"
+        [specularSaturation]="7"
+        [class.is-elevated]="isSubtabMoving()"
+        [style.transform]="'translateX(' + subtabLeft() + 'px)' + (isSubtabMoving() ? ' scale(1.08, 1.32)' : ' scale(1)')"
+        [style.width.px]="subtabWidth()"
+        [style.opacity]="subtabOpacity()">
+      </div>
+      <button type="button" [class.is-active]="tabForm() === 'general'" (click)="cambiarTabForm('general', $event)">
+        <span class="subtabs__step">1</span> Info General
       </button>
-      <button type="button" [class.is-active]="tabForm() === 'financiera'" (click)="tabForm.set('financiera')">
-        Información Financiera
+      <button type="button" [class.is-active]="tabForm() === 'financiera'" (click)="cambiarTabForm('financiera', $event)">
+        <span class="subtabs__step">2</span> Información Financiera
       </button>
-      <button type="button" [class.is-active]="tabForm() === 'opciones'" (click)="tabForm.set('opciones')">
-        Opciones
+      <button type="button" [class.is-active]="tabForm() === 'opciones'" (click)="cambiarTabForm('opciones', $event)">
+        <span class="subtabs__step">3</span> Opciones
       </button>
     </nav>
 
@@ -345,9 +360,29 @@
       <button type="button" class="btn btn--secundario" [disabled]="guardando()" (click)="volverALista()">
         Cancelar
       </button>
-      <button type="button" class="btn btn--primario" [disabled]="guardando()" (click)="guardarCaso()">
-        {{ guardando() ? 'Guardando…' : 'Guardar caso' }}
-      </button>
+      @if (tabForm() !== 'general') {
+        <button type="button" class="btn btn--ghost" [disabled]="guardando()" (click)="irAPasoAnterior()">
+          ← Anterior
+        </button>
+      }
+      @if (tabForm() === 'general') {
+        <button type="button" class="btn btn--primario" [disabled]="guardando()" (click)="irAPasoSiguiente()">
+          Siguiente: Información Financiera →
+        </button>
+      } @else if (tabForm() === 'financiera') {
+        <button type="button" class="btn btn--primario" [disabled]="guardando()" (click)="irAPasoSiguiente()">
+          Siguiente: Opciones →
+        </button>
+      } @else {
+        <button type="button" class="btn btn--primario" [disabled]="guardando()" (click)="guardarCaso()">
+          {{ guardando() ? 'Guardando…' : 'Guardar caso' }}
+        </button>
+      }
+      @if (casoEnEdicionId() && tabForm() !== 'opciones') {
+        <button type="button" class="btn btn--secundario" [disabled]="guardando()" (click)="guardarCaso()">
+          {{ guardando() ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      }
     </div>
   </div>
 }

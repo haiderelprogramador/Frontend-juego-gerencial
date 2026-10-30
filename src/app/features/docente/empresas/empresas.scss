@@ -32,6 +32,51 @@
     flex-wrap: wrap;
   }
 
+  &__barra-acciones {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  &__kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.85rem;
+
+    @media (max-width: 850px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  &__kpi {
+    padding: 0.9rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  &__kpi-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--bs-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__kpi-val {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--bs-foreground);
+
+    &--ok {
+      color: var(--bs-success);
+    }
+    &--warn {
+      color: var(--bs-danger);
+    }
+  }
+
   &__lista {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(26rem, 100%), 1fr));
@@ -99,6 +144,35 @@
   }
 }
 
+.form-auto {
+  gap: 1rem;
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+
+  &__tamano {
+    width: 15rem;
+    flex-shrink: 0;
+  }
+
+  &__preview {
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    background: rgba(84, 131, 179, 0.08);
+    border: 1px solid rgba(84, 131, 179, 0.2);
+  }
+
+  &__resumen {
+    font-size: 0.84rem;
+    color: var(--bs-foreground);
+  }
+}
+
 .empresa {
   padding: 1rem 1.1rem;
   display: flex;
@@ -157,10 +231,30 @@
 .integrante {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
+  gap: 0.65rem;
+  padding: 0.55rem 0;
   border-bottom: 1px solid var(--bs-border);
   flex-wrap: wrap;
+
+  &__avatar {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    background: rgba(84, 131, 179, 0.14);
+    color: var(--bs-primary);
+    font-size: 0.73rem;
+    font-weight: 700;
+    flex: none;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+
+    &--lider {
+      background: linear-gradient(135deg, #021024 0%, #052659 100%);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(5, 38, 89, 0.25);
+    }
+  }
 
   &__nombre {
     flex: 1;

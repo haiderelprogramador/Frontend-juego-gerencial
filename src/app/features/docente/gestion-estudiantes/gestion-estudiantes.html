@@ -1,65 +1,100 @@
 <section class="gestion">
   @if (!cursoActual()) {
-    <header class="gestion__head">
-      <h2 class="gestion__title">Cursos activos</h2>
-      <p class="gestion__lead">Selecciona un curso para gestionar sus estudiantes.</p>
-    </header>
+    <header class="gestion__head gestion__head--cursos">
+      <div>
+        <h2 class="gestion__title t-display">Cursos activos</h2>
+        <p class="gestion__lead">
+          Selecciona un curso para gestionar su nómina de estudiantes. Los equipos de cada simulación se arman en
+          <a routerLink="/docente/empresas">Empresas →</a>
+        </p>
+      </div>
 
-    <p class="gestion__hint">
-      Los equipos ahora son las empresas de cada simulación: se arman en
-      <a routerLink="/docente/empresas">Empresas</a>.
-    </p>
-
-    <div class="card cursos-panel">
-      @if (cursos().length === 0) {
-        <p class="gestion__hint">Aún no tienes cursos creados.</p>
-      } @else {
-        <div class="cursos-grid">
-          @for (curso of cursos(); track curso.id) {
-            <article class="curso-card">
-              <button
-                type="button"
-                class="curso-card__settings"
-                (click)="alternarMenuCurso(curso.id)"
-                [attr.aria-expanded]="menuCursoAbierto() === curso.id"
-                aria-label="Acciones del curso"
-                title="Acciones del curso"
-              >
-                ⚙
-              </button>
-              <button type="button" class="curso-card__open" (click)="seleccionarCurso(curso.id)">
-                <strong>{{ curso.nombre }}</strong>
-              </button>
-              @if (menuCursoAbierto() === curso.id) {
-                <div class="curso-card__menu">
-                  <button type="button" (click)="modificarNombreCurso(curso)">
-                    Modificar nombre
-                  </button>
-                  <button type="button" class="is-danger" (click)="eliminarCurso(curso)">
-                    Eliminar
-                  </button>
-                </div>
-              }
-            </article>
-          }
-        </div>
-      }
       <div class="curso-crear">
         <input
           type="text"
           [value]="nombreCurso()"
-          placeholder="Nombre del nuevo curso"
+          placeholder="Ej. Juego Gerencial 2026-2"
+          aria-label="Nombre del nuevo curso"
           (input)="nombreCurso.set($any($event.target).value)"
           (keyup.enter)="crearCurso()"
         />
-        <button type="button" class="btn btn--primary" (click)="crearCurso()">Crear curso</button>
+        <button type="button" class="btn btn--primary" (click)="crearCurso()">+ Crear curso</button>
       </div>
-    </div>
+    </header>
+
+    @if (cursos().length === 0) {
+      <div class="card cursos-vacio">
+        <div class="cursos-vacio__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+          </svg>
+        </div>
+        <h3 class="cursos-vacio__title">Aún no tienes cursos creados</h3>
+        <p class="gestion__hint">Escribe el nombre de tu asignatura arriba a la derecha y presiona <strong>+ Crear curso</strong> para comenzar.</p>
+      </div>
+    } @else {
+      <div class="cursos-grid">
+        @for (curso of cursos(); track curso.id; let idx = $index) {
+          <article class="card curso-card" [class.has-menu-open]="menuCursoAbierto() === curso.id">
+            <button
+              type="button"
+              class="curso-card__settings"
+              (click)="alternarMenuCurso(curso.id)"
+              [attr.aria-expanded]="menuCursoAbierto() === curso.id"
+              aria-label="Acciones del curso"
+              title="Acciones del curso"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="19" cy="12" r="1.5" />
+                <circle cx="5" cy="12" r="1.5" />
+              </svg>
+            </button>
+
+            <button type="button" class="curso-card__open" (click)="seleccionarCurso(curso.id)">
+              <div class="curso-card__top">
+                <span class="curso-card__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                    <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                  </svg>
+                </span>
+                <span class="curso-card__tag">Grupo {{ idx + 1 }}</span>
+              </div>
+
+              <div class="curso-card__body">
+                <strong class="curso-card__title">{{ curso.nombre }}</strong>
+                <span class="curso-card__desc">Nómina de estudiantes, carga Excel y credenciales</span>
+              </div>
+
+              <div class="curso-card__footer">
+                <span class="curso-card__cta">Gestionar estudiantes</span>
+                <span class="curso-card__arrow" aria-hidden="true">→</span>
+              </div>
+            </button>
+
+            @if (menuCursoAbierto() === curso.id) {
+              <div class="curso-card__menu">
+                <button type="button" (click)="modificarNombreCurso(curso)">
+                  Modificar nombre
+                </button>
+                <button type="button" class="is-danger" (click)="eliminarCurso(curso)">
+                  Eliminar curso
+                </button>
+              </div>
+            }
+          </article>
+        }
+      </div>
+    }
   } @else {
     <header class="gestion__head curso-header">
       <div>
         <button type="button" class="btn btn--ghost" (click)="volverACursos()">
-          Volver a cursos
+          ← Volver a cursos
         </button>
         <h2 class="gestion__title">{{ cursoActual()?.nombre }}</h2>
         <p class="gestion__lead">
@@ -67,6 +102,7 @@
           <a routerLink="/docente/empresas">Empresas</a>.
         </p>
       </div>
+      <a class="btn btn--secondary" routerLink="/docente/empresas">Siguiente paso: Armar Empresas →</a>
     </header>
 
     <section class="card estudiantes-cargados">

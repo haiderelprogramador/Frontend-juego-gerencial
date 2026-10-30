@@ -1,5 +1,5 @@
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable, Subscription, interval, of } from 'rxjs';
 import { catchError, map, shareReplay, switchMap } from 'rxjs/operators';
@@ -11,8 +11,9 @@ import {
   OpcionSeleccion,
   TarjetaSeleccion,
 } from '../../../shared/components/tarjeta-seleccion/tarjeta-seleccion';
+import { LiquidGlassDirective } from '../../../shared/directives/liquid-glass.directive';
 import { Boletin, formatearPorcentajeBoletin, formatearTasaCambio } from '../../simulacion/models/boletin.model';
-import { CasoEstudiante } from '../../simulacion/models/caso-api.model';
+import { CasoEstudiante, OpcionCasoEstudiante } from '../../simulacion/models/caso-api.model';
 import { describirImpacto, formatearMoneda } from '../../simulacion/models/financiero.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { nombreDepartamento } from '../../docente/integrantes/models/integrante.model';
@@ -28,7 +29,7 @@ type ErrorHttp = { status?: number; message?: string; error?: { message?: string
 const ORDEN_FASES: Fase[] = ['visualizacion', 'partida', 'cierre'];
 
 /** Cada cuánto se recalculan fase y cuenta regresiva contra el reloj (ms). */
-const INTERVALO_RELOJ_MS = 5000;
+const INTERVALO_RELOJ_MS = 1000;
 
 // Vive en shared/utils porque Casos (docente) también la usa; se reexporta aquí por compatibilidad.
 export { aFechaBogota } from '../../../shared/utils/fecha-bogota';
@@ -68,7 +69,7 @@ const ESTADOS_SIMULACION: Record<string, string> = {
 
 @Component({
   selector: 'app-caso-actual',
-  imports: [NgTemplateOutlet, RouterLink, Badge, Alerta, Kpi, TarjetaSeleccion],
+  imports: [NgTemplateOutlet, RouterLink, Badge, Alerta, Kpi, LiquidGlassDirective],
   templateUrl: './caso-actual.html',
   styleUrl: './caso-actual.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -150,6 +151,13 @@ export class CasoActual implements OnDestroy {
     const d = this.datos();
     return d ? { simulacion: d.nombreSimulacion, empresa: d.nombreEmpresa } : null;
   });
+
+  iniciales(nombre: string): string {
+    const partes = nombre.trim().split(/\s+/);
+    if (partes.length === 0 || !partes[0]) return 'E';
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+  }
   /**
    * Boletín del docente para este caso (D14). Si caso-actual trae la
    * propiedad, aunque sea `null`, manda esa; si no la trae (`undefined`), el
@@ -251,6 +259,260 @@ export class CasoActual implements OnDestroy {
   /** Distingue, dentro de "bloqueado", si es por fecha (con cuenta regresiva) o por rol. */
   readonly bloqueadoPorFecha = computed(() => this.fase() === 'visualizacion');
 
+  // -- Temporizador de la Ronda en Tiempo Real --
+  readonly cuentaPartida = computed(() => {
+    const c = this.caso();
+    if (!c || this.fase() !== 'partida') {
+      return { dias: '00', horas: '00', min: '00', seg: '00' };
+    }
+    return formatearCuenta(aFechaBogota(c.fechaFinPartida) - this.ahora());
+  });
+
+  readonly tiempoRestantePartidaTexto = computed(() => {
+    const cp = this.cuentaPartida();
+    if (Number(cp.dias) > 0) {
+      return `${cp.dias}d ${cp.horas}h ${cp.min}m`;
+    }
+    if (Number(cp.horas) > 0) {
+      return `${cp.horas}h ${cp.min}m ${cp.seg}s`;
+    }
+    return `${cp.min}:${cp.seg}`;
+  });
+
+  // -- Animación Cromática y Ticker de Impacto Financiero --
+  readonly animandoImpacto = signal(false);
+  private animacionTimeout: any = null;
+
+  dispararAnimacionImpacto(): void {
+    this.animandoImpacto.set(true);
+    if (this.animacionTimeout) {
+      clearTimeout(this.animacionTimeout);
+    }
+    this.animacionTimeout = setTimeout(() => {
+      this.animandoImpacto.set(false);
+    }, 3500);
+  }
+
+  readonly rubrosImpactados = computed(() => {
+    const imp = this.decisionActual()?.impacto;
+    if (!imp) return [];
+    const res: { campo: string; etiqueta: string; delta: string; esPositivo: boolean }[] = [];
+
+    if (imp.ventasNetas && imp.ventasNetas.valor != null) {
+      const v = imp.ventasNetas.valor;
+      res.push({
+        campo: 'ventasNetas',
+        etiqueta: 'Ventas netas',
+        delta: imp.ventasNetas.tipo === 'porcentaje' ? `${v > 0 ? '+' : ''}${v}%` : `${v > 0 ? '+' : ''}${formatearMoneda(v)}`,
+        esPositivo: v > 0,
+      });
+    }
+    if (imp.costoVentas && imp.costoVentas.valor != null) {
+      const v = imp.costoVentas.valor;
+      res.push({
+        campo: 'costoVentas',
+        etiqueta: 'Costo de ventas',
+        delta: imp.costoVentas.tipo === 'porcentaje' ? `${v > 0 ? '+' : ''}${v}%` : `${v > 0 ? '+' : ''}${formatearMoneda(v)}`,
+        esPositivo: v < 0,
+      });
+    }
+    if (imp.gastosVentas && imp.gastosVentas.valor != null) {
+      const v = imp.gastosVentas.valor;
+      res.push({
+        campo: 'gastosVentas',
+        etiqueta: 'Gastos de ventas',
+        delta: imp.gastosVentas.tipo === 'porcentaje' ? `${v > 0 ? '+' : ''}${v}%` : `${v > 0 ? '+' : ''}${formatearMoneda(v)}`,
+        esPositivo: v < 0,
+      });
+    }
+    if (imp.gastosAdministracion && imp.gastosAdministracion.valor != null) {
+      const v = imp.gastosAdministracion.valor;
+      res.push({
+        campo: 'gastosAdministracion',
+        etiqueta: 'Gastos de administración',
+        delta: imp.gastosAdministracion.tipo === 'porcentaje' ? `${v > 0 ? '+' : ''}${v}%` : `${v > 0 ? '+' : ''}${formatearMoneda(v)}`,
+        esPositivo: v < 0,
+      });
+    }
+    if (imp.gastosFinancieros && imp.gastosFinancieros.valor != null) {
+      const v = imp.gastosFinancieros.valor;
+      res.push({
+        campo: 'gastosFinancieros',
+        etiqueta: 'Gastos financieros',
+        delta: imp.gastosFinancieros.tipo === 'porcentaje' ? `${v > 0 ? '+' : ''}${v}%` : `${v > 0 ? '+' : ''}${formatearMoneda(v)}`,
+        esPositivo: v < 0,
+      });
+    }
+    if (imp.impuestoRenta && imp.impuestoRenta.valor != null) {
+      const v = imp.impuestoRenta.valor;
+      res.push({
+        campo: 'impuestoRenta',
+        etiqueta: 'Impuesto de renta',
+        delta: imp.impuestoRenta.tipo === 'porcentaje' ? `${v > 0 ? '+' : ''}${v}%` : `${v > 0 ? '+' : ''}${formatearMoneda(v)}`,
+        esPositivo: v < 0,
+      });
+    }
+    return res;
+  });
+
+  readonly tieneImpactoGlobalPositivo = computed(() => {
+    const rubros = this.rubrosImpactados();
+    if (rubros.length === 0) return true;
+    const positivos = rubros.filter((r) => r.esPositivo).length;
+    return positivos >= rubros.length / 2;
+  });
+
+  deltaRubro(campo: string): { delta: string; esPositivo: boolean } | null {
+    const r = this.rubrosImpactados().find((item) => item.campo === campo);
+    return r ? { delta: r.delta, esPositivo: r.esPositivo } : null;
+  }
+
+  // -- Dropdown Custom Liquid Glass para el selector de simulación --
+  readonly dropdownSimulacionAbierto = signal(false);
+  readonly simulacionSeleccionada = computed(() =>
+    this.simulaciones().find((s) => s.idSimulacion === this.idSimulacionMostrada()) ?? null,
+  );
+
+  // -- Modal de Confirmación de Decisión de la Junta Directiva --
+  readonly modalConfirmacionAbierto = signal(false);
+  readonly opcionSeleccionadaTexto = computed(() =>
+    this.caso()?.opciones.find((o) => String(o.id) === this.eleccion())?.opcion ?? '',
+  );
+
+  readonly liderEmpresa = computed(() =>
+    this.miEmpresa()?.integrantes.find((i) => i.esLider) ?? null,
+  );
+
+  // -- Cajón Lateral de Radiografía Financiera y Contexto --
+  readonly cajonFinancieroAbierto = signal(false);
+
+  abrirCajonFinanciero(): void {
+    this.cajonFinancieroAbierto.set(true);
+  }
+
+  cerrarCajonFinanciero(): void {
+    this.cajonFinancieroAbierto.set(false);
+  }
+
+  alternarCajonFinanciero(): void {
+    this.cajonFinancieroAbierto.update((v) => !v);
+  }
+
+  readonly aTexto = (v: number | string) => String(v);
+
+  elegirOpcion(id: number | string): void {
+    this.eleccion.set(String(id));
+  }
+
+  analisisViabilidad(opcion: OpcionCasoEstudiante, index: number) {
+    const letra = String.fromCharCode(65 + (index % 26));
+    const caja = this.financieroInicial()?.efectivo ?? 200000;
+    const ventas = this.financieroInicial()?.ventasNetas ?? 800000;
+    const texto = (opcion.opcion || '').toLowerCase();
+
+    let costo = 25000;
+    let concepto = 'Inversión en modernización de procesos';
+    let retorno = 'Ahorro operativo y mayor margen neto';
+    let beneficio = 'Margen neto +12%';
+
+    if (texto.includes('automatiz') || texto.includes('maquinaria') || texto.includes('planta') || texto.includes('tecnolog') || texto.includes('corte')) {
+      costo = 20000;
+      concepto = 'Inversión en maquinaria y robótica industrial';
+      retorno = 'Eficiencia en producción y reducción de costos';
+      beneficio = 'Reducción de costos operativos ~12%';
+    } else if (texto.includes('export') || texto.includes('canal') || texto.includes('comercial') || texto.includes('retail') || texto.includes('mercado') || texto.includes('alianza') || texto.includes('andina')) {
+      costo = 45000;
+      concepto = 'Desembolso en apertura de canal de ventas y logística';
+      retorno = '+20% a +25% de incremento en facturación';
+      beneficio = `Aumento en ventas brutas (~${formatearMoneda(Math.round(ventas * 0.22))})`;
+    } else if (index === 0) {
+      costo = 30000;
+      concepto = 'Optimización operativa y control de costos';
+      retorno = 'Mayor estabilidad operativa y reducción de mermas';
+      beneficio = 'Eficiencia operativa +15%';
+    } else {
+      costo = 50000;
+      concepto = 'Expansión de capacidad y penetración comercial';
+      retorno = 'Aceleración de ventas e ingresos netos';
+      beneficio = 'Incremento en cuota de mercado';
+    }
+
+    const match = opcion.opcion.match(/\$\s*([0-9]{1,3}(?:\.[0-9]{3})+)/);
+    if (match && match[1]) {
+      const parsed = Number(match[1].replace(/\./g, ''));
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        costo = parsed;
+      }
+    }
+
+    const cajaProyectada = Math.max(0, caja - costo);
+    const porcentajeCaja = Math.min(100, Math.round((costo / (caja || 1)) * 100));
+
+    let nivelRiesgo: 'bajo' | 'moderado' | 'alto' = 'bajo';
+    let riesgoTexto = `Riesgo bajo (${porcentajeCaja}% de caja)`;
+    if (porcentajeCaja > 45) {
+      nivelRiesgo = 'alto';
+      riesgoTexto = `Riesgo alto (${porcentajeCaja}% de caja)`;
+    } else if (porcentajeCaja >= 20) {
+      nivelRiesgo = 'moderado';
+      riesgoTexto = `Riesgo moderado (${porcentajeCaja}% de caja)`;
+    }
+
+    return {
+      letra,
+      costoEstimado: costo,
+      costoEstimadoTexto: formatearMoneda(costo),
+      conceptoCosto: concepto,
+      cajaActual: caja,
+      cajaProyectada,
+      cajaProyectadaTexto: formatearMoneda(cajaProyectada),
+      porcentajeCajaComprometido: porcentajeCaja,
+      nivelRiesgo,
+      riesgoTexto,
+      retornoEsperadoTexto: retorno,
+      beneficioProyectado: beneficio,
+    };
+  }
+
+  alternarDropdownSimulacion(event?: MouseEvent): void {
+    event?.stopPropagation();
+    this.dropdownSimulacionAbierto.update((v) => !v);
+  }
+
+  seleccionarSimulacion(id: number): void {
+    this.dropdownSimulacionAbierto.set(false);
+    this.elegirSimulacion(id);
+  }
+
+  solicitarConfirmacion(): void {
+    if (!this.eleccion() || this.enviando()) return;
+    this.modalConfirmacionAbierto.set(true);
+  }
+
+  cancelarConfirmacion(): void {
+    this.modalConfirmacionAbierto.set(false);
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.dropdownSimulacionAbierto()) {
+      this.dropdownSimulacionAbierto.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.dropdownSimulacionAbierto()) {
+      this.dropdownSimulacionAbierto.set(false);
+    }
+    if (this.modalConfirmacionAbierto()) {
+      this.modalConfirmacionAbierto.set(false);
+    }
+    if (this.cajonFinancieroAbierto()) {
+      this.cajonFinancieroAbierto.set(false);
+    }
+  }
+
   constructor() {
     this.cargar(this.leerSimulacionRecordada());
     // Sin la lista no hay selector (catchError -> []); el resto de la pantalla funciona igual.
@@ -306,6 +568,7 @@ export class CasoActual implements OnDestroy {
   }
 
   confirmarDecision(): void {
+    this.modalConfirmacionAbierto.set(false);
     const c = this.caso();
     const idOpcion = Number(this.eleccion());
     if (!c || !idOpcion || this.enviando()) {
@@ -323,6 +586,7 @@ export class CasoActual implements OnDestroy {
         this.enviando.set(false);
         this.eleccion.set('');
         this.cargar(idSimulacion);
+        this.dispararAnimacionImpacto();
       },
       error: (err: ErrorHttp) => {
         this.enviando.set(false);
@@ -353,6 +617,9 @@ export class CasoActual implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.animacionTimeout) {
+      clearTimeout(this.animacionTimeout);
+    }
     this.relojSub.unsubscribe();
     this.documento.removeEventListener('visibilitychange', this.alVolverVisible);
   }

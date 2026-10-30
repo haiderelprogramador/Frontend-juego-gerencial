@@ -32,10 +32,25 @@
     }
   </header>
 
-  <nav class="panel__tabs">
-    <button type="button" [class.is-active]="tab() === 'periodos'" (click)="irA('periodos')">Control de periodos</button>
-    <button type="button" [class.is-active]="tab() === 'equipos'" (click)="irA('equipos')">Estudiantes y empresas</button>
-    <button type="button" [class.is-active]="tab() === 'casos'" (click)="irA('casos')">Casos</button>
+  <nav class="panel__tabs" #panelTabsContainer>
+    <!-- Lente de cristal óptico real horizontal (Chris Feijoo Snell Refraction & Specular Saturation) -->
+    <div class="panel__tab-indicator"
+      appLiquidGlass
+      [active]="isTabMoving()"
+      [radius]="999"
+      [rimThickness]="16"
+      [scale]="26"
+      [blur]="0.65"
+      [specularOpacity]="0.45"
+      [specularSaturation]="7"
+      [class.is-elevated]="isTabMoving()"
+      [style.transform]="'translateX(' + tabIndicatorLeft() + 'px)' + (isTabMoving() ? ' scale(1.08, 1.32)' : ' scale(1)')"
+      [style.width.px]="tabIndicatorWidth()"
+      [style.opacity]="tabIndicatorOpacity()">
+    </div>
+    <button type="button" [class.is-active]="tab() === 'periodos'" (click)="irA('periodos', $event)">Control de periodos</button>
+    <button type="button" [class.is-active]="tab() === 'equipos'" (click)="irA('equipos', $event)">Estudiantes y empresas</button>
+    <button type="button" [class.is-active]="tab() === 'casos'" (click)="irA('casos', $event)">Casos</button>
   </nav>
 
   <!-- "Finalizar simulación" (backend real): la simulación del caso de "Entregas por empresa", solo EN_CURSO. -->
@@ -118,261 +133,395 @@
 
   @switch (tab()) {
     @case ('periodos') {
-      <div class="periodos">
-        <div class="card periodos__main">
-          @if (configuracionCompleta()) {
-            <!-- Estado A: simulación activa -->
-            <div class="periodos__row">
-              <div class="periodos__estado">
-                <app-badge variante="periodo-abierto" [punto]="true">Periodo abierto</app-badge>
-                <h2 class="periodos__trim">Trimestre 3 · 2026</h2>
-                <p class="periodos__caso">Caso activo: {{ casoActivo() }}</p>
-              </div>
-              <app-toggle [(valor)]="recibiendo" etiqueta="Recibiendo decisiones" />
-            </div>
+      <div class="panel__tab-pane">
+        <div class="periodos">
+          <div class="card periodos__main">
+            @if (configuracionCompleta()) {
+              <!-- Estado A: simulación activa -->
+              <div class="periodos__state-pane">
+                <div class="periodos__row">
+                  <div class="periodos__estado">
+                    <app-badge variante="periodo-abierto" [punto]="true">Periodo abierto</app-badge>
+                    <h2 class="periodos__trim">Trimestre 3 · 2026</h2>
+                    <p class="periodos__caso">Caso activo: {{ casoActivo() }}</p>
+                  </div>
+                  <app-toggle [(valor)]="recibiendo" etiqueta="Recibiendo decisiones" />
+                </div>
 
-            <div class="periodos__stats">
-              <div class="mini">
-                <span class="mini__label">Empresas que decidieron</span>
-                <span class="mini__val num">{{ entregasEnviadas() }} / {{ entregas().length }}</span>
-              </div>
-              <div class="mini">
-                <span class="mini__label">Cierre programado</span>
-                <span class="mini__val num">05 sep · 23:59</span>
-              </div>
-              <div class="mini">
-                <span class="mini__label">Tiempo restante</span>
-                <span class="mini__val num">2 d 14 h</span>
-              </div>
-            </div>
+                <div class="periodos__stats">
+                  <div class="mini">
+                    <span class="mini__label">Empresas que decidieron</span>
+                    <span class="mini__val num">{{ entregasEnviadas() }} / {{ entregas().length }}</span>
+                  </div>
+                  <div class="mini">
+                    <span class="mini__label">Cierre programado</span>
+                    <span class="mini__val num">05 sep · 23:59</span>
+                  </div>
+                  <div class="mini">
+                    <span class="mini__label">Tiempo restante</span>
+                    <span class="mini__val num">2 d 14 h</span>
+                  </div>
+                </div>
 
-            <div class="periodos__actions">
-              <ng-container [ngTemplateOutlet]="botonFinalizar" />
-              <button type="button" class="btn btn--secundario">Enviar recordatorio</button>
-            </div>
-          } @else {
-            <!-- Estado B: configuración inicial -->
-            <div class="periodos__row">
-              <div class="periodos__estado">
-                <app-badge variante="muted" [punto]="true">Configuración pendiente</app-badge>
-                <h2 class="periodos__trim">Aún no hay una simulación activa</h2>
-                <p class="periodos__caso">Completa estos pasos para abrir tu primer período</p>
+                <div class="periodos__actions">
+                  <ng-container [ngTemplateOutlet]="botonFinalizar" />
+                  <button type="button" class="btn btn--secundario">Enviar recordatorio</button>
+                </div>
               </div>
-              <app-toggle [(valor)]="recibiendo" etiqueta="Recibiendo decisiones" [disabled]="true" />
-            </div>
+            } @else {
+              <!-- Estado B: gestión y programación directa de simulaciones (sin checklist de 4 pasos) -->
+              <div class="periodos__state-pane">
+                <div class="periodos__row">
+                  <div class="periodos__estado">
+                    <app-badge variante="muted" [punto]="true">Gestión de simulaciones</app-badge>
+                    <h2 class="periodos__trim">Programar y administrar simulaciones</h2>
+                    <p class="periodos__caso">Al programar una simulación en borrador, arranca sola en su fecha de inicio; desde ahí no se pueden cambiar empresas ni casos.</p>
+                  </div>
+                </div>
 
-            <ol class="checklist">
-              @for (paso of pasos(); track paso.n) {
-                <li class="paso" [class.paso--ok]="paso.completado" [class.paso--bloq]="paso.bloqueado">
-                  <span class="paso__num">
-                    @if (paso.completado) { ✓ } @else { {{ paso.n }} }
-                  </span>
-                  <span class="paso__cuerpo">
-                    <span class="paso__titulo">{{ paso.titulo }}</span>
-                    <span class="paso__desc">{{ paso.descripcion }}</span>
-                    @if (paso.n === 4 && borradores().length > 0) {
-                      <!-- Las de BORRADOR: se pueden editar y eliminar (con sus empresas y casos). -->
-                      <span class="borradores">
-                        @for (s of borradores(); track s.id) {
-                          <span class="borradores__item">
-                            <span class="borradores__texto">
-                              <strong>{{ s.nombre }}</strong> · Borrador@if (fechaLarga(s.fechaInicio); as f) { · inicio el {{ f }} }
-                            </span>
-                            <span class="borradores__acciones">
-                              <button type="button" class="btn btn--ghost btn--sm" [disabled]="edicion()?.sim?.id === s.id"
-                                (click)="editarSimulacion(s)">Editar</button>
-                              <button type="button" class="btn btn--ghost btn--sm" [disabled]="eliminandoId() !== null"
-                                (click)="eliminarSimulacion(s)">
-                                {{ eliminandoId() === s.id ? 'Eliminando…' : 'Eliminar' }}
-                              </button>
-                            </span>
-                          </span>
-                          <ng-container [ngTemplateOutlet]="edicionSimulacion" [ngTemplateOutletContext]="{ $implicit: s }" />
-                        }
-                      </span>
-                    }
-                    @if (paso.n === 4 && programadas().length > 0) {
-                      <!-- Las ya programadas: se pueden editar, o desprogramar para que no arranquen solas. -->
-                      <span class="programadas">
-                        @for (s of programadas(); track s.id) {
-                          <span class="programadas__item">
-                            <span class="programadas__texto">
-                              <strong>{{ s.nombre }}</strong> · Programada · {{ arranque(s) }}
-                            </span>
-                            <span class="programadas__acciones">
-                              <button type="button" class="btn btn--ghost btn--sm" [disabled]="edicion()?.sim?.id === s.id"
-                                (click)="editarSimulacion(s)">Editar</button>
-                              <button type="button" class="btn btn--ghost btn--sm" [disabled]="desprogramandoId() !== null"
-                                (click)="desprogramarSimulacion(s)">
-                                {{ desprogramandoId() === s.id ? 'Desprogramando…' : 'Desprogramar' }}
-                              </button>
-                            </span>
-                          </span>
-                          <ng-container [ngTemplateOutlet]="edicionSimulacion" [ngTemplateOutletContext]="{ $implicit: s }" />
-                        }
-                      </span>
-                    }
-                  </span>
-                  @if (paso.n === 4) {
-                    <!-- Paso real: programa una simulación en BORRADOR. -->
+                <div class="paso paso--directo">
+                  <div class="paso__top-bar">
                     @if (borradores().length === 0) {
-                      <span class="paso__enlace paso__enlace--off">No hay simulaciones en borrador</span>
+                      <span class="paso__programar">
+                        <span class="paso__enlace paso__enlace--off">No hay simulaciones en borrador</span>
+                        @if (!creandoSimulacion()) {
+                          <button type="button" class="btn btn--secundario btn--sm" (click)="abrirNuevaSimulacion()">
+                            + Nueva simulación
+                          </button>
+                        }
+                      </span>
                     } @else {
                       <span class="paso__programar">
-                        @if (borradores().length > 1) {
-                          <select aria-label="Simulación a programar"
-                            (change)="idSimulacionProgramar.set(+$any($event.target).value)">
-                            @for (s of borradores(); track s.id) {
-                              <option [value]="s.id" [selected]="s.id === simulacionProgramar()?.id">{{ s.nombre }}</option>
-                            }
-                          </select>
+                        @if (!creandoSimulacion()) {
+                          <button type="button" class="btn btn--secundario btn--sm" (click)="abrirNuevaSimulacion()">
+                            + Nueva simulación
+                          </button>
                         }
-                        <button type="button" class="paso__enlace" [disabled]="programando()"
+                        @if (borradores().length > 1) {
+                          <div class="glass-dropdown" (click)="$event.stopPropagation()">
+                            <select aria-label="Simulación a programar"
+                              class="glass-dropdown__native sr-only"
+                              (change)="idSimulacionProgramar.set(+$any($event.target).value)">
+                              @for (s of borradores(); track s.id) {
+                                <option [value]="s.id" [selected]="s.id === simulacionProgramar()?.id">{{ s.nombre }}</option>
+                              }
+                            </select>
+
+                            <button
+                              type="button"
+                              class="glass-dropdown__trigger"
+                              [class.is-open]="dropdownProgramarAbierto()"
+                              (click)="alternarDropdownProgramar($event)"
+                              aria-haspopup="listbox"
+                              [attr.aria-expanded]="dropdownProgramarAbierto()"
+                              [attr.aria-label]="'Elegir simulación a programar: ' + (simulacionProgramar()?.nombre ?? '')"
+                            >
+                              <span class="glass-dropdown__selected">
+                                {{ simulacionProgramar()?.nombre ?? 'Selecciona simulación' }}
+                              </span>
+                              <svg class="glass-dropdown__chevron" [class.is-open]="dropdownProgramarAbierto()"
+                                viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                                stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="6 9 12 15 18 9" />
+                              </svg>
+                            </button>
+
+                            @if (dropdownProgramarAbierto()) {
+                              <div
+                                class="glass-dropdown__menu"
+                                role="listbox"
+                                appLiquidGlass
+                                [active]="true"
+                                [radius]="16"
+                                [rimThickness]="14"
+                                [scale]="22"
+                                [blur]="0.6"
+                                [specularOpacity]="0.42"
+                                [specularSaturation]="6">
+                                <div class="glass-dropdown__list">
+                                  @for (s of borradores(); track s.id) {
+                                    <button
+                                      type="button"
+                                      role="option"
+                                      class="glass-dropdown__option"
+                                      [class.is-selected]="s.id === simulacionProgramar()?.id"
+                                      [attr.aria-selected]="s.id === simulacionProgramar()?.id"
+                                      (click)="seleccionarSimulacionProgramar(s.id)"
+                                    >
+                                      <span class="glass-dropdown__option-title">{{ s.nombre }}</span>
+                                      @if (s.id === simulacionProgramar()?.id) {
+                                        <svg class="glass-dropdown__check" viewBox="0 0 24 24" width="14" height="14"
+                                          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                          stroke-linejoin="round" aria-hidden="true">
+                                          <polyline points="20 6 9 17 4 12" />
+                                        </svg>
+                                      }
+                                    </button>
+                                  }
+                                </div>
+                              </div>
+                            }
+                          </div>
+                        }
+                        <button type="button" class="btn btn--primario btn--sm paso__enlace-btn" [disabled]="programando()"
                           (click)="programarSimulacion()">
                           {{ programando() ? 'Programando…' : 'Programar «' + simulacionProgramar()?.nombre + '» →' }}
                         </button>
                       </span>
                     }
-                  } @else if (paso.bloqueado) {
-                    <span class="paso__enlace paso__enlace--off">{{ paso.enlaceTexto }}</span>
-                  } @else if (paso.ruta) {
-                    <a class="paso__enlace" [routerLink]="paso.ruta">{{ paso.enlaceTexto }} →</a>
-                  } @else {
-                    <button type="button" class="paso__enlace" (click)="irAPaso(paso)">
-                      {{ paso.enlaceTexto }} →
-                    </button>
-                  }
-                </li>
-              }
-            </ol>
+                  </div>
 
-            @if (errorProgramar(); as e) {
-              <div class="programar-error">
-                <app-alerta tipo="error" [mensaje]="e.mensaje" />
-                @if (e.detalle.length > 0) {
-                  <ul class="programar-error__lista">
-                    @for (d of e.detalle; track $index) {
-                      <li>
-                        {{ d.mensaje }}
-                        @if (d.campo === 'casos') {
-                          <button type="button" class="programar-error__enlace" (click)="irA('casos')">Ir a Casos →</button>
-                        } @else if (d.campo === 'empresas') {
-                          <a class="programar-error__enlace" routerLink="/docente/empresas"
-                            [queryParams]="{ simulacion: e.idSimulacion }">Ir a Empresas →</a>
+                  <!-- Creación rápida de simulación directamente desde el Panel -->
+                  @if (creandoSimulacion()) {
+                    <span class="edicion-sim">
+                      <span class="edicion-sim__campos">
+                        <label class="field">
+                          <span class="field__label">Nombre de la simulación</span>
+                          <input type="text" [value]="nuevaSimNombre()" placeholder="Ej. Gerencia 2026-2"
+                            (input)="nuevaSimNombre.set($any($event.target).value)" />
+                        </label>
+                        <label class="field">
+                          <span class="field__label">Inicio</span>
+                          <input type="date" [value]="nuevaSimInicio()"
+                            (input)="nuevaSimInicio.set($any($event.target).value)" />
+                        </label>
+                        <label class="field">
+                          <span class="field__label">Fin</span>
+                          <input type="date" [value]="nuevaSimFin()"
+                            (input)="nuevaSimFin.set($any($event.target).value)" />
+                        </label>
+                      </span>
+                      @if (errorNuevaSim(); as msg) {
+                        <app-alerta tipo="error" [mensaje]="msg" />
+                      }
+                      <span class="edicion-sim__acciones">
+                        <button type="button" class="btn btn--ghost btn--sm" [disabled]="guardandoNuevaSim()"
+                          (click)="creandoSimulacion.set(false)">Cancelar</button>
+                        <button type="button" class="btn btn--primario btn--sm" [disabled]="guardandoNuevaSim()"
+                          (click)="crearSimulacion()">
+                          {{ guardandoNuevaSim() ? 'Creando…' : 'Crear simulación' }}
+                        </button>
+                      </span>
+                    </span>
+                  }
+
+                  @if (borradores().length > 0 || programadas().length > 0) {
+                    <div class="paso__listas">
+                      @if (borradores().length > 0) {
+                        <!-- Las de BORRADOR: se pueden editar y eliminar (con sus empresas y casos). -->
+                        <div class="paso__grupo">
+                          <div class="paso__grupo-head">
+                            <span class="paso__grupo-titulo">En borrador</span>
+                            <span class="paso__grupo-badge">{{ borradores().length }}</span>
+                          </div>
+                          <span class="borradores">
+                            @for (s of borradores(); track s.id) {
+                              <span class="borradores__item">
+                                <span class="borradores__texto">
+                                  <strong>{{ s.nombre }}</strong> · Borrador@if (fechaLarga(s.fechaInicio); as f) { · inicio el {{ f }} }
+                                </span>
+                                <span class="borradores__acciones">
+                                  <button type="button" class="btn btn--ghost btn--sm" [disabled]="edicion()?.sim?.id === s.id"
+                                    (click)="editarSimulacion(s)">Editar</button>
+                                  <button type="button" class="btn btn--ghost btn--sm btn--danger-text" [disabled]="eliminandoId() !== null"
+                                    (click)="eliminarSimulacion(s)">
+                                    {{ eliminandoId() === s.id ? 'Eliminando…' : 'Eliminar' }}
+                                  </button>
+                                </span>
+                              </span>
+                              <ng-container [ngTemplateOutlet]="edicionSimulacion" [ngTemplateOutletContext]="{ $implicit: s }" />
+                            }
+                          </span>
+                        </div>
+                      }
+                      @if (programadas().length > 0) {
+                        <!-- Las ya programadas: se pueden editar, o desprogramar para que no arranquen solas. -->
+                        <div class="paso__grupo">
+                          <div class="paso__grupo-head">
+                            <span class="paso__grupo-titulo">Programadas (arranque automático)</span>
+                            <span class="paso__grupo-badge paso__grupo-badge--prog">{{ programadas().length }}</span>
+                          </div>
+                          <span class="programadas">
+                            @for (s of programadas(); track s.id) {
+                              <span class="programadas__item">
+                                <span class="programadas__texto">
+                                  <strong>{{ s.nombre }}</strong> · Programada · {{ arranque(s) }}
+                                </span>
+                                <span class="programadas__acciones">
+                                  <button type="button" class="btn btn--ghost btn--sm" [disabled]="edicion()?.sim?.id === s.id"
+                                    (click)="editarSimulacion(s)">Editar</button>
+                                  <button type="button" class="btn btn--ghost btn--sm" [disabled]="desprogramandoId() !== null"
+                                    (click)="desprogramarSimulacion(s)">
+                                    {{ desprogramandoId() === s.id ? 'Desprogramando…' : 'Desprogramar' }}
+                                  </button>
+                                </span>
+                              </span>
+                              <ng-container [ngTemplateOutlet]="edicionSimulacion" [ngTemplateOutletContext]="{ $implicit: s }" />
+                            }
+                          </span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+
+                @if (errorProgramar(); as e) {
+                  <div class="programar-error">
+                    <app-alerta tipo="error" [mensaje]="e.mensaje" />
+                    @if (e.detalle.length > 0) {
+                      <ul class="programar-error__lista">
+                        @for (d of e.detalle; track $index) {
+                          <li>
+                            {{ d.mensaje }}
+                            @if (d.campo === 'casos') {
+                              <button type="button" class="programar-error__enlace" (click)="irA('casos')">Ir a Casos →</button>
+                            } @else if (d.campo === 'empresas') {
+                              <a class="programar-error__enlace" routerLink="/docente/empresas"
+                                [queryParams]="{ simulacion: e.idSimulacion }">Ir a Empresas →</a>
+                            }
+                          </li>
                         }
-                      </li>
+                      </ul>
                     }
-                  </ul>
+                  </div>
+                }
+                @if (errorDesprogramar(); as msg) {
+                  <app-alerta tipo="error" [mensaje]="msg" />
+                }
+                @if (avisoProgramar(); as msg) {
+                  <app-alerta tipo="exito" [mensaje]="msg" />
+                }
+
+                @if (puedeFinalizar()) {
+                  <div class="periodos__actions">
+                    <ng-container [ngTemplateOutlet]="botonFinalizar" />
+                  </div>
                 }
               </div>
             }
-            @if (errorDesprogramar(); as msg) {
-              <app-alerta tipo="error" [mensaje]="msg" />
-            }
-            @if (avisoProgramar(); as msg) {
-              <app-alerta tipo="exito" [mensaje]="msg" />
-            }
+      </div>
 
-            <div class="periodos__actions">
-              @if (primerPasoPendiente(); as paso) {
-                @if (paso.ruta) {
-                  <a class="btn btn--primario" [routerLink]="paso.ruta">
-                    Comenzar configuración <span aria-hidden="true">→</span>
-                  </a>
-                } @else {
-                  <button type="button" class="btn btn--primario" (click)="irAPaso(paso)">
-                    Comenzar configuración <span aria-hidden="true">→</span>
-                  </button>
-                }
-              }
-              <!-- Este estado (mock) es el que se ve en producción: sin esto el botón real no aparecería. -->
-              <ng-container [ngTemplateOutlet]="botonFinalizar" />
-            </div>
+      <aside class="card entregas">
+        <div class="entregas__head">
+          <h3 class="entregas__title">Entregas por empresa</h3>
+          @if (!cargandoEntregas() && entregas().length > 0) {
+            <span class="entregas__conteo num">{{ entregasEnviadas() }} / {{ entregas().length }}</span>
           }
         </div>
 
-        <aside class="card entregas">
-          <div class="entregas__head">
-            <h3 class="entregas__title">Entregas por empresa</h3>
-            @if (!cargandoEntregas() && entregas().length > 0) {
-              <span class="entregas__conteo num">{{ entregasEnviadas() }} / {{ entregas().length }}</span>
+        @if (casosActivos().length > 1) {
+          <select class="entregas__selector" aria-label="Caso"
+            (change)="elegirCasoEntregas(+$any($event.target).value)">
+            @for (c of casosActivos(); track c.id) {
+              <option [value]="c.id" [selected]="c.id === idCasoEntregas()">{{ c.simulacion }} · {{ c.nombre }}</option>
             }
+          </select>
+        } @else if (casoEntregas(); as c) {
+          <p class="entregas__caso">{{ c.simulacion }} · {{ c.nombre }}</p>
+        }
+
+        @if (errorEntregas(); as msg) {
+          <app-alerta tipo="error" [mensaje]="msg" />
+        } @else if (cargandoEntregas()) {
+          <p class="entregas__cargando">Cargando entregas…</p>
+        } @else if (!casoEntregas()) {
+          <div class="entregas__vacio">
+            <span class="entregas__vacio-icono" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </span>
+            <p class="entregas__vacio-texto">
+              No hay un caso activo. Cuando actives uno, verás aquí qué empresas ya decidieron.
+            </p>
+            <button type="button" class="btn btn--secundario" (click)="irA('casos')">Ir a Casos</button>
           </div>
-
-          @if (casosActivos().length > 1) {
-            <select class="entregas__selector" aria-label="Caso"
-              (change)="elegirCasoEntregas(+$any($event.target).value)">
-              @for (c of casosActivos(); track c.id) {
-                <option [value]="c.id" [selected]="c.id === idCasoEntregas()">{{ c.simulacion }} · {{ c.nombre }}</option>
-              }
-            </select>
-          } @else if (casoEntregas(); as c) {
-            <p class="entregas__caso">{{ c.simulacion }} · {{ c.nombre }}</p>
-          }
-
-          @if (errorEntregas(); as msg) {
-            <app-alerta tipo="error" [mensaje]="msg" />
-          } @else if (cargandoEntregas()) {
-            <p class="entregas__cargando">Cargando entregas…</p>
-          } @else if (!casoEntregas()) {
-            <div class="entregas__vacio">
-              <span class="entregas__vacio-icono" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </span>
-              <p class="entregas__vacio-texto">
-                No hay un caso activo. Cuando actives uno, verás aquí qué empresas ya decidieron.
-              </p>
-              <button type="button" class="btn btn--secundario" (click)="irA('casos')">Ir a Casos</button>
-            </div>
-          } @else if (entregas().length === 0) {
-            <div class="entregas__vacio">
-              <p class="entregas__vacio-texto">
-                Esta simulación todavía no tiene empresas. Cuando las armes, verás aquí el estado de cada una.
-              </p>
-              <a class="btn btn--secundario" routerLink="/docente/empresas">Ir a Empresas</a>
-            </div>
-          } @else {
-            <ul class="entregas__list">
-              @for (e of entregas(); track e.idEmpresa) {
-                <li class="entregas__item">
-                  <span class="entregas__empresa">
-                    <span>{{ e.nombreEmpresa }}</span>
-                    @if (e.decidio && (e.decididaPor || e.fechaDecision)) {
-                      <span class="entregas__detalle">
-                        {{ e.decididaPor }}@if (e.decididaPor && e.fechaDecision) { · }{{ fechaEntrega(e.fechaDecision) }}
-                      </span>
-                    }
-                  </span>
-                  @if (e.decidio) {
-                    <app-badge variante="periodo-abierto">✓ Decidió</app-badge>
-                  } @else {
-                    <app-badge variante="pendiente">Pendiente</app-badge>
+        } @else if (entregas().length === 0) {
+          <div class="entregas__vacio">
+            <p class="entregas__vacio-texto">
+              Esta simulación todavía no tiene empresas. Cuando las armes, verás aquí el estado de cada una.
+            </p>
+            <a class="btn btn--secundario" routerLink="/docente/empresas">Ir a Empresas</a>
+          </div>
+        } @else {
+          <ul class="entregas__list">
+            @for (e of entregas(); track e.idEmpresa) {
+              <li class="entregas__item">
+                <span class="entregas__empresa">
+                  <span>{{ e.nombreEmpresa }}</span>
+                  @if (e.decidio && (e.decididaPor || e.fechaDecision)) {
+                    <span class="entregas__detalle">
+                      {{ e.decididaPor }}@if (e.decididaPor && e.fechaDecision) { · }{{ fechaEntrega(e.fechaDecision) }}
+                    </span>
                   }
-                </li>
-              }
-            </ul>
-          }
-        </aside>
-      </div>
-    }
-    @case ('equipos') {
-      <div class="card placeholder">
-        <p>Los estudiantes se cargan en su pantalla y las empresas se arman por simulación.</p>
-        <a class="btn btn--secundario" routerLink="/docente/estudiantes">Ir a Estudiantes</a>
-        <a class="btn btn--primario" routerLink="/docente/empresas">Ir a Empresas</a>
-      </div>
-    }
-    @case ('casos') {
-      <app-casos />
-    }
-    @default {
-      <div class="card placeholder">
-        <p>Esta sección todavía no está disponible.</p>
-      </div>
-    }
+                </span>
+                @if (e.decidio) {
+                  <app-badge variante="periodo-abierto">✓ Decidió</app-badge>
+                } @else {
+                  <app-badge variante="pendiente">Pendiente</app-badge>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </aside>
+    </div>
+  </div>
+}
+@case ('equipos') {
+  <div class="panel__tab-pane">
+    <div class="equipos-hub">
+      <article class="card equipos-hub__card">
+        <div class="equipos-hub__icon">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        </div>
+        <div class="equipos-hub__body">
+          <span class="t-eyebrow">Paso 1 del flujo</span>
+          <h3 class="equipos-hub__title">Cursos y listado de estudiantes</h3>
+          <p class="equipos-hub__desc">
+            Organiza tus cursos, sube la nómina desde Excel o agrega estudiantes manualmente para generar sus credenciales de acceso.
+          </p>
+        </div>
+        <a class="btn btn--secundario" routerLink="/docente/estudiantes">Ir a Estudiantes →</a>
+      </article>
+
+      <article class="card equipos-hub__card">
+        <div class="equipos-hub__icon equipos-hub__icon--primary">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="1" />
+            <path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01" />
+          </svg>
+        </div>
+        <div class="equipos-hub__body">
+          <span class="t-eyebrow">Paso 2 del flujo</span>
+          <h3 class="equipos-hub__title">Empresas y juntas directivas</h3>
+          <p class="equipos-hub__desc">
+            Crea las empresas competidoras de cada simulación, asigna los departamentos gerenciales y nombra al Líder ★ que enviará las decisiones.
+          </p>
+        </div>
+        <a class="btn btn--primario" routerLink="/docente/empresas">Ir a Empresas →</a>
+      </article>
+    </div>
+  </div>
+}
+@case ('casos') {
+  <div class="panel__tab-pane">
+    <app-casos />
+  </div>
+}
+@default {
+  <div class="panel__tab-pane">
+    <div class="card placeholder">
+      <p>Esta sección todavía no está disponible.</p>
+    </div>
+  </div>
+}
   }
 </section>

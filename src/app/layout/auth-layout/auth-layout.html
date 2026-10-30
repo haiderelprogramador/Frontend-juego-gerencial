@@ -1,43 +1,87 @@
-<div class="auth">
-  <section class="auth__promo">
-    <div class="auth__brand">
-      <span class="auth__logo" aria-hidden="true">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
-        </svg>
-      </span>
-      <strong>BizSim</strong>
-    </div>
+<div class="auth-scene">
+  <!-- Orbes luminosos de fondo para difracción y refracción óptica real -->
+  <div class="auth-scene__glow auth-scene__glow--top" aria-hidden="true"></div>
+  <div class="auth-scene__glow auth-scene__glow--bottom" aria-hidden="true"></div>
+  <div class="auth-scene__glow auth-scene__glow--accent" aria-hidden="true"></div>
 
-    <div class="auth__copy">
-      <p class="auth__eyebrow">Simulador de decisiones gerenciales</p>
-      <h1 class="auth__headline">Dirige una empresa.<br />Un trimestre a la vez.</h1>
-      <p class="auth__sub">
-        Toma decisiones comerciales, de producción y administrativas, cierra el período y
-        compite en la clasificación con tu equipo.
-      </p>
+  <!-- Tarjeta principal Liquid Glass de dos columnas inspirada en el diseño de referencia -->
+  <main class="auth-card"
+    appLiquidGlass
+    [active]="true"
+    [radius]="34"
+    [rimThickness]="18"
+    [scale]="26"
+    [blur]="0.6"
+    [specularOpacity]="0.45"
+    [specularSaturation]="6">
 
-      <div class="auth__areas" aria-label="Áreas de decisión">
-        <span class="auth__areas-label">Tres áreas de decisión</span>
-        <ul class="auth__areas-list">
-          @for (a of areas; track a.clave) {
-            <li class="auth__area auth__area--{{ a.clave }}">{{ a.etiqueta }}</li>
-          }
-        </ul>
+    <!-- Columna izquierda: Navegación, Tabs y Contenido del formulario (Login / Registro) -->
+    <div class="auth-card__left">
+      <header class="auth-card__header">
+        <div class="auth-card__brand">
+          <span class="auth-card__logo" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </span>
+          <strong>BizSim</strong>
+        </div>
+
+        <nav class="auth-card__tabs">
+          <a routerLink="/auth/login" routerLinkActive="is-active">Iniciar sesión</a>
+          <a routerLink="/auth/registro-docente" routerLinkActive="is-active">Registrarse</a>
+        </nav>
+      </header>
+
+      <div class="auth-card__body">
+        <router-outlet />
       </div>
     </div>
 
-    <p class="auth__foot">© 2026 BizSim · Plataforma educativa</p>
-  </section>
+    <!-- Columna derecha: Tarjeta blanca flotante con ilustración de seguridad y branding -->
+    <div class="auth-card__right">
+      <div class="auth-card__art-card">
+        <div class="security-cloud" aria-hidden="true">
+          <!-- Silueta de nube suave translúcida -->
+          <svg class="security-cloud__bg" viewBox="0 0 200 130" fill="none">
+            <path d="M165 65c0-22.1-17.9-40-40-40-15.5 0-29 8.8-35.8 21.7C83.9 44.6 78.1 43.5 72 43.5c-20.2 0-36.5 16.3-36.5 36.5 0 2.9.3 5.7 1 8.4C16.8 91.8 2 108.7 2 128h196c0-19.3-13.6-35.4-32.2-38.9-.5-8.2-3.1-16.1-7.8-22.1z"
+              fill="rgba(84, 131, 179, 0.16)" />
+          </svg>
 
-  <section class="auth__panel">
-    <div class="auth__panel-inner">
-      <nav class="auth__tabs">
-        <a routerLink="/auth/login" routerLinkActive="is-active">Iniciar sesión</a>
-        <a routerLink="/auth/registro-docente" routerLinkActive="is-active">Registrarse</a>
-      </nav>
-      <router-outlet />
+          <!-- Candado estilizado con halo y marca de seguridad -->
+          <div class="security-lock">
+            <div class="security-lock__shackle"></div>
+            <div class="security-lock__body">
+              <span class="security-lock__badge">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="auth-card__art-body">
+          <h3 class="auth-card__art-title">Simulador Gerencial</h3>
+          <p class="auth-card__art-desc">
+            Toma decisiones comerciales, operativas y financieras en un entorno empresarial de alto impacto.
+          </p>
+
+          <div class="auth-card__areas">
+            @for (a of areas; track a.clave) {
+              <span class="auth-card__area auth-card__area--{{ a.clave }}">
+                {{ a.etiqueta }}
+              </span>
+            }
+          </div>
+        </div>
+
+        <div class="auth-card__footer">
+          <span>BizSim.edu · Plataforma académica</span>
+        </div>
+      </div>
     </div>
-  </section>
+  </main>
 </div>

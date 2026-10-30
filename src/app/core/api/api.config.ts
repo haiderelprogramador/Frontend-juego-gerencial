@@ -15,7 +15,7 @@ export const API_CONFIG = {
    * ngrok, para probar el flujo end-to-end. Para volver a modo demo: poner
    * `baseUrl` en `/api` y `demoMode` en `true`.
    */
-  baseUrl: 'https://unnatural-resonate-gift.ngrok-free.dev/api',
+  baseUrl: 'http://localhost:8080/api',
 
   /** true = respuestas simuladas; false = HttpClient real contra Spring Boot. */
   demoMode: false,

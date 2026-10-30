@@ -59,14 +59,13 @@ describe('Panel', () => {
     return fixture;
   }
 
-  it('arranca sin configuración: muestra el checklist y "Sin simulación activa"', () => {
+  it('arranca en gestión de simulaciones y muestra "Sin simulación activa"', () => {
     const fixture = crearFixture();
     const host = fixture.nativeElement as HTMLElement;
 
     expect(fixture.componentInstance.configuracionCompleta()).toBe(false);
-    expect(host.querySelector('.checklist')).toBeTruthy();
+    expect(host.querySelector('.paso--directo')).toBeTruthy();
     expect(host.textContent).toContain('Sin simulación activa');
-    // El paso 4 (Programar) es real: no depende de los pasos 1-3, que siguen siendo mock.
     expect(fixture.componentInstance.pasos()[3].bloqueado).toBe(false);
   });
 

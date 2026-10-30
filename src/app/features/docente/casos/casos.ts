@@ -1,8 +1,19 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 
 import { API_CONFIG } from '../../../core/api/api.config';
 import { Badge } from '../../../shared/components/badge/badge';
 import { Alerta } from '../../../shared/components/alerta/alerta';
+import { LiquidGlassDirective } from '../../../shared/directives/liquid-glass.directive';
 import { formatearFechaBogota } from '../../../shared/utils/fecha-bogota';
 import { ExcelCasoService } from './services/excel-caso.service';
 import {
@@ -80,7 +91,7 @@ function conSegundos(valor: string): string {
  */
 @Component({
   selector: 'app-casos',
-  imports: [Badge, Alerta, BoletinCaso, FinancieroCaso, ImpactoFinancieroOpcion],
+  imports: [Badge, Alerta, BoletinCaso, FinancieroCaso, ImpactoFinancieroOpcion, LiquidGlassDirective],
   templateUrl: './casos.html',
   styleUrl: './casos.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -125,6 +136,14 @@ export class Casos {
   readonly tabForm = signal<TabFormulario>('general');
   /** `null` = creando un caso nuevo; con valor = editando ese caso existente. */
   readonly casoEnEdicionId = signal<number | null>(null);
+
+  /** Indicador elástico Liquid Glass para las sub-pestañas del formulario de casos */
+  readonly subtabsContainer = viewChild<ElementRef<HTMLElement>>('subtabsContainer');
+  readonly subtabLeft = signal<number>(0);
+  readonly subtabWidth = signal<number>(0);
+  readonly subtabOpacity = signal<number>(0);
+  readonly isSubtabMoving = signal<boolean>(false);
+  private subtabTimer: ReturnType<typeof setTimeout> | null = null;
 
   // -- Info general --
   readonly idSimulacion = signal<number | null>(null);
@@ -196,6 +215,94 @@ export class Casos {
       this.opciones();
       untracked(() => this.errorFormulario.set(null));
     });
+
+    effect(() => {
+      const v = this.vista();
+      const t = this.tabForm();
+      if (v === 'formulario' && t) {
+        setTimeout(() => this.updateSubtabIndicator(), 25);
+      }
+    });
+  }
+
+  cambiarTabForm(tab: TabFormulario, event?: MouseEvent): void {
+    this.tabForm.set(tab);
+    if (event?.currentTarget) {
+      this.isSubtabMoving.set(true);
+      if (this.subtabTimer) clearTimeout(this.subtabTimer);
+      this.subtabTimer = setTimeout(() => {
+        this.isSubtabMoving.set(false);
+      }, 460);
+      this.updateSubtabIndicator(event.currentTarget as HTMLElement);
+    }
+  }
+
+  irAPasoSiguiente(): void {
+    const actual = this.tabForm();
+    if (actual === 'general') {
+      if (!this.casoEnEdicionId() && this.idSimulacion() == null) {
+        this.errorFormulario.set('Elegí la simulación para este caso.');
+        return;
+      }
+      this.errorFormulario.set(null);
+      this.animarCambioSubtab('financiera');
+    } else if (actual === 'financiera') {
+      const errorFinanciero = this.validarFinanciero();
+      if (errorFinanciero) {
+        this.errorFormulario.set(errorFinanciero);
+        return;
+      }
+      this.errorFormulario.set(null);
+      this.animarCambioSubtab('opciones');
+    }
+  }
+
+  irAPasoAnterior(): void {
+    const actual = this.tabForm();
+    this.errorFormulario.set(null);
+    if (actual === 'opciones') {
+      this.animarCambioSubtab('financiera');
+    } else if (actual === 'financiera') {
+      this.animarCambioSubtab('general');
+    }
+  }
+
+  private animarCambioSubtab(destino: TabFormulario): void {
+    this.isSubtabMoving.set(true);
+    if (this.subtabTimer) clearTimeout(this.subtabTimer);
+    this.subtabTimer = setTimeout(() => {
+      this.isSubtabMoving.set(false);
+    }, 460);
+    this.tabForm.set(destino);
+    setTimeout(() => this.updateSubtabIndicator(), 20);
+  }
+
+  updateSubtabIndicator(targetBtn?: HTMLElement): void {
+    const container = this.subtabsContainer()?.nativeElement;
+    if (!container) return;
+
+    const btn = targetBtn ?? (container.querySelector('button.is-active') as HTMLElement | null);
+    if (!btn) {
+      this.subtabOpacity.set(0);
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    const left = btnRect.left - containerRect.left + container.scrollLeft;
+    const width = btn.offsetWidth || btnRect.width;
+
+    if (this.subtabOpacity() > 0 && Math.abs(left - this.subtabLeft()) > 3) {
+      this.isSubtabMoving.set(true);
+      if (this.subtabTimer) clearTimeout(this.subtabTimer);
+      this.subtabTimer = setTimeout(() => {
+        this.isSubtabMoving.set(false);
+      }, 460);
+    }
+
+    this.subtabLeft.set(left);
+    this.subtabWidth.set(width);
+    this.subtabOpacity.set(1);
   }
 
   abrirNuevaSimulacion(): void {

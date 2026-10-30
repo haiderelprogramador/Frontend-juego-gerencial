@@ -77,6 +77,34 @@
             </p>
           </div>
         } @else {
+          <!-- Podio Top 3 Liquid Glass -->
+          <div class="podium">
+            @for (p of d.clasificacion.slice(0, 3); track p.idEmpresa) {
+              @let esMia = p.idEmpresa === miIdEmpresa();
+              <article class="card podium__card" [class.podium__card--1]="p.posicion === 1"
+                [class.podium__card--2]="p.posicion === 2" [class.podium__card--3]="p.posicion === 3"
+                [class.podium__card--mia]="esMia">
+                <div class="podium__top">
+                  <span class="podium__medal" [class.podium__medal--1]="p.posicion === 1"
+                    [class.podium__medal--2]="p.posicion === 2" [class.podium__medal--3]="p.posicion >= 3">
+                    #{{ p.posicion }}
+                  </span>
+                  @if (esMia) {
+                    <app-badge variante="estudiante">Tu empresa</app-badge>
+                  }
+                </div>
+                <div class="podium__company">
+                  <strong class="podium__name">{{ p.nombreEmpresa }}</strong>
+                  <span class="podium__code">{{ p.codigoEmpresa }}</span>
+                </div>
+                <div class="podium__metric">
+                  <span class="podium__metric-label">Utilidad acumulada</span>
+                  <span class="podium__metric-val num">{{ moneda(p.utilidadAcumulada) }}</span>
+                </div>
+              </article>
+            }
+          </div>
+
           <div class="card tabla-wrap">
             <table class="tabla">
               <thead>

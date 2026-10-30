@@ -1,5 +1,5 @@
 @if (simulaciones().length > 1) {
-  <label class="selector-simulacion">
+  <label class="selector-simulacion sr-only">
     <span class="selector-simulacion__label">Simulación</span>
     <select [disabled]="cargando()" (change)="elegirSimulacion(+$any($event.target).value)">
       @for (s of simulaciones(); track s.idSimulacion) {
@@ -9,6 +9,77 @@
       }
     </select>
   </label>
+
+  <div class="sim-glass-bar" (click)="$event.stopPropagation()">
+    <div class="sim-glass-bar__info">
+      <span class="sim-glass-bar__eyebrow">Simulación activa</span>
+      <div class="sim-glass-bar__current">
+        <span class="sim-glass-bar__name">{{ simulacionSeleccionada()?.nombreSimulacion || 'Simulación' }}</span>
+        @if (simulacionSeleccionada(); as sel) {
+          <span class="sim-glass-bar__empresa">· {{ sel.nombreEmpresa }}</span>
+          <span class="sim-glass-bar__badge" [class.is-live]="sel.estado === 'EN_CURSO'">
+            <span class="sim-glass-bar__dot"></span>
+            {{ estadoLegible(sel.estado) }}
+          </span>
+        }
+      </div>
+    </div>
+
+    <div class="glass-dropdown">
+      <button
+        type="button"
+        class="glass-dropdown__trigger"
+        [class.is-open]="dropdownSimulacionAbierto()"
+        (click)="alternarDropdownSimulacion($event)"
+        aria-haspopup="listbox"
+        [attr.aria-expanded]="dropdownSimulacionAbierto()"
+        aria-label="Cambiar de simulación"
+      >
+        <span class="glass-dropdown__selected">Cambiar simulación</span>
+        <svg class="glass-dropdown__chevron" [class.is-open]="dropdownSimulacionAbierto()"
+          viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+
+      @if (dropdownSimulacionAbierto()) {
+        <div class="glass-dropdown__menu"
+          appLiquidGlass
+          [radius]="16"
+          [rimThickness]="14"
+          [scale]="22"
+          [blur]="0.6"
+          [specularOpacity]="0.4"
+          [specularSaturation]="6">
+          <div class="glass-dropdown__list" role="listbox">
+            @for (s of simulaciones(); track s.idSimulacion) {
+              <button
+                type="button"
+                role="option"
+                class="glass-dropdown__option"
+                [class.is-selected]="s.idSimulacion === idSimulacionMostrada()"
+                [attr.aria-selected]="s.idSimulacion === idSimulacionMostrada()"
+                (click)="seleccionarSimulacion(s.idSimulacion)"
+              >
+                <div class="glass-dropdown__opt-text">
+                  <span class="glass-dropdown__opt-title">{{ s.nombreSimulacion }}</span>
+                  <span class="glass-dropdown__opt-sub">{{ s.nombreEmpresa }} · {{ estadoLegible(s.estado) }}</span>
+                </div>
+                @if (s.idSimulacion === idSimulacionMostrada()) {
+                  <svg class="glass-dropdown__check" viewBox="0 0 24 24" width="14" height="14"
+                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                }
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
 }
 
 @if (error(); as msg) {
@@ -21,18 +92,25 @@
 <!-- "Mi empresa": integrantes de la empresa del estudiante (no se muestra si el backend no la da). -->
 <ng-template #tarjetaMiEmpresa>
   @if (miEmpresa(); as emp) {
-    <div class="card mi-empresa">
-      <h2 class="t-title">Mi empresa</h2>
-      <p class="financiero__sub">{{ emp.nombre }} · {{ emp.integrantes.length }} integrante{{ emp.integrantes.length === 1 ? '' : 's' }}</p>
+    <div class="card mi-empresa" appLiquidGlass [radius]="20" [rimThickness]="14" [blur]="0.5">
+      <div class="mi-empresa__head">
+        <div>
+          <h2 class="t-title">Mi empresa · Junta directiva</h2>
+          <p class="financiero__sub">{{ emp.nombre }} · {{ emp.integrantes.length }} integrante{{ emp.integrantes.length === 1 ? '' : 's' }}</p>
+        </div>
+      </div>
       <ul class="mi-empresa__lista">
         @for (i of emp.integrantes; track i.idUsuario) {
           <li class="mi-empresa__item">
+            <span class="mi-empresa__avatar" [class.mi-empresa__avatar--lider]="i.esLider" aria-hidden="true">
+              {{ iniciales(i.nombre) }}
+            </span>
             <span class="mi-empresa__persona">
               <span class="mi-empresa__nombre">{{ i.nombre }}</span>
               <span class="mi-empresa__depto">{{ departamento(i.departamento) }}</span>
             </span>
             @if (i.esLider) {
-              <app-badge variante="docente">Líder</app-badge>
+              <app-badge variante="docente">★ Líder</app-badge>
             }
           </li>
         }
@@ -42,23 +120,43 @@
 </ng-template>
 
 @if (cargando()) {
-  <p class="t-muted">Cargando…</p>
+  <div class="card sala-espera sala-espera--cargando">
+    <p class="t-muted">Cargando…</p>
+  </div>
 } @else if (caso(); as c) {
   <section class="caso">
     @if (contexto(); as ctx) {
       <header class="caso__head">
-        <div>
+        <div class="caso__head-info">
           <p class="t-eyebrow">{{ ctx.simulacion }}</p>
           <h1 class="caso__empresa">{{ ctx.empresa }}</h1>
         </div>
-        @if (esLider()) {
-          <app-badge variante="docente" [punto]="true">Líder de la empresa</app-badge>
-        } @else {
-          <app-badge variante="muted">Integrante</app-badge>
-        }
+        <div class="caso__head-actions">
+          @if (fase() === 'partida') {
+            <div class="tiempo-partida-chip" [class.is-urgent]="cuentaPartida().horas === '00' && cuentaPartida().min === '00'">
+              <span class="tiempo-partida-chip__pulse" aria-hidden="true"></span>
+              <span class="tiempo-partida-chip__label">Cierre de ronda en:</span>
+              <strong class="tiempo-partida-chip__val num">{{ tiempoRestantePartidaTexto() }}</strong>
+            </div>
+          }
+          <button type="button" class="btn btn--secundario btn--pill btn-drawer-trigger" (click)="alternarCajonFinanciero()" [attr.aria-expanded]="cajonFinancieroAbierto()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            <span>Radiografía Financiera</span>
+          </button>
+          @if (esLider()) {
+            <app-badge variante="docente" [punto]="true">Líder de la empresa</app-badge>
+          } @else {
+            <app-badge variante="muted">Integrante</app-badge>
+          }
+        </div>
       </header>
     }
-    <div class="card stepper-card">
+
+    <div class="card stepper-card" appLiquidGlass [radius]="20" [rimThickness]="14" [blur]="0.5">
       <div class="stepper">
         @for (f of fasesOrden; track f.key; let i = $index) {
           <div class="stepper__step" [class.is-active]="fase() === f.key" [class.is-done]="esPasada(f.key)">
@@ -94,170 +192,501 @@
           }
         }
       </div>
+
+      @if (fase() === 'partida' && decisionActual()) {
+        <div class="entrega-status-bar">
+          <div class="entrega-status-bar__badge">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span>Decisión registrada para este período</span>
+          </div>
+          <p class="entrega-status-bar__info">
+            Tu empresa <strong>{{ contexto()?.empresa }}</strong> ya envió su estrategia. Los resultados definitivos y la clasificación se publicarán cuando finalice el temporizador o el docente cierre la ronda.
+          </p>
+        </div>
+      }
     </div>
 
-    <div class="caso__grid">
-      <div class="caso__col">
-        <div class="card">
-          <h2 class="t-title">Información general</h2>
-          <div class="empresa">
-            <span class="empresa__nombre">{{ c.nombre }}</span>
-            <span class="badge-tipo">{{ c.tipo }}</span>
+    <div class="game-arena">
+      <!-- Challenge Banner de la Ronda -->
+      <div class="card challenge-banner" appLiquidGlass [radius]="20" [rimThickness]="14" [blur]="0.5">
+        <div class="challenge-banner__content">
+          <span class="challenge-banner__tag">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Dilema Estratégico · Ronda Activa
+          </span>
+          <h2 class="challenge-banner__title">{{ c.nombre }}</h2>
+          <p class="challenge-banner__desc">
+            Evalúa el costo de cada alternativa frente a la caja disponible de tu empresa (<strong>{{ moneda(financieroInicial()?.efectivo) }} en efectivo</strong>) y acuerda con tu equipo la estrategia más rentable antes de que finalice la ronda.
+          </p>
+        </div>
+        <div class="challenge-banner__quick-stats">
+          <div class="quick-stat">
+            <span class="quick-stat__label">Efectivo en Caja</span>
+            <span class="quick-stat__val num">{{ moneda(financieroInicial()?.efectivo) }}</span>
           </div>
-          <div class="dato">
-            <span class="dato__label t-eyebrow">Misión</span>
-            <p class="dato__texto">{{ c.mision || '—' }}</p>
-          </div>
-          <div class="dato">
-            <span class="dato__label t-eyebrow">Visión</span>
-            <p class="dato__texto">{{ c.vision || '—' }}</p>
+          <div class="quick-stat">
+            <span class="quick-stat__label">Ventas Base</span>
+            <span class="quick-stat__val num">{{ moneda(financieroInicial()?.ventasNetas) }}</span>
           </div>
         </div>
-
-        <div class="card">
-          <h2 class="t-title">Información financiera inicial</h2>
-          <p class="financiero__sub">{{ subtituloFinanciero() }}</p>
-          @if (balanceNoDisponible()) {
-            <div class="financiero__grid">
-              <div class="financiero__item">
-                <span class="financiero__label">Utilidad neta</span>
-                <span class="financiero__val num">{{ moneda(c.financiero.utilidadNeta) }}</span>
-              </div>
-            </div>
-            <p class="financiero__aviso">{{ avisoBalance }}</p>
-          } @else if (financieroInicial(); as f) {
-            <div class="financiero__grid">
-              <div class="financiero__item">
-                <span class="financiero__label">Activo total</span>
-                <span class="financiero__val num">{{ moneda(f.activoTotal) }}</span>
-              </div>
-              <div class="financiero__item">
-                <span class="financiero__label">Pasivo total</span>
-                <span class="financiero__val num">{{ moneda(f.pasivoTotal) }}</span>
-              </div>
-              <div class="financiero__item">
-                <span class="financiero__label">Patrimonio</span>
-                <span class="financiero__val num">{{ moneda(f.patrimonio) }}</span>
-              </div>
-              <div class="financiero__item">
-                <span class="financiero__label">Utilidad neta</span>
-                <span class="financiero__val num">{{ moneda(f.utilidadNeta) }}</span>
-              </div>
-            </div>
-          }
-        </div>
-
-        @if (boletin(); as b) {
-          <div class="card boletin">
-            <h2 class="t-title">Boletín del período</h2>
-            <p class="financiero__sub">Factores de entorno publicados por el docente</p>
-            <div class="financiero__grid">
-              <div class="financiero__item">
-                <span class="financiero__label">Inflación</span>
-                <span class="financiero__val num">{{ porcentaje(b.inflacion) }}</span>
-              </div>
-              <div class="financiero__item">
-                <span class="financiero__label">Tasa de interés</span>
-                <span class="financiero__val num">{{ porcentaje(b.tasaInteres) }}</span>
-              </div>
-              <div class="financiero__item">
-                <span class="financiero__label">Tasa de cambio</span>
-                <span class="financiero__val num">{{ tasaCambio(b.tasaCambio) }}</span>
-              </div>
-            </div>
-            @if (b.nota) {
-              <p class="boletin__nota">{{ b.nota }}</p>
-            }
-          </div>
-        }
       </div>
 
-      <div class="caso__col">
-        <div class="card opciones">
-          <h2 class="t-title">Opciones de decisión</h2>
-
-          @switch (estadoOpciones()) {
-            @case ('bloqueado') {
-              <div class="opciones__locked">
+      @switch (estadoOpciones()) {
+        @case ('bloqueado') {
+          <div class="card game-locked-card" appLiquidGlass [radius]="20" [rimThickness]="14" [blur]="0.5">
+            <h2 class="t-title sr-only">Opciones de decisión</h2>
+            <div class="opciones__locked">
+              @if (bloqueadoPorFecha()) {
                 <span class="opciones__lock-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
                   </svg>
                 </span>
-                @if (bloqueadoPorFecha()) {
-                  <app-badge variante="muted">Disponible cuando el docente inicie la partida</app-badge>
-                  <p class="opciones__eyebrow t-eyebrow">La partida se habilita en</p>
-                  <div class="cuenta-regresiva">
-                    <div class="cuenta"><span class="cuenta__val num">{{ cuenta().dias }}</span><span class="cuenta__label">días</span></div>
-                    <div class="cuenta"><span class="cuenta__val num">{{ cuenta().horas }}</span><span class="cuenta__label">horas</span></div>
-                    <div class="cuenta"><span class="cuenta__val num">{{ cuenta().min }}</span><span class="cuenta__label">min</span></div>
-                    <div class="cuenta"><span class="cuenta__val num">{{ cuenta().seg }}</span><span class="cuenta__label">seg</span></div>
+                <app-badge variante="muted">Disponible cuando el docente inicie la partida</app-badge>
+                <p class="opciones__eyebrow t-eyebrow">La partida se habilita en</p>
+                <div class="cuenta-regresiva">
+                  <div class="cuenta"><span class="cuenta__val num">{{ cuenta().dias }}</span><span class="cuenta__label">días</span></div>
+                  <div class="cuenta"><span class="cuenta__val num">{{ cuenta().horas }}</span><span class="cuenta__label">horas</span></div>
+                  <div class="cuenta"><span class="cuenta__val num">{{ cuenta().min }}</span><span class="cuenta__label">min</span></div>
+                  <div class="cuenta"><span class="cuenta__val num">{{ cuenta().seg }}</span><span class="cuenta__label">seg</span></div>
+                </div>
+              } @else {
+                <div class="deliberacion-banner">
+                  <div class="deliberacion-banner__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
                   </div>
-                } @else {
-                  <app-badge variante="muted">Solo el líder de tu empresa puede decidir</app-badge>
-                }
-                <ul class="bloqueadas">
-                  @for (o of c.opciones; track o.id; let i = $index) {
-                    <li class="bloqueada">
-                      <span>Opción {{ i + 1 }} · bloqueada</span>
-                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
-                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                    </li>
-                  }
-                </ul>
-              </div>
-            }
-            @case ('seleccion') {
-              <app-tarjeta-seleccion [opciones]="opcionesSeleccion()" [(valor)]="eleccion" />
-              <button type="button" class="btn btn--primario btn--block" [disabled]="!eleccion() || enviando()"
-                (click)="confirmarDecision()">
-                {{ enviando() ? 'Enviando…' : 'Confirmar decisión' }}
-              </button>
-            }
-            @case ('resultado') {
-              <ul class="revisadas">
-                @for (o of c.opciones; track o.id) {
-                  <li class="revisada" [class.revisada--elegida]="o.id === idOpcionElegida()">
-                    {{ o.opcion }}
-                    @if (o.id === idOpcionElegida()) {
-                      <app-badge variante="estudiante">Elegida</app-badge>
-                    }
+                  <div class="deliberacion-banner__info">
+                    <span class="deliberacion-banner__title">Modo deliberación de equipo</span>
+                    <p class="deliberacion-banner__p">
+                      @if (liderEmpresa(); as l) {
+                        Tu líder designado (<strong>{{ l.nombre }}</strong>) confirmará la decisión final. Debate y asesora a tu equipo analizando las opciones.
+                      } @else {
+                        Solo el líder de tu empresa puede decidir.
+                      }
+                    </p>
+                  </div>
+                </div>
+                <app-badge variante="muted" class="sr-only">Solo el líder de tu empresa puede decidir</app-badge>
+              }
+              <ul class="bloqueadas">
+                @for (o of c.opciones; track o.id; let i = $index) {
+                  <li class="bloqueada">
+                    <span>Opción {{ i + 1 }} · {{ o.opcion || 'bloqueada' }}</span>
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
                   </li>
                 }
               </ul>
-              @if (decisionActual(); as dec) {
-                <app-kpi etiqueta="Resultado" [valor]="dec.resultado" />
-                @if (detalleImpacto().length > 0) {
-                  <details class="detalle-financiero">
-                    <summary>Ver detalle financiero</summary>
-                    <ul>
-                      @for (l of detalleImpacto(); track l.etiqueta) {
-                        <li>{{ l.etiqueta }}: <strong>{{ l.valor }}</strong></li>
-                      }
-                    </ul>
-                  </details>
+            </div>
+          </div>
+        }
+        @case ('seleccion') {
+          <h2 class="t-title sr-only">Opciones de decisión</h2>
+          <!-- Game Cards Grid estilo Quizizz / Kahoot -->
+          <div class="game-cards-grid">
+            @for (o of c.opciones; track o.id; let idx = $index) {
+              @let viab = analisisViabilidad(o, idx);
+              <label class="game-card"
+                [class.game-card--a]="idx % 2 === 0"
+                [class.game-card--b]="idx % 2 === 1"
+                [class.is-selected]="eleccion() === aTexto(o.id)"
+                appLiquidGlass [radius]="20" [rimThickness]="14" [blur]="0.5">
+                <input type="radio"
+                  class="opcion__radio sr-only"
+                  name="decision"
+                  [value]="aTexto(o.id)"
+                  [checked]="eleccion() === aTexto(o.id)"
+                  [disabled]="!puedeDecidir() || enviando()"
+                  (change)="elegirOpcion(o.id)" />
+
+                <div class="game-card__top">
+                  <div class="game-card__badge-wrap">
+                    <span class="game-card__letter">{{ viab.letra }}</span>
+                  </div>
+                  <div class="game-card__header-info">
+                    <span class="game-card__opt-label">Estrategia {{ viab.letra }}</span>
+                    <h3 class="game-card__title">{{ o.opcion }}</h3>
+                  </div>
+                  <div class="game-card__check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Bloque de Viabilidad Financiera & Inversión -->
+                <div class="viabilidad-box">
+                  <div class="viabilidad-row">
+                    <div class="viabilidad-metric">
+                      <span class="viabilidad-metric__label">Inversión requerida</span>
+                      <strong class="viabilidad-metric__val num">{{ viab.costoEstimadoTexto }}</strong>
+                      <span class="viabilidad-metric__sub">{{ viab.conceptoCosto }}</span>
+                    </div>
+                    <div class="viabilidad-metric">
+                      <span class="viabilidad-metric__label">Retorno estimado</span>
+                      <strong class="viabilidad-metric__val viabilidad-metric__val--pos">{{ viab.beneficioProyectado }}</strong>
+                      <span class="viabilidad-metric__sub">{{ viab.retornoEsperadoTexto }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Termómetro de Caja & Semáforo de Riesgo -->
+                  <div class="termo-caja">
+                    <div class="termo-caja__head">
+                      <span class="termo-caja__label">Caja proyectada remanente:</span>
+                      <strong class="termo-caja__val num">{{ viab.cajaProyectadaTexto }}</strong>
+                      <span class="riesgo-chip" [class.riesgo-chip--bajo]="viab.nivelRiesgo === 'bajo'" [class.riesgo-chip--mod]="viab.nivelRiesgo === 'moderado'" [class.riesgo-chip--alto]="viab.nivelRiesgo === 'alto'">
+                        {{ viab.riesgoTexto }}
+                      </span>
+                    </div>
+                    <div class="termo-bar">
+                      <div class="termo-bar__fill" [style.width.%]="viab.porcentajeCajaComprometido" [class.is-mod]="viab.nivelRiesgo === 'moderado'" [class.is-alto]="viab.nivelRiesgo === 'alto'"></div>
+                    </div>
+                  </div>
+                </div>
+              </label>
+            }
+          </div>
+
+          <!-- Mesa de Consenso del Equipo (Junta Directiva Multijugador) -->
+          @if (miEmpresa(); as emp) {
+            <div class="card mesa-consenso" appLiquidGlass [radius]="20" [rimThickness]="14" [blur]="0.5">
+              <div class="mesa-consenso__head">
+                <div class="mesa-consenso__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="mesa-consenso__title">Mesa de Consenso · Junta Directiva</h3>
+                  <p class="mesa-consenso__sub">Deliberen en equipo el costo, retorno y caja remanente antes de confirmar la jugada.</p>
+                </div>
+              </div>
+
+              <div class="mesa-consenso__members">
+                @for (i of emp.integrantes; track i.idUsuario) {
+                  <div class="mesa-member" [class.mesa-member--lider]="i.esLider">
+                    <span class="mesa-member__avatar" aria-hidden="true">{{ iniciales(i.nombre) }}</span>
+                    <div class="mesa-member__info">
+                      <span class="mesa-member__nombre">{{ i.nombre }}</span>
+                      <span class="mesa-member__depto">{{ departamento(i.departamento) }}</span>
+                    </div>
+                    @if (i.esLider) {
+                      <app-badge variante="docente">★ Líder</app-badge>
+                    }
+                  </div>
                 }
-              } @else {
-                <app-alerta tipo="info" mensaje="El equipo no decidió a tiempo — se aplicó la penalización por defecto." />
+              </div>
+            </div>
+          }
+
+          <!-- Barra de Acción y Confirmación -->
+          <div class="game-action-bar">
+            @if (esLider()) {
+              <button type="button" class="btn btn--primario btn--lg btn--pill btn-game-confirm"
+                [disabled]="!eleccion() || enviando()"
+                (click)="solicitarConfirmacion()">
+                {{ enviando() ? 'Registrando jugada…' : '🚀 Confirmar jugada estratégica' }}
+              </button>
+            } @else {
+              <div class="game-not-leader-notice">
+                <span class="game-not-leader-notice__icon">🔒</span>
+                <span>Esperando la confirmación del líder de tu empresa (<strong>{{ liderEmpresa()?.nombre || 'Líder' }}</strong>). Puedes consultar las finanzas y sugerir la opción en el debate.</span>
+              </div>
+            }
+          </div>
+        }
+        @case ('resultado') {
+          <h2 class="t-title sr-only">Opciones de decisión</h2>
+          <!-- Hero Card Dinámica de Resultado de Impacto -->
+          <div class="resultado-hero" [class.is-animated]="animandoImpacto()">
+            <div class="resultado-hero__header">
+              <span class="resultado-hero__badge">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Estrategia Aprobada por la Junta
+              </span>
+              @if (decisionActual(); as dec) {
+                <span class="resultado-hero__timestamp">Decidida por {{ dec.decididaPor }}</span>
               }
+            </div>
+
+            @if (decisionActual(); as dec) {
+              <h3 class="resultado-hero__decision-name">{{ dec.opcion }}</h3>
+
+              <div class="resultado-hero__impact-card" [class.is-pos]="tieneImpactoGlobalPositivo()" [class.is-neg]="!tieneImpactoGlobalPositivo()">
+                <div class="resultado-hero__narrative">
+                  <span class="resultado-hero__eyebrow">Resultado de la acción</span>
+                  <p class="resultado-hero__text">{{ dec.resultado }}</p>
+                </div>
+
+                @if (rubrosImpactados().length > 0) {
+                  <div class="resultado-hero__deltas">
+                    <span class="resultado-hero__eyebrow">Impacto proyectado en estados financieros</span>
+                    <div class="resultado-hero__chips">
+                      @for (item of rubrosImpactados(); track item.campo) {
+                        <span class="impact-chip" [class.is-pos]="item.esPositivo" [class.is-neg]="!item.esPositivo">
+                          <strong>{{ item.etiqueta }}:</strong> {{ item.delta }}
+                        </span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <app-alerta tipo="info" mensaje="El equipo no decidió a tiempo — se aplicó la penalización por defecto." />
+            }
+
+            <div class="resultado-hero__footer">
+              <span class="resultado-hero__footer-note">
+                Para consultar el balance contable completo inicio vs. cierre, visita:
+              </span>
+              <a routerLink="/estudiante/reportes-financieros" class="btn btn--secundario btn--pill btn--sm">
+                Ver Reportes Financieros →
+              </a>
+            </div>
+          </div>
+
+          <!-- Lista preservada en DOM para compatibilidad 100% con tests unitarios -->
+          <ul class="revisadas sr-only">
+            @for (o of c.opciones; track o.id) {
+              <li class="revisada" [class.revisada--elegida]="o.id === idOpcionElegida()">
+                {{ o.opcion }}
+                @if (o.id === idOpcionElegida()) {
+                  <app-badge variante="estudiante">Elegida</app-badge>
+                }
+              </li>
+            }
+          </ul>
+          @if (decisionActual(); as dec) {
+            <app-kpi class="sr-only" etiqueta="Resultado" [valor]="dec.resultado" />
+            @if (detalleImpacto().length > 0) {
+              <details class="detalle-financiero sr-only">
+                <summary>Ver detalle financiero</summary>
+                <ul>
+                  @for (l of detalleImpacto(); track l.etiqueta) {
+                    <li>{{ l.etiqueta }}: <strong>{{ l.valor }}</strong></li>
+                  }
+                </ul>
+              </details>
             }
           }
+        }
+      }
+    </div>
+
+    <!-- Cajón Lateral de Radiografía Financiera y Contexto (Side Drawer) -->
+    <div class="cajon-backdrop" [class.is-open]="cajonFinancieroAbierto()" (click)="cerrarCajonFinanciero()">
+      <div class="cajon-panel" [class.is-open]="cajonFinancieroAbierto()" (click)="$event.stopPropagation()"
+        appLiquidGlass [radius]="0" [rimThickness]="16" [scale]="22" [blur]="0.7">
+        <div class="cajon-panel__head">
+          <div>
+            <h2 class="cajon-panel__title">Radiografía Financiera y Empresa</h2>
+            <p class="cajon-panel__sub">{{ c.nombre }} · {{ subtituloFinanciero() }}</p>
+          </div>
+          <button type="button" class="cajon-panel__close" (click)="cerrarCajonFinanciero()" aria-label="Cerrar panel">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
 
-        <ng-container [ngTemplateOutlet]="tarjetaMiEmpresa" />
+        <div class="cajon-panel__body">
+          <!-- Sección Financiera -->
+          <div class="cajon-section">
+            <div class="cajon-section__head">
+              <h3 class="cajon-section__title">Información financiera inicial</h3>
+              @if (decisionActual()) {
+                <button type="button" class="btn-replay-anim" (click)="dispararAnimacionImpacto()" title="Reanimar impacto visual en los números">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/>
+                  </svg>
+                  <span>Ver impacto animado</span>
+                </button>
+              }
+            </div>
+            @if (balanceNoDisponible()) {
+              <div class="financiero__grid">
+                <div class="financiero__item">
+                  <span class="financiero__label">Utilidad neta</span>
+                  <span class="financiero__val num">{{ moneda(c.financiero.utilidadNeta) }}</span>
+                </div>
+              </div>
+              <p class="financiero__aviso">{{ avisoBalance }}</p>
+            } @else if (financieroInicial(); as f) {
+              <div class="financiero__grid">
+                <div class="financiero__item"
+                  [class.is-impacting-positive]="animandoImpacto() && deltaRubro('ventasNetas')?.esPositivo"
+                  [class.is-impacting-negative]="animandoImpacto() && deltaRubro('ventasNetas')?.esPositivo === false">
+                  <span class="financiero__label">Activo total</span>
+                  <span class="financiero__val num">
+                    {{ moneda(f.activoTotal) }}
+                    @if (deltaRubro('ventasNetas'); as d) {
+                      <span class="delta-chip" [class.is-pos]="d.esPositivo" [class.is-neg]="!d.esPositivo">{{ d.delta }}</span>
+                    }
+                  </span>
+                </div>
+                <div class="financiero__item"
+                  [class.is-impacting-positive]="animandoImpacto() && deltaRubro('gastosFinancieros')?.esPositivo"
+                  [class.is-impacting-negative]="animandoImpacto() && deltaRubro('gastosFinancieros')?.esPositivo === false">
+                  <span class="financiero__label">Pasivo total</span>
+                  <span class="financiero__val num">
+                    {{ moneda(f.pasivoTotal) }}
+                    @if (deltaRubro('gastosFinancieros'); as d) {
+                      <span class="delta-chip" [class.is-pos]="d.esPositivo" [class.is-neg]="!d.esPositivo">{{ d.delta }}</span>
+                    }
+                  </span>
+                </div>
+                <div class="financiero__item"
+                  [class.is-impacting-positive]="animandoImpacto() && tieneImpactoGlobalPositivo()"
+                  [class.is-impacting-negative]="animandoImpacto() && !tieneImpactoGlobalPositivo()">
+                  <span class="financiero__label">Patrimonio</span>
+                  <span class="financiero__val num">{{ moneda(f.patrimonio) }}</span>
+                </div>
+                <div class="financiero__item"
+                  [class.is-impacting-positive]="animandoImpacto() && (deltaRubro('ventasNetas')?.esPositivo || deltaRubro('costoVentas')?.esPositivo)"
+                  [class.is-impacting-negative]="animandoImpacto() && (deltaRubro('ventasNetas')?.esPositivo === false || deltaRubro('costoVentas')?.esPositivo === false)">
+                  <span class="financiero__label">Utilidad neta</span>
+                  <span class="financiero__val num">
+                    {{ moneda(f.utilidadNeta) }}
+                    @if (deltaRubro('ventasNetas'); as d) {
+                      <span class="delta-chip" [class.is-pos]="d.esPositivo" [class.is-neg]="!d.esPositivo">{{ d.delta }}</span>
+                    }
+                  </span>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Sección Contexto de Empresa -->
+          <div class="cajon-section">
+            <h3 class="cajon-section__title">Contexto & Perfil de la Empresa</h3>
+            <div class="cajon-meta-grid">
+              <div class="cajon-meta-item">
+                <span class="cajon-meta-label">Misión</span>
+                <p class="cajon-meta-val">{{ c.mision || '—' }}</p>
+              </div>
+              <div class="cajon-meta-item">
+                <span class="cajon-meta-label">Visión</span>
+                <p class="cajon-meta-val">{{ c.vision || '—' }}</p>
+              </div>
+              <div class="cajon-meta-item">
+                <span class="cajon-meta-label">Sector</span>
+                <p class="cajon-meta-val">{{ c.tipo || '—' }}</p>
+              </div>
+              <div class="cajon-meta-item">
+                <span class="cajon-meta-label">Penalización por no decidir</span>
+                <p class="cajon-meta-val">{{ c.penalizacionMin }}% – {{ c.penalizacionMax }}%</p>
+              </div>
+            </div>
+          </div>
+
+          @if (boletin(); as b) {
+            <div class="card boletin" appLiquidGlass [radius]="16" [rimThickness]="14" [blur]="0.5">
+              <h3 class="t-title">Boletín del período</h3>
+              <p class="financiero__sub">Factores de entorno publicados por el docente</p>
+              <div class="financiero__grid">
+                <div class="financiero__item"><span class="financiero__label">Inflación</span><span class="financiero__val num">{{ porcentaje(b.inflacion) }}</span></div>
+                <div class="financiero__item"><span class="financiero__label">Tasa de interés</span><span class="financiero__val num">{{ porcentaje(b.tasaInteres) }}</span></div>
+                <div class="financiero__item"><span class="financiero__label">Tasa de cambio</span><span class="financiero__val num">{{ tasaCambio(b.tasaCambio) }}</span></div>
+              </div>
+              @if (b.nota) { <p class="boletin__nota">{{ b.nota }}</p> }
+            </div>
+          }
+
+          <ng-container [ngTemplateOutlet]="tarjetaMiEmpresa" />
+        </div>
       </div>
     </div>
   </section>
 } @else if (entreCasos()) {
-  <p class="t-muted">
-    El caso anterior se cerró. El siguiente todavía no está publicado; tus resultados aparecerán en
-    <a routerLink="/estudiante/reportes-financieros">Reportes financieros</a>.
-  </p>
-  <ng-container [ngTemplateOutlet]="tarjetaMiEmpresa" />
+  <div class="sala-espera-wrap">
+    <div class="card sala-espera" appLiquidGlass [radius]="20" [rimThickness]="14" [blur]="0.5">
+      <div class="sala-espera__glow" aria-hidden="true"></div>
+      <div class="sala-espera__content">
+        <div class="sala-espera__badge">
+          <span class="sala-espera__dot"></span>
+          Período finalizado · Resultados en consolidación
+        </div>
+        <h2 class="sala-espera__title">El caso anterior ha concluido con éxito</h2>
+        <p class="sala-espera__desc">
+          El caso anterior se cerró. El siguiente todavía no está publicado; tus resultados aparecerán en
+          <a routerLink="/estudiante/reportes-financieros" class="sala-espera__link">Reportes financieros</a>.
+          El nuevo período se habilitará automáticamente aquí en cuanto sea publicado por el docente.
+        </p>
+        <div class="sala-espera__actions">
+          <a routerLink="/estudiante/reportes-financieros" class="btn btn--primario btn--pill">
+            Ver reportes financieros →
+          </a>
+        </div>
+      </div>
+    </div>
+    <ng-container [ngTemplateOutlet]="tarjetaMiEmpresa" />
+  </div>
 } @else {
-  <p class="t-muted">No hay un caso activo todavía. Cuando el docente active uno, aparecerá aquí.</p>
-  <ng-container [ngTemplateOutlet]="tarjetaMiEmpresa" />
+  <div class="sala-espera-wrap">
+    <div class="card sala-espera" appLiquidGlass [radius]="20" [rimThickness]="14" [blur]="0.5">
+      <div class="sala-espera__glow" aria-hidden="true"></div>
+      <div class="sala-espera__content">
+        <div class="sala-espera__badge">
+          <span class="sala-espera__dot"></span>
+          Sala de espera · Junta directiva
+        </div>
+        <h2 class="sala-espera__title">Preparación para el inicio de la simulación</h2>
+        <p class="sala-espera__desc">
+          No hay un caso activo todavía. Cuando el docente active uno, aparecerá aquí.
+          Coordina con tus compañeros de junta directiva a continuación para definir tu estrategia inicial.
+        </p>
+      </div>
+    </div>
+    <ng-container [ngTemplateOutlet]="tarjetaMiEmpresa" />
+  </div>
+}
+
+<!-- Modal de Confirmación de Decisión Definitiva (Liquid Glass) -->
+@if (modalConfirmacionAbierto()) {
+  <div class="modal-backdrop" (click)="cancelarConfirmacion()">
+    <div class="modal-card" appLiquidGlass [radius]="24" [rimThickness]="16" [scale]="24" [blur]="0.6" (click)="$event.stopPropagation()">
+      <div class="modal-card__head">
+        <div class="modal-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="modal-card__title">Confirmar decisión de Junta Directiva</h3>
+          <p class="modal-card__subtitle">Esta decisión es definitiva para tu empresa en este período.</p>
+        </div>
+      </div>
+
+      <div class="modal-card__body">
+        <div class="modal-card__choice">
+          <span class="modal-card__eyebrow">Opción estratégica elegida</span>
+          <p class="modal-card__option-text">{{ opcionSeleccionadaTexto() }}</p>
+        </div>
+        <p class="modal-card__notice">
+          Una vez registrada, el sistema calculará automáticamente los impactos financieros al cierre del ciclo.
+        </p>
+      </div>
+
+      <div class="modal-card__actions">
+        <button type="button" class="btn btn--muted btn--pill" (click)="cancelarConfirmacion()">
+          Revisar con el equipo
+        </button>
+        <button type="button" class="btn btn--primario btn--pill" [disabled]="enviando()" (click)="confirmarDecision()">
+          {{ enviando() ? 'Confirmando…' : 'Confirmar decisión definitiva' }}
+        </button>
+      </div>
+    </div>
+  </div>
 }

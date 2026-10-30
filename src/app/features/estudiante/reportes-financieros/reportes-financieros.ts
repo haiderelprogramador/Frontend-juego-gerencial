@@ -5,6 +5,7 @@ import { API_CONFIG } from '../../../core/api/api.config';
 import { Alerta } from '../../../shared/components/alerta/alerta';
 import { Badge } from '../../../shared/components/badge/badge';
 import { Kpi } from '../../../shared/components/kpi/kpi';
+import { LiquidGlassDirective } from '../../../shared/directives/liquid-glass.directive';
 import {
   CAMPOS_ESTADO_RESULTADOS,
   ETIQUETAS_FINANCIERO,
@@ -94,7 +95,7 @@ type EstadoFinanciero = EstadoFinancieroEmpresa<string>;
  */
 @Component({
   selector: 'app-reportes-financieros',
-  imports: [Alerta, Badge, Kpi, EvolucionEmpresa],
+  imports: [Alerta, Badge, Kpi, EvolucionEmpresa, LiquidGlassDirective],
   templateUrl: './reportes-financieros.html',
   styleUrl: './reportes-financieros.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

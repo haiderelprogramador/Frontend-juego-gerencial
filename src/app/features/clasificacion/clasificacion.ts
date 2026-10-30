@@ -7,6 +7,7 @@ import { map } from 'rxjs';
 import { API_CONFIG } from '../../core/api/api.config';
 import { Rol } from '../../core/models/rol.enum';
 import { AuthService } from '../../core/services/auth.service';
+import { SimulacionContextService } from '../../core/services/simulacion-context.service';
 import { Alerta } from '../../shared/components/alerta/alerta';
 import { Badge } from '../../shared/components/badge/badge';
 import { descargarArchivo } from '../../shared/utils/descarga';
@@ -63,6 +64,7 @@ export class Clasificacion {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+  private readonly simCtx = inject(SimulacionContextService);
   private readonly clasificacionService = inject(ClasificacionService);
   private readonly simulacionService = inject(SimulacionService);
   private readonly portal = inject(PortalEstudianteService);
@@ -75,10 +77,14 @@ export class Clasificacion {
     this.route.queryParamMap.pipe(
       map((p) => {
         const id = Number(p.get('simulacion'));
-        return Number.isInteger(id) && id > 0 ? id : null;
+        if (Number.isInteger(id) && id > 0) {
+          this.simCtx.recordar(id);
+          return id;
+        }
+        return this.simCtx.idSimulacionActiva();
       }),
     ),
-    { initialValue: null },
+    { initialValue: this.simCtx.idSimulacionActiva() },
   );
 
   readonly estado = signal<Estado>('sin-simulacion');

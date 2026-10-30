@@ -55,7 +55,7 @@
       <app-alerta tipo="error" [mensaje]="msg" />
     }
 
-    <button type="submit" class="btn btn--primario btn--block" [disabled]="enviando()">
+    <button type="submit" class="btn btn--primario btn--block btn--pill" [disabled]="enviando()">
       {{ enviando() ? 'Entrando…' : 'Iniciar sesión' }}
       @if (!enviando()) { <span aria-hidden="true">→</span> }
     </button>

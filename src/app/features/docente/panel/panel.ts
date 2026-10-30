@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, inject, isDevMode, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  HostListener,
+  afterNextRender,
+  computed,
+  inject,
+  isDevMode,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
@@ -7,6 +18,7 @@ import { catchError } from 'rxjs/operators';
 import { Alerta } from '../../../shared/components/alerta/alerta';
 import { Badge } from '../../../shared/components/badge/badge';
 import { Toggle } from '../../../shared/components/toggle/toggle';
+import { LiquidGlassDirective } from '../../../shared/directives/liquid-glass.directive';
 import { formatearFechaBogota } from '../../../shared/utils/fecha-bogota';
 import { CasoApi, DecisionEmpresa } from '../../simulacion/models/caso-api.model';
 import { Casos } from '../casos/casos';
@@ -133,7 +145,7 @@ interface PasoConfig {
  */
 @Component({
   selector: 'app-panel',
-  imports: [NgTemplateOutlet, RouterLink, Alerta, Badge, Toggle, Casos],
+  imports: [NgTemplateOutlet, RouterLink, Alerta, Badge, Toggle, Casos, LiquidGlassDirective],
   templateUrl: './panel.html',
   styleUrl: './panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -147,6 +159,14 @@ export class Panel {
   readonly esDev = isDevMode();
   readonly tab = signal<TabPanel>('periodos');
   readonly recibiendo = signal(false);
+
+  /** Contenedor e indicador deslizante elástico para las pestañas del panel */
+  readonly panelTabsContainer = viewChild<ElementRef<HTMLElement>>('panelTabsContainer');
+  readonly tabIndicatorLeft = signal<number>(0);
+  readonly tabIndicatorWidth = signal<number>(0);
+  readonly tabIndicatorOpacity = signal<number>(0);
+  readonly isTabMoving = signal<boolean>(false);
+  private tabMoveTimer: ReturnType<typeof setTimeout> | null = null;
 
   // -- Estado de configuración (mock). Por defecto: sin configurar. --
   readonly estudiantesCargados = signal(0);
@@ -234,18 +254,52 @@ export class Panel {
   readonly errorProgramar = signal<ErrorProgramar | null>(null);
   readonly avisoProgramar = signal<string | null>(null);
 
+  // -- Dropdown custom Liquid Glass para simulación a programar --
+  readonly dropdownProgramarAbierto = signal(false);
+
+  alternarDropdownProgramar(event?: MouseEvent): void {
+    event?.stopPropagation();
+    this.dropdownProgramarAbierto.update((v) => !v);
+  }
+
+  seleccionarSimulacionProgramar(id: number): void {
+    this.idSimulacionProgramar.set(id);
+    this.dropdownProgramarAbierto.set(false);
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.dropdownProgramarAbierto()) {
+      this.dropdownProgramarAbierto.set(false);
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.dropdownProgramarAbierto()) {
+      this.dropdownProgramarAbierto.set(false);
+    }
+  }
+
   // -- Desprogramar (backend real, paso 4): PROGRAMADA -> BORRADOR, para que no arranque sola --
   readonly programadas = computed(() => this.simulaciones().filter((s) => s.estado === 'PROGRAMADA'));
   readonly desprogramandoId = signal<number | null>(null);
   /** El 400 del backend se muestra tal cual (no está PROGRAMADA, o ya tiene decisiones). */
   readonly errorDesprogramar = signal<string | null>(null);
 
-  // -- Editar (BORRADOR o PROGRAMADA) y eliminar (solo BORRADOR) (backend real, paso 4) --
+  // -- Editar (BORRADOR o PROGRAMADA), eliminar (solo BORRADOR) y crear simulación (backend real, paso 4) --
   readonly edicion = signal<EdicionSimulacion | null>(null);
   readonly guardandoEdicion = signal(false);
   readonly eliminandoId = signal<number | null>(null);
   /** Error de editar o de eliminar; se muestra junto a la simulación de `idSimulacion`. */
   readonly errorSimulacion = signal<ErrorSimulacion | null>(null);
+  /** Formulario rápido de "+ Nueva simulación" directamente desde el Panel (Paso 0/4) */
+  readonly creandoSimulacion = signal(false);
+  readonly nuevaSimNombre = signal('');
+  readonly nuevaSimInicio = signal('');
+  readonly nuevaSimFin = signal('');
+  readonly guardandoNuevaSim = signal(false);
+  readonly errorNuevaSim = signal<string | null>(null);
   /**
    * La fecha de inicio del formulario ya pasó. No bloquea si es la que ya
    * tenía (el backend la deja conservar); si la cambiaron a una pasada,
@@ -266,6 +320,42 @@ export class Panel {
 
   constructor() {
     this.cargarCasosActivos();
+    afterNextRender(() => {
+      setTimeout(() => this.updateTabIndicator(), 60);
+    });
+  }
+
+  @HostListener('window:resize')
+  onResize(): void {
+    this.updateTabIndicator();
+  }
+
+  updateTabIndicator(targetBtn?: HTMLElement): void {
+    const container = this.panelTabsContainer()?.nativeElement;
+    if (!container) return;
+
+    const btn = targetBtn ?? (container.querySelector('button.is-active') as HTMLElement | null);
+    if (!btn) {
+      this.tabIndicatorOpacity.set(0);
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    const left = btnRect.left - containerRect.left + container.scrollLeft;
+    const width = btn.offsetWidth || btnRect.width;
+
+    if (this.tabIndicatorOpacity() > 0 && Math.abs(left - this.tabIndicatorLeft()) > 3) {
+      this.isTabMoving.set(true);
+      if (this.tabMoveTimer) clearTimeout(this.tabMoveTimer);
+      this.tabMoveTimer = setTimeout(() => {
+        this.isTabMoving.set(false);
+      }, 480);
+    }
+
+    this.tabIndicatorLeft.set(left);
+    this.tabIndicatorWidth.set(width);
+    this.tabIndicatorOpacity.set(1);
   }
 
   /** Cambia el caso del que se muestran las entregas (cuando hay más de una simulación con caso activo). */
@@ -396,6 +486,47 @@ export class Panel {
     this.errorSimulacion.set(null);
   }
 
+  abrirNuevaSimulacion(): void {
+    this.errorNuevaSim.set(null);
+    this.avisoProgramar.set(null);
+    this.nuevaSimNombre.set('');
+    this.nuevaSimInicio.set('');
+    this.nuevaSimFin.set('');
+    this.creandoSimulacion.set(true);
+  }
+
+  crearSimulacion(): void {
+    if (this.guardandoNuevaSim()) return;
+    const nombre = this.nuevaSimNombre().trim();
+    const inicio = this.nuevaSimInicio();
+    const fin = this.nuevaSimFin();
+    const error = validarFechasSimulacion(nombre, inicio, fin);
+    if (error) {
+      this.errorNuevaSim.set(error);
+      return;
+    }
+    this.errorNuevaSim.set(null);
+    this.guardandoNuevaSim.set(true);
+    const req: SimulacionRequest = {
+      nombre,
+      fechaInicio: inicio,
+      ...(fin ? { fechaFin: fin } : {}),
+    };
+    this.simulacionService.crear(req).subscribe({
+      next: (creada) => {
+        this.guardandoNuevaSim.set(false);
+        this.creandoSimulacion.set(false);
+        this.idSimulacionProgramar.set(creada.id);
+        this.avisoProgramar.set(`Se creó la simulación «${creada.nombre}» en borrador. Ahora puedes armar sus empresas y casos.`);
+        this.cargarCasosActivos();
+      },
+      error: (err: ErrorHttp) => {
+        this.guardandoNuevaSim.set(false);
+        this.errorNuevaSim.set(mensaje(err, 'No se pudo crear la simulación.'));
+      },
+    });
+  }
+
   /**
    * PUT con nombre y fechas de día, tal cual (ver `fechas-simulacion.ts`).
    * Antes valida con las mismas reglas que al crear; los mensajes y
@@ -493,8 +624,18 @@ export class Panel {
     return formatearFechaBogota(iso, FORMATO_FECHA) ?? iso;
   }
 
-  irA(tab: TabPanel): void {
+  irA(tab: TabPanel, event?: MouseEvent): void {
     this.tab.set(tab);
+    if (event?.currentTarget) {
+      this.isTabMoving.set(true);
+      if (this.tabMoveTimer) clearTimeout(this.tabMoveTimer);
+      this.tabMoveTimer = setTimeout(() => {
+        this.isTabMoving.set(false);
+      }, 480);
+      this.updateTabIndicator(event.currentTarget as HTMLElement);
+    } else {
+      setTimeout(() => this.updateTabIndicator(), 20);
+    }
   }
 
   irAPaso(paso: PasoConfig): void {
@@ -503,6 +644,12 @@ export class Panel {
     }
     if (paso.tab) {
       this.tab.set(paso.tab);
+      this.isTabMoving.set(true);
+      if (this.tabMoveTimer) clearTimeout(this.tabMoveTimer);
+      this.tabMoveTimer = setTimeout(() => {
+        this.isTabMoving.set(false);
+      }, 480);
+      setTimeout(() => this.updateTabIndicator(), 20);
     }
   }
 

@@ -80,14 +80,88 @@
       <app-alerta tipo="error" [mensaje]="msg" />
     }
 
+    <div class="empresas__kpis">
+      <div class="card empresas__kpi">
+        <span class="empresas__kpi-label">Empresas creadas</span>
+        <strong class="empresas__kpi-val num">{{ empresas().length }}</strong>
+      </div>
+      <div class="card empresas__kpi">
+        <span class="empresas__kpi-label">Listas con Líder ★</span>
+        <strong class="empresas__kpi-val empresas__kpi-val--ok num">{{ empresasConLider() }}</strong>
+      </div>
+      <div class="card empresas__kpi">
+        <span class="empresas__kpi-label">Sin líder</span>
+        <strong class="empresas__kpi-val num" [class.empresas__kpi-val--warn]="empresasSinLiderConteo() > 0">
+          {{ empresasSinLiderConteo() }}
+        </strong>
+      </div>
+      <div class="card empresas__kpi">
+        <span class="empresas__kpi-label">Estudiantes disponibles</span>
+        <strong class="empresas__kpi-val num">{{ disponibles().length }}</strong>
+      </div>
+    </div>
+
+    @if (avisoAuto(); as msg) {
+      <app-alerta tipo="exito" [mensaje]="msg" />
+    }
+
     <div class="empresas__barra">
       <span class="t-muted">
         {{ empresas().length }} empresa(s) · {{ disponibles().length }} estudiante(s) sin empresa en esta simulación
       </span>
-      @if (editable() && formEmpresa() === null) {
-        <button type="button" class="btn btn--primario" (click)="nuevaEmpresa()">+ Nueva empresa</button>
-      }
+      <div class="empresas__barra-acciones">
+        @if (editable() && disponibles().length > 0 && !mostrandoGeneradorAuto()) {
+          <button type="button" class="btn btn--secundario" [disabled]="ocupado()" (click)="abrirGeneradorAuto()">
+            Generar empresas automáticamente ({{ disponibles().length }})
+          </button>
+        }
+        @if (editable() && formEmpresa() === null) {
+          <button type="button" class="btn btn--primario" (click)="nuevaEmpresa()">+ Nueva empresa</button>
+        }
+        <a class="btn btn--secundario" routerLink="/docente/panel">Siguiente paso: Casos y Programación →</a>
+      </div>
     </div>
+
+    @if (mostrandoGeneradorAuto()) {
+      <div class="card form-empresa form-auto">
+        <div class="form-auto__head">
+          <div>
+            <p class="form-empresa__titulo">Generación automática de empresas y juntas directivas</p>
+            <p class="field__hint">
+              Reparte a los <strong>{{ disponibles().length }}</strong> estudiantes disponibles en empresas equilibradas, asignando cargos gerenciales y un <strong>Líder ★</strong> en cada una.
+            </p>
+          </div>
+          <label class="field form-auto__tamano">
+            <span class="field__label">Integrantes ideales por empresa</span>
+            <input type="number" min="1" max="20" [value]="tamanoEquipoAuto()"
+              (input)="cambiarTamanoEquipoAuto($any($event.target).value)" />
+          </label>
+        </div>
+
+        <div class="form-auto__preview">
+          <span class="form-auto__resumen">
+            Resultado: se crearán <strong>{{ gruposAuto().length }} empresa(s)</strong>
+            @if (gruposAuto().length > 0) {
+              (de {{ gruposAuto()[gruposAuto().length - 1].length }} a {{ gruposAuto()[0].length }} integrante(s) cada una)
+            }
+          </span>
+        </div>
+
+        @if (errorAuto(); as msg) {
+          <app-alerta tipo="error" [mensaje]="msg" />
+        }
+
+        <div class="form-empresa__acciones">
+          <button type="button" class="btn btn--ghost btn--sm" [disabled]="generandoAuto()" (click)="cerrarGeneradorAuto()">
+            Cancelar
+          </button>
+          <button type="button" class="btn btn--primario btn--sm" [disabled]="generandoAuto() || gruposAuto().length === 0"
+            (click)="generarEmpresasAutomaticamente()">
+            {{ generandoAuto() ? 'Generando empresas y líderes…' : 'Generar ' + gruposAuto().length + ' empresa(s) automáticamente' }}
+          </button>
+        </div>
+      </div>
+    }
 
     @if (formEmpresa(); as f) {
       <div class="card form-empresa">
@@ -178,6 +252,9 @@
             <ul class="integrantes">
               @for (i of integrantesDe(e.id); track i.idUsuario) {
                 <li class="integrante">
+                  <span class="integrante__avatar" [class.integrante__avatar--lider]="i.esLider" aria-hidden="true">
+                    {{ iniciales(i.nombre) }}
+                  </span>
                   <span class="integrante__nombre">
                     {{ i.nombre }}
                     <small>{{ i.correo }}</small>
